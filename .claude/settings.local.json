@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(task-master set-status:*)",
+      "Bash(task-master show:*)",
+      "Bash(task-master expand:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint)",
+      "Bash(find:*)",
+      "Bash(task-master list:*)",
+      "Bash(task-master:*)",
+      "Bash(npx taskmaster update:*)",
+      "Bash(ls:*)",
+      "Bash(npx prisma:*)"
+    ],
+    "deny": []
+  }
+}

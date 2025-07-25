@@ -1,0 +1,387 @@
+# TerraVoyage: AI-Powered Travel Planner Product Requirements Document
+
+## 1. Introduction
+
+This Product Requirements Document (PRD) defines the functional and technical requirements for TerraVoyage, a modern AI-powered travel planning application. The document serves as a comprehensive guide for development teams, stakeholders, and quality assurance to build a user-friendly platform that enables travelers to create, customize, and manage personalized multi-day travel itineraries.
+
+TerraVoyage aims to differentiate itself in the competitive travel planning market by combining intelligent AI recommendations with intuitive user experience, real-time integrations, and collaborative features that make trip planning both efficient and enjoyable.
+
+## 2. Product overview
+
+TerraVoyage is a Next.js-based web application that leverages artificial intelligence to generate personalized travel itineraries for leisure travelers worldwide. The platform integrates multiple external services including mapping, weather forecasting, and pricing APIs to provide comprehensive travel planning capabilities.
+
+The application focuses on delivering a seamless experience from initial trip conception through execution, featuring dynamic suggestions, collaborative planning tools, offline accessibility, and monetization opportunities through strategic partnerships and premium features.
+
+## 3. Goals and objectives
+
+### Primary Goals
+- **User Acquisition**: Achieve 10,000+ registered users within 6 months of launch
+- **Engagement**: Generate 500+ completed itineraries per month by month 3
+- **Retention**: Maintain 40%+ monthly active user rate among registered users
+- **Revenue**: Establish foundation for sustainable monetization through affiliate partnerships and premium features
+
+### Business Objectives
+- Position TerraVoyage as a leading AI-powered travel planning solution
+- Build a scalable platform capable of handling global destinations
+- Create multiple revenue streams through affiliate partnerships and premium subscriptions
+- Establish data-driven insights for continuous product improvement
+
+### User Experience Objectives
+- Reduce trip planning time from hours to minutes
+- Provide personalized recommendations that match user preferences and budget
+- Enable seamless collaboration between travel companions
+- Offer reliable offline access to planned itineraries
+
+## 4. Target audience
+
+### Primary Audience: Leisure Travelers (Ages 25-45)
+- **Demographics**: Working professionals, couples, families with disposable income
+- **Psychographics**: Value convenience, personalization, and authentic experiences
+- **Behavior**: Research extensively before booking, use multiple planning tools
+- **Pain Points**: Time-consuming research, information overload, coordination difficulties
+
+### Secondary Audiences
+- **Adventure Travelers**: Seeking unique, off-the-beaten-path experiences
+- **Luxury Travelers**: Prioritizing premium accommodations and exclusive experiences
+- **Budget-Conscious Travelers**: Maximizing value while minimizing costs
+- **Group Travelers**: Coordinating trips for friends, family reunions, or special occasions
+
+### User Personas
+- **Sarah (32)**: Marketing manager planning honeymoon in Japan, values cultural experiences
+- **Mike & Lisa (28, 30)**: Couple planning European vacation, budget-conscious but experience-focused
+- **David (38)**: Family man organizing Disney World trip for family of four, needs detailed logistics
+
+## 5. Features and requirements
+
+### 5.1 Core Features
+
+#### Landing Page & Onboarding
+- Compelling hero section showcasing TerraVoyage's value proposition
+- Sample itinerary previews demonstrating platform capabilities
+- Smart onboarding flow for first-time users
+- Quick start option for experienced travelers
+
+#### Trip Planning Engine
+- AI-powered itinerary generation based on user preferences
+- Multi-day planning (3-14 days initially)
+- Dynamic suggestion engine for attractions, restaurants, and accommodations
+- Budget-aware recommendations with pricing integration
+- Hidden gems discovery through local insights
+
+#### User Management
+- OAuth 2.0 authentication with Google Sign-In
+- Comprehensive user profiles with travel preferences
+- Trip history and favorites management
+- Personal travel style assessment
+
+#### Collaboration Tools
+- Shared itinerary access with permission levels
+- Real-time collaborative editing
+- Voting system for group decision-making
+- Comment and suggestion features
+
+#### Maps & Navigation
+- Interactive map integration (Mapbox or Google Maps)
+- Optimal routing between destinations
+- Distance and travel time calculations
+- Public transportation integration where available
+
+### 5.2 Advanced Features
+
+#### Weather Integration
+- 10-day weather forecasts for destinations
+- Weather-aware activity recommendations
+- Seasonal planning suggestions
+- Packing list generation based on weather
+
+#### Pricing & Booking Integration
+- Real-time hotel pricing and availability
+- Flight price monitoring and alerts
+- Restaurant reservation availability
+- Activity and tour booking options
+
+#### Offline & Export Features
+- PDF itinerary generation with maps
+- Offline mobile app capability
+- Calendar integration (Google Calendar, Outlook)
+- Shareable itinerary links
+
+#### Monetization Features
+- Affiliate partnerships with booking platforms
+- Premium subscription with advanced features
+- Sponsored content and recommendations
+- Travel insurance integration
+
+## 6. User stories and acceptance criteria
+
+### Authentication & User Management
+
+**ST-101: User Registration and Authentication**
+- As a new user, I want to register using my Google account so that I can quickly access the platform
+- **Acceptance Criteria:**
+  - User can sign up using Google OAuth 2.0
+  - User profile is automatically created with basic information
+  - User is redirected to onboarding flow after successful registration
+  - Error handling for failed authentication attempts
+
+**ST-102: User Profile Management**
+- As a registered user, I want to manage my travel preferences so that I receive personalized recommendations
+- **Acceptance Criteria:**
+  - User can update travel style preferences (adventure, luxury, budget, cultural)
+  - User can set dietary restrictions and accessibility needs
+  - User can save favorite destinations and activities
+  - Changes are saved automatically and reflected in future recommendations
+
+### Trip Planning Core Features
+
+**ST-103: Trip Details Input**
+- As a user, I want to input my trip details so that the AI can generate a personalized itinerary
+- **Acceptance Criteria:**
+  - Form includes destination, travel dates, number of travelers, age groups
+  - Budget range selection with currency options
+  - Interest categories selection (culture, food, adventure, relaxation, etc.)
+  - Travel style preferences (pace, accommodation type, transportation)
+  - Form validation prevents submission of incomplete data
+
+**ST-104: AI Itinerary Generation**
+- As a user, I want to receive a personalized multi-day itinerary so that I have a complete travel plan
+- **Acceptance Criteria:**
+  - System generates day-by-day itinerary with 3-5 activities per day
+  - Each day includes morning, afternoon, and evening recommendations
+  - Itinerary includes attractions, restaurants, and transportation suggestions
+  - Budget estimates provided for each activity and overall trip
+  - Generation completes within 30 seconds
+
+**ST-105: Itinerary Customization**
+- As a user, I want to modify my generated itinerary so that it better matches my preferences
+- **Acceptance Criteria:**
+  - User can add, remove, or reorder activities
+  - User can swap recommended restaurants or attractions
+  - User can adjust time allocations for activities
+  - Changes automatically update routing and scheduling
+  - Modified itinerary maintains logical flow and timing
+
+### Maps and Navigation
+
+**ST-106: Interactive Map Display**
+- As a user, I want to view my itinerary on an interactive map so that I can understand the geographic layout
+- **Acceptance Criteria:**
+  - All itinerary locations displayed as pins on map
+  - Different pin types for attractions, restaurants, accommodations
+  - Map shows optimal routing between locations
+  - User can click pins to view activity details
+  - Map supports zoom and pan functionality
+
+**ST-107: Route Optimization**
+- As a user, I want optimal routing between activities so that I minimize travel time
+- **Acceptance Criteria:**
+  - System calculates shortest/fastest routes between activities
+  - Multiple transportation options displayed (walking, public transit, taxi)
+  - Travel time estimates provided for each route
+  - Real-time traffic data considered where available
+  - Alternative routes suggested during peak hours
+
+### Weather Integration
+
+**ST-108: Weather Forecast Display**
+- As a user, I want to see weather forecasts for my trip so that I can plan appropriate activities and clothing
+- **Acceptance Criteria:**
+  - 10-day weather forecast displayed for destination
+  - Daily weather includes temperature, precipitation, and conditions
+  - Weather alerts for severe conditions
+  - Activity recommendations adjusted based on weather
+  - Packing suggestions provided based on forecasted weather
+
+### Collaboration Features
+
+**ST-109: Trip Sharing**
+- As a user, I want to share my itinerary with travel companions so that we can plan together
+- **Acceptance Criteria:**
+  - User can invite others via email or shareable link
+  - Different permission levels (view-only, edit, admin)
+  - Real-time updates visible to all collaborators
+  - Activity approval workflow for group trips
+  - Comment system for discussion and suggestions
+
+**ST-110: Group Decision Making**
+- As a travel group member, I want to vote on activities so that we can make democratic decisions
+- **Acceptance Criteria:**
+  - Voting system for proposed activities
+  - Visual indicators for vote status
+  - Automatic itinerary updates based on majority decisions
+  - Notification system for voting deadlines
+  - Conflict resolution suggestions for tied votes
+
+### Pricing and Booking Integration
+
+**ST-111: Real-time Pricing Display**
+- As a user, I want to see current prices for accommodations and flights so that I can make informed decisions
+- **Acceptance Criteria:**
+  - Hotel prices updated within 1 hour of API calls
+  - Flight prices displayed with booking links
+  - Price change alerts for monitored items
+  - Multiple booking platform options provided
+  - Price history trends where available
+
+### Export and Offline Features
+
+**ST-112: PDF Export**
+- As a user, I want to export my itinerary as a PDF so that I can access it offline
+- **Acceptance Criteria:**
+  - PDF includes complete itinerary with maps
+  - Contact information for all recommended venues
+  - Emergency information and local customs
+  - Optimized for mobile viewing and printing
+  - Generated and downloaded within 10 seconds
+
+**ST-113: Calendar Integration**
+- As a user, I want to sync my itinerary with my calendar so that I have all travel information in one place
+- **Acceptance Criteria:**
+  - One-click export to Google Calendar, Outlook, Apple Calendar
+  - Each activity becomes a calendar event with location
+  - Travel time included as separate calendar blocks
+  - Automatic timezone conversion for international travel
+  - Option to update calendar when itinerary changes
+
+### Database Modeling
+
+**ST-114: User Data Management**
+- As a system administrator, I want user data properly stored and managed so that the platform operates efficiently and securely
+- **Acceptance Criteria:**
+  - User profiles stored with encrypted sensitive information
+  - Trip data associated with user accounts with proper relationships
+  - Activity and venue database with normalized structure
+  - Collaboration permissions stored with appropriate access controls
+  - Data backup and recovery procedures implemented
+
+### Monetization Features
+
+**ST-115: Affiliate Integration**
+- As a business stakeholder, I want affiliate partnerships integrated so that the platform generates revenue
+- **Acceptance Criteria:**
+  - Booking links include affiliate tracking codes
+  - Commission tracking dashboard for administrators
+  - Transparent pricing display (no hidden markups)
+  - Partner quality standards maintained
+  - Revenue reporting with detailed analytics
+
+**ST-116: Premium Subscription**
+- As a frequent traveler, I want access to premium features so that I can enhance my travel planning experience
+- **Acceptance Criteria:**
+  - Premium tier includes unlimited itineraries, priority support
+  - Advanced AI features (deeper personalization, exclusive venues)
+  - Early access to new features and destinations
+  - Subscription management with billing integration
+  - Clear value proposition for premium vs. free tiers
+
+## 7. Technical requirements / Stack
+
+### Frontend Technology Stack
+- **Framework**: Next.js 15 with React 18+
+- **Styling**: TailwindCSS for responsive design
+- **Icons**: Lucide Icons for consistent iconography
+- **UI Components**: Shadcn UI for accessible, customizable components
+- **State Management**: React Context API or Zustand for global state
+- **Form Handling**: React Hook Form with Zod validation
+
+### Backend and APIs
+- **API Routes**: Next.js API routes for backend functionality
+- **Database**: PostgreSQL with Prisma ORM for data modeling
+- **Authentication**: NextAuth.js with Google OAuth 2.0 provider
+- **File Storage**: AWS S3 or Vercel Blob for PDF storage
+- **Caching**: Redis for session management and API response caching
+
+### External Integrations
+- **Maps**: Mapbox GL JS or Google Maps JavaScript API
+- **Weather**: OpenWeatherMap API or WeatherAPI
+- **Travel Data**: Amadeus API for flights, Booking.com API for hotels
+- **Payment Processing**: Stripe for premium subscriptions
+- **Email**: SendGrid or Resend for transactional emails
+- **PDF Generation**: Puppeteer or jsPDF for itinerary exports
+
+### Infrastructure and DevOps
+- **Hosting**: Vercel for frontend and API routes
+- **Database Hosting**: Railway, PlanetScale, or Supabase
+- **Monitoring**: Vercel Analytics and Sentry for error tracking
+- **CI/CD**: GitHub Actions for automated testing and deployment
+- **Environment Management**: Environment variables for API keys and secrets
+
+### Performance Requirements
+- **Page Load Time**: < 3 seconds for initial page load
+- **API Response Time**: < 500ms for itinerary generation
+- **Concurrent Users**: Support 1,000+ concurrent users
+- **Uptime**: 99.9% availability target
+- **Mobile Performance**: Lighthouse score > 90 for mobile
+
+### Security Requirements
+- **Data Encryption**: TLS 1.3 for data in transit, AES-256 for data at rest
+- **Authentication**: OAuth 2.0 with secure token handling
+- **API Security**: Rate limiting and API key validation
+- **Input Validation**: Comprehensive sanitization of user inputs
+- **Privacy Compliance**: GDPR and CCPA compliance measures
+
+## 8. Design and user interface
+
+### Design Principles
+- **Minimalism**: Clean, uncluttered interface that focuses on content
+- **Accessibility**: WCAG 2.1 AA compliance for inclusive design
+- **Mobile-First**: Responsive design optimized for mobile devices
+- **Performance**: Optimized images and lazy loading for fast performance
+- **Consistency**: Unified design system across all components
+
+### Visual Design Guidelines
+- **Color Palette**: Primary blue (#2563eb), secondary teal (#0d9488), neutral grays
+- **Typography**: Inter font family for readability across devices
+- **Spacing**: 8-point grid system for consistent spacing
+- **Elevation**: Subtle shadows and borders for depth without clutter
+- **Imagery**: High-quality travel photography with consistent filters
+
+### User Interface Components
+
+#### Navigation
+- Clean header with logo, main navigation, and user account access
+- Breadcrumb navigation for multi-step processes
+- Mobile hamburger menu with smooth animations
+- Sticky navigation for easy access during scrolling
+
+#### Forms and Inputs
+- Progressive disclosure for complex trip planning forms
+- Real-time validation with helpful error messages
+- Autocomplete for destinations with location suggestions
+- Date pickers optimized for travel date selection
+- Multi-select components for preferences and interests
+
+#### Itinerary Display
+- Card-based layout for daily activities
+- Timeline view showing activity sequence
+- Drag-and-drop interface for reordering activities
+- Expandable sections for detailed information
+- Quick actions for editing, removing, or favoriting activities
+
+#### Maps Integration
+- Full-screen map option for detailed exploration
+- Custom markers for different activity types
+- Smooth transitions between map and list views
+- Clustering for areas with multiple activities
+- Route visualization with different transportation modes
+
+### Responsive Design Strategy
+- **Mobile (320-768px)**: Single-column layout, simplified navigation
+- **Tablet (768-1024px)**: Two-column layout, enhanced interactions
+- **Desktop (1024px+)**: Multi-column layout, advanced features
+- **Touch Optimization**: Larger touch targets, gesture support
+- **Cross-browser Compatibility**: Chrome, Safari, Firefox, Edge support
+
+### User Experience Flow
+1. **Landing Page**: Compelling hero section → Quick start CTA
+2. **Trip Setup**: Progressive form → Preference selection → AI generation
+3. **Itinerary Review**: Generated plan → Customization options → Collaboration
+4. **Planning Tools**: Maps integration → Weather checks → Booking options
+5. **Export & Share**: PDF generation → Calendar sync → Social sharing
+
+### Loading and Error States
+- **Loading States**: Skeleton screens, progress indicators, micro-animations
+- **Error Handling**: Friendly error messages with actionable solutions
+- **Empty States**: Helpful guidance for new users or empty sections
+- **Offline Support**: Graceful degradation when connectivity is limited
+- **Success Feedback**: Confirmation messages and positive reinforcement

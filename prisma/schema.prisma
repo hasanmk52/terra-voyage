@@ -1,0 +1,351 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum TripStatus {
+  DRAFT
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ActivityType {
+  ACCOMMODATION
+  TRANSPORTATION
+  RESTAURANT
+  ATTRACTION
+  EXPERIENCE
+  SHOPPING
+  OTHER
+}
+
+enum CollaborationRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum BookingStatus {
+  NOT_BOOKED
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum NotificationType {
+  TRIP_INVITATION
+  TRIP_UPDATE
+  COMMENT_ADDED
+  VOTE_ADDED
+  ACTIVITY_CHANGED
+  MEMBER_JOINED
+  MEMBER_LEFT
+}
+
+// User model with comprehensive profile data
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  preferences   Json?    // Store user preferences as JSON
+  
+  // Onboarding fields
+  onboardingCompleted Boolean @default(false)
+  onboardingCompletedAt DateTime?
+  travelStyle     String? // JSON string of travel style data
+  interests       String? // JSON string of interests data
+  travelPreferences String? // JSON string of travel preferences data
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  trips         Trip[]
+  collaborations Collaboration[]
+  comments      Comment[]
+  votes         Vote[]
+  invitations   Invitation[]
+  sentInvitations Invitation[] @relation("InvitationSender")
+  notifications Notification[]
+
+  @@map("users")
+}
+
+// NextAuth Account model
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+// NextAuth Session model
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// NextAuth VerificationToken model
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+// Trip model with comprehensive trip data
+model Trip {
+  id          String     @id @default(cuid())
+  userId      String
+  title       String
+  destination String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  budget      Float?
+  travelers   Int        @default(1)
+  status      TripStatus @default(DRAFT)
+  isPublic    Boolean    @default(false)
+  coverImage  String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities    Activity[]
+  collaborations Collaboration[]
+  comments      Comment[]
+  votes         Vote[]
+  invitations   Invitation[]
+  notifications Notification[]
+  sharedTrip    SharedTrip?
+
+  @@index([userId])
+  @@index([status])
+  @@index([startDate])
+  @@map("trips")
+}
+
+// Activity model for trip activities
+model Activity {
+  id            String        @id @default(cuid())
+  tripId        String
+  name          String
+  description   String?
+  location      String?
+  address       String?
+  coordinates   Json?         // Store lat/lng as JSON
+  startTime     DateTime?
+  endTime       DateTime?
+  type          ActivityType  @default(OTHER)
+  price         Float?
+  currency      String?       @default("USD")
+  bookingStatus BookingStatus @default(NOT_BOOKED)
+  bookingUrl    String?
+  notes         String?
+  order         Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  votes    Vote[]
+
+  @@index([tripId])
+  @@index([type])
+  @@index([startTime])
+  @@map("activities")
+}
+
+// Collaboration model for trip sharing
+model Collaboration {
+  id         String            @id @default(cuid())
+  tripId     String
+  userId     String
+  role       CollaborationRole @default(VIEWER)
+  invitedBy  String?
+  invitedAt  DateTime          @default(now())
+  acceptedAt DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  // Relations
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+  @@index([tripId])
+  @@index([userId])
+  @@map("collaborations")
+}
+
+// Comment model for trip and activity discussions
+model Comment {
+  id         String   @id @default(cuid())
+  content    String
+  userId     String
+  tripId     String?
+  activityId String?
+  parentId   String?  // For nested comments
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip     Trip?      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  activity Activity?  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  parent   Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  Comment[]  @relation("CommentReplies")
+
+  @@index([tripId])
+  @@index([activityId])
+  @@index([userId])
+  @@map("comments")
+}
+
+// Vote model for activity preferences
+model Vote {
+  id         String   @id @default(cuid())
+  userId     String
+  tripId     String?
+  activityId String?
+  value      Int      // 1 for upvote, -1 for downvote, 0 for neutral
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip     Trip?     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  activity Activity? @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tripId])
+  @@unique([userId, activityId])
+  @@index([tripId])
+  @@index([activityId])
+  @@map("votes")
+}
+
+// Invitation model for trip sharing invitations
+model Invitation {
+  id           String           @id @default(cuid())
+  token        String           @unique @default(cuid())
+  email        String
+  tripId       String
+  userId       String?          // Set when user accepts invitation
+  invitedById  String
+  role         CollaborationRole @default(VIEWER)
+  status       InvitationStatus @default(PENDING)
+  message      String?
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  declinedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // Relations
+  trip       Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user       User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  invitedBy  User  @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, email])
+  @@index([token])
+  @@index([tripId])
+  @@index([email])
+  @@index([status])
+  @@map("invitations")
+}
+
+// Notification model for collaboration events
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  tripId    String?
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?            // Additional context data
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // Relations
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip Trip? @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tripId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// SharedTrip model for public sharing
+model SharedTrip {
+  id              String    @id @default(cuid())
+  tripId          String    @unique
+  shareToken      String    @unique
+  isPublic        Boolean   @default(true)
+  expiresAt       DateTime?
+  allowComments   Boolean   @default(false)
+  showContactInfo Boolean   @default(false)
+  showBudget      Boolean   @default(false)
+  passwordHash    String?
+  viewCount       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([shareToken])
+  @@index([isPublic])
+  @@index([expiresAt])
+  @@map("shared_trips")
+}
