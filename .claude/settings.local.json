@@ -14,7 +14,9 @@
       "Bash(task-master:*)",
       "Bash(npx taskmaster update:*)",
       "Bash(ls:*)",
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

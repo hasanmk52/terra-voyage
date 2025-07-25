@@ -205,7 +205,7 @@ export function validateItinerary(data: unknown): {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        errors: error.errors.map(err => `${err.path.join('.')}: ${err.message}`),
+        errors: error.issues.map(err => `${err.path.join('.')}: ${err.message}`),
       }
     }
     return {
@@ -230,7 +230,7 @@ export function validateQuickItinerary(data: unknown): {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        errors: error.errors.map(err => `${err.path.join('.')}: ${err.message}`),
+        errors: error.issues.map(err => `${err.path.join('.')}: ${err.message}`),
       }
     }
     return {
@@ -255,7 +255,7 @@ export function validateActivitySuggestions(data: unknown): {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        errors: error.errors.map(err => `${err.path.join('.')}: ${err.message}`),
+        errors: error.issues.map(err => `${err.path.join('.')}: ${err.message}`),
       }
     }
     return {

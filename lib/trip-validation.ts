@@ -20,12 +20,10 @@ export const destinationSchema = z.object({
 export const dateRangeSchema = z
   .object({
     startDate: z.date({
-      required_error: "Start date is required",
-      invalid_type_error: "Invalid start date",
+      message: "Start date is required and must be valid",
     }),
     endDate: z.date({
-      required_error: "End date is required",
-      invalid_type_error: "Invalid end date",
+      message: "End date is required and must be valid",
     }),
   })
   .refine(
@@ -248,7 +246,7 @@ export function validateStep(step: keyof typeof stepSchemas, data: any) {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        errors: error.errors.map(err => ({
+        errors: error.issues.map(err => ({
           path: err.path.join("."),
           message: err.message,
         })),
@@ -270,7 +268,7 @@ export function validateCompleteForm(data: any) {
       return {
         success: false,
         data: null,
-        errors: error.errors.map(err => ({
+        errors: error.issues.map(err => ({
           path: err.path.join("."),
           message: err.message,
         })),

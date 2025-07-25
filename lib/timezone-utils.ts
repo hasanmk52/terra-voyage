@@ -1,5 +1,5 @@
-import { format, parseISO } from 'date-fns'
-import { formatInTimeZone, zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz'
+import { parseISO } from 'date-fns'
+import { formatInTimeZone, toZonedTime, fromZonedTime } from 'date-fns-tz'
 
 // Common timezone mappings for travel destinations
 export const DESTINATION_TIMEZONES: Record<string, string> = {
@@ -105,14 +105,14 @@ export class TimezoneUtils {
     sourceTimezone: string
   ): Date {
     const date = typeof localTime === 'string' ? parseISO(localTime) : localTime
-    return zonedTimeToUtc(date, sourceTimezone)
+    return fromZonedTime(date, sourceTimezone)
   }
 
   /**
    * Get timezone information for a specific timezone
    */
   static getTimezoneInfo(timezone: string, date: Date = new Date()): TimezoneInfo {
-    const zonedDate = utcToZonedTime(date, timezone)
+    const zonedDate = toZonedTime(date, timezone)
     const formatter = new Intl.DateTimeFormat('en', {
       timeZone: timezone,
       timeZoneName: 'short'
@@ -121,9 +121,9 @@ export class TimezoneUtils {
     const parts = formatter.formatToParts(date)
     const timeZoneName = parts.find(part => part.type === 'timeZoneName')?.value || ''
     
-    // Calculate offset
+    // Calculate offset (correct calculation)
     const utcDate = new Date(date.getTime())
-    const offsetMinutes = (zonedDate.getTime() - utcDate.getTime()) / (1000 * 60)
+    const offsetMinutes = (utcDate.getTime() - zonedDate.getTime()) / (1000 * 60)
     const offsetHours = Math.floor(Math.abs(offsetMinutes) / 60)
     const offsetMins = Math.abs(offsetMinutes) % 60
     const offsetSign = offsetMinutes >= 0 ? '+' : '-'
@@ -148,8 +148,8 @@ export class TimezoneUtils {
 
   private static getTimezoneOffset(timezone: string, date: Date): number {
     const utcDate = new Date(date.getTime())
-    const zonedDate = utcToZonedTime(date, timezone)
-    return (zonedDate.getTime() - utcDate.getTime()) / (1000 * 60)
+    const zonedDate = toZonedTime(date, timezone)
+    return (utcDate.getTime() - zonedDate.getTime()) / (1000 * 60)
   }
 
   /**
@@ -246,14 +246,14 @@ export class TimezoneUtils {
     return activities.map(activity => ({
       ...activity,
       startTime: activity.startTime 
-        ? utcToZonedTime(
-            zonedTimeToUtc(activity.startTime, fromTimezone),
+        ? toZonedTime(
+            fromZonedTime(activity.startTime, fromTimezone),
             toTimezone
           )
         : activity.startTime,
       endTime: activity.endTime
-        ? utcToZonedTime(
-            zonedTimeToUtc(activity.endTime, fromTimezone),
+        ? toZonedTime(
+            fromZonedTime(activity.endTime, fromTimezone),
             toTimezone
           )
         : activity.endTime

@@ -60,7 +60,7 @@ next-env.d.ts
 # Taskmaster generated files
 # Uncomment if you want to ignore task files
 # tasks.json
-# tasks/
+# tasks/ 
 
 # Prisma
 /src/generated/prisma/
@@ -79,3 +79,4 @@ components.json
 
 # npm pack files
 *.tgz
+.vercel

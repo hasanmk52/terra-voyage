@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { validateCompleteOnboarding } from '@/lib/onboarding-validation'
 
 export async function POST(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Invalid onboarding data',
-          details: validation.error.errors 
+          details: validation.error.issues 
         },
         { status: 400 }
       )
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const { travelStyle, interests, preferences } = validation.data
 
     // Update user with onboarding data
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await db.user.update({
       where: { id: session.user.id },
       data: {
         onboardingCompleted: true,
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: session.user.id },
       select: {
         id: true,
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Parse JSON fields
-    let parsedData = {
+    const parsedData = {
       id: user.id,
       onboardingCompleted: user.onboardingCompleted,
       onboardingCompletedAt: user.onboardingCompletedAt,
@@ -163,7 +163,7 @@ export async function PUT(request: NextRequest) {
     const updateData: any = {}
     updateData[field] = JSON.stringify(data)
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await db.user.update({
       where: { id: session.user.id },
       data: updateData
     })

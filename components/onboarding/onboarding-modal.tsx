@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, ArrowLeft, ArrowRight, Check } from "lucide-react"
-import { useSession } from "next-auth/react"
 
 import { WelcomeStep } from "./steps/welcome-step"
 import { TravelStyleStep } from "./steps/travel-style-step"
@@ -32,9 +31,9 @@ interface OnboardingModalProps {
 }
 
 export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModalProps) {
-  const { data: session } = useSession()
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
+  const userId = 'guest-user' // Simple guest user ID for local storage
   
   // Form data state
   const [travelStyle, setTravelStyle] = useState<TravelStyleData>(defaultTravelStyle)
@@ -45,14 +44,14 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
 
   // Load saved onboarding data if available
   useEffect(() => {
-    if (isOpen && session?.user?.id) {
+    if (isOpen) {
       loadSavedData()
     }
-  }, [isOpen, session])
+  }, [isOpen])
 
   const loadSavedData = async () => {
     try {
-      const saved = localStorage.getItem(`onboarding-${session?.user?.id}`)
+      const saved = localStorage.getItem(`onboarding-${userId}`)
       if (saved) {
         const data = JSON.parse(saved)
         if (data.travelStyle) setTravelStyle(data.travelStyle)
@@ -66,16 +65,14 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
   }
 
   const saveProgress = () => {
-    if (session?.user?.id) {
-      const progressData = {
-        travelStyle,
-        interests,
-        preferences,
-        currentStep,
-        updatedAt: new Date().toISOString()
-      }
-      localStorage.setItem(`onboarding-${session.user.id}`, JSON.stringify(progressData))
+    const progressData = {
+      travelStyle,
+      interests,
+      preferences,
+      currentStep,
+      updatedAt: new Date().toISOString()
     }
+    localStorage.setItem(`onboarding-${userId}`, JSON.stringify(progressData))
   }
 
   const handleNext = () => {
@@ -109,17 +106,11 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         return
       }
 
-      // Save to user profile via API
-      if (session?.user?.id) {
-        await fetch('/api/user/onboarding', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(onboardingData)
-        })
-
-        // Clear temporary storage
-        localStorage.removeItem(`onboarding-${session.user.id}`)
-      }
+      // Save to local storage for now (simplified)
+      localStorage.setItem('user-onboarding-complete', JSON.stringify(onboardingData))
+      
+      // Clear temporary storage
+      localStorage.removeItem(`onboarding-${userId}`)
 
       onComplete(validation.data)
     } catch (error) {

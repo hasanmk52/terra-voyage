@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
 import { HeroSection } from "@/components/landing/hero-section"
@@ -13,22 +12,12 @@ import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { OnboardingData } from "@/lib/onboarding-validation"
 
 export default function Home() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const [showOnboarding, setShowOnboarding] = useState(false)
 
   const handleStartPlanning = () => {
-    if (status === "loading") return
-
-    if (!session) {
-      // Redirect to sign in with callback to planning page
-      router.push("/auth/signin?callbackUrl=/plan")
-      return
-    }
-
-    // Check if user has completed onboarding
-    // In a real app, this would be checked from user profile
-    const hasCompletedOnboarding = false // This would come from user data
+    // Check if user wants onboarding or go directly to plan
+    const hasCompletedOnboarding = localStorage.getItem('onboarding_completed') === 'true'
 
     if (!hasCompletedOnboarding) {
       setShowOnboarding(true)
@@ -39,6 +28,7 @@ export default function Home() {
 
   const handleOnboardingComplete = (data: OnboardingData) => {
     console.log("Onboarding completed:", data)
+    localStorage.setItem('onboarding_completed', 'true')
     setShowOnboarding(false)
     router.push("/plan")
   }

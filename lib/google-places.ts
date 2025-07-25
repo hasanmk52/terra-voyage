@@ -1,6 +1,8 @@
 "use client"
 
 import { Loader } from "@googlemaps/js-api-loader"
+import { mockDestinations, mockPlaceDetails, simulateDelay } from "./mock-data"
+import { useMockMaps } from "./selective-mocks"
 
 let googlePlacesLoaded = false
 let placesService: google.maps.places.PlacesService | null = null
@@ -32,20 +34,33 @@ export interface PlaceDetails {
 }
 
 class GooglePlacesService {
-  private loader: Loader
+  private loader: Loader | null = null
 
   constructor() {
-    this.loader = new Loader({
-      apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-      version: "weekly",
-      libraries: ["places"],
-    })
+    // Only create loader if not using mocks
+    if (!useMockMaps) {
+      this.loader = new Loader({
+        apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+        version: "weekly",
+        libraries: ["places"],
+      })
+    }
   }
 
   async initialize(): Promise<void> {
     if (googlePlacesLoaded) return
 
+    // Skip initialization if using mocks
+    if (useMockMaps) {
+      googlePlacesLoaded = true
+      // Mock data initialized
+      return
+    }
+
     try {
+      if (!this.loader) {
+        throw new Error("Google Maps loader not initialized")
+      }
       await this.loader.load()
       
       // Create a dummy map element for the PlacesService
@@ -59,14 +74,27 @@ class GooglePlacesService {
       autocompleteService = new google.maps.places.AutocompleteService()
       
       googlePlacesLoaded = true
-      console.log("✅ Google Places API loaded successfully")
+      // Google Places API loaded
     } catch (error) {
-      console.error("❌ Failed to load Google Places API:", error)
+      // Failed to load Google Places API
       throw error
     }
   }
 
   async searchDestinations(query: string): Promise<PlaceResult[]> {
+    // Use mock data if mocks are enabled
+    if (useMockMaps) {
+      await simulateDelay('maps')
+      
+      // Filter mock destinations based on query
+      const filteredDestinations = mockDestinations.filter(destination =>
+        destination.description.toLowerCase().includes(query.toLowerCase()) ||
+        destination.mainText.toLowerCase().includes(query.toLowerCase())
+      )
+      
+      return filteredDestinations.slice(0, 5) // Limit to 5 results like a real API
+    }
+
     await this.initialize()
 
     if (!autocompleteService) {
@@ -100,6 +128,13 @@ class GooglePlacesService {
   }
 
   async getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
+    // Use mock data if mocks are enabled
+    if (useMockMaps) {
+      await simulateDelay('maps')
+      const mockDetail = mockPlaceDetails[placeId]
+      return mockDetail || null
+    }
+
     await this.initialize()
 
     if (!placesService) {
@@ -152,6 +187,43 @@ class GooglePlacesService {
     location: { lat: number; lng: number },
     radius: number = 5000
   ): Promise<PlaceDetails[]> {
+    // Use mock data if mocks are enabled
+    if (useMockMaps) {
+      await simulateDelay('maps')
+      
+      // Return some mock attractions near the location
+      const mockAttractions: PlaceDetails[] = [
+        {
+          placeId: "mock-attraction-1",
+          name: "Mock Museum",
+          formattedAddress: "123 Tourist Street",
+          geometry: {
+            location: {
+              lat: location.lat + 0.001,
+              lng: location.lng + 0.001,
+            },
+          },
+          types: ["tourist_attraction", "museum"],
+          rating: 4.5,
+        },
+        {
+          placeId: "mock-attraction-2", 
+          name: "Mock Park",
+          formattedAddress: "456 Park Avenue",
+          geometry: {
+            location: {
+              lat: location.lat - 0.001,
+              lng: location.lng - 0.001,
+            },
+          },
+          types: ["tourist_attraction", "park"],
+          rating: 4.3,
+        },
+      ]
+      
+      return mockAttractions
+    }
+
     await this.initialize()
 
     if (!placesService) {

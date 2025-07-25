@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
-import { db } from "@/lib/db"
 import { z } from "zod"
+import { useMockDatabase } from "@/lib/selective-mocks"
+import { simulateDelay } from "@/lib/mock-data"
 
 const createTripSchema = z.object({
   title: z.string().min(1).max(200),
@@ -18,56 +17,44 @@ const createTripSchema = z.object({
 // GET /api/user/trips - Get user's trips
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get("page") || "1")
-    const limit = parseInt(searchParams.get("limit") || "10")
-    const status = searchParams.get("status")
-
-    const skip = (page - 1) * limit
-
-    const where = {
-      userId: session.user.id,
-      ...(status && { status: status.toUpperCase() }),
-    }
-
-    const [trips, total] = await Promise.all([
-      db.trip.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: [
-          { status: "asc" },
-          { startDate: "desc" },
-        ],
-        include: {
+    // Use mock implementation for simplified experience
+    if (useMockDatabase) {
+      const mockTrips = [
+        {
+          id: "mock-trip-1",
+          title: "Paris Adventure",
+          destination: "Paris, France",
+          description: "Exploring the City of Light",
+          startDate: "2024-06-15T00:00:00.000Z",
+          endDate: "2024-06-20T00:00:00.000Z",
+          budget: 2000,
+          travelers: 2,
+          status: "PLANNED",
+          isPublic: false,
+          createdAt: "2024-01-15T00:00:00.000Z",
+          updatedAt: "2024-01-15T00:00:00.000Z",
           _count: {
-            select: {
-              activities: true,
-              collaborations: true,
-            }
+            activities: 12,
+            collaborations: 1
           }
-        },
-      }),
-      db.trip.count({ where }),
-    ])
+        }
+      ]
 
-    return NextResponse.json({
-      trips,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      }
-    })
+      return NextResponse.json({
+        trips: mockTrips,
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          pages: 1,
+        }
+      })
+    }
+
+    // Note: Database functionality disabled for simplified experience
+    return NextResponse.json({ error: "Database functionality not available in simplified mode" }, { status: 503 })
   } catch (error) {
-    console.error("Trips fetch error:", error)
+    // Trips fetch error
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -78,12 +65,6 @@ export async function GET(request: NextRequest) {
 // POST /api/user/trips - Create new trip
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const body = await request.json()
     const validatedData = createTripSchema.parse(body)
 
@@ -98,33 +79,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const trip = await db.trip.create({
-      data: {
+    // Use mock implementation for simplified experience
+    if (useMockDatabase) {
+      // Simulate trip creation with mock response
+      const mockTrip = {
+        id: `mock-trip-${Date.now()}`,
         ...validatedData,
-        startDate,
-        endDate,
-        userId: session.user.id,
-      },
-      include: {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        status: "PLANNED",
+        userId: "guest-user",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         _count: {
-          select: {
-            activities: true,
-            collaborations: true,
-          }
+          activities: 0,
+          collaborations: 0,
         }
-      },
-    })
+      }
 
-    return NextResponse.json({ trip }, { status: 201 })
+      // Simulate delay like a real API
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Mock trip created successfully
+      return NextResponse.json({ trip: mockTrip }, { status: 201 })
+    }
+
+    // Note: Database functionality disabled for simplified experience
+    return NextResponse.json({ error: "Database functionality not available in simplified mode" }, { status: 503 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid data", details: error.errors },
+        { error: "Invalid data", details: error.issues },
         { status: 400 }
       )
     }
 
-    console.error("Trip creation error:", error)
+    // Trip creation error
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -51,8 +51,8 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
     placeId: undefined,
   })
   const [dateRange, setDateRange] = useState<DateRangeData>({
-    startDate: undefined as any,
-    endDate: undefined as any,
+    startDate: undefined,
+    endDate: undefined,
   })
   const [travelers, setTravelers] = useState<TravelerData>({
     adults: 2,
@@ -174,6 +174,14 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
               endDate={dateRange.endDate}
               onChange={(startDate, endDate) => setDateRange({ startDate, endDate })}
               className="text-lg"
+              error={!getStepValidation(1).success && (dateRange.startDate !== undefined || dateRange.endDate !== undefined)}
+              errorMessage={
+                !dateRange.startDate 
+                  ? "Please select a start date" 
+                  : !dateRange.endDate 
+                    ? "Please select an end date" 
+                    : getStepValidation(1).errors?.[0]?.message
+              }
             />
           </div>
         </div>
@@ -302,11 +310,13 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
       // Clear saved form data
       localStorage.removeItem("trip-planning-form")
 
-      // Call completion handler or redirect
+      // Call completion handler or redirect to success
       if (onComplete) {
         onComplete(formData)
       } else {
-        router.push(`/trips/${response.trip.id}`)
+        // Show success message and redirect to home
+        alert(`🎉 Your trip "${response.trip.title}" has been created successfully! This is a demo version.`)
+        router.push("/")
       }
     } catch (error) {
       console.error("Trip creation failed:", error)

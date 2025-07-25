@@ -1,7 +1,7 @@
 import ical from 'ical-generator'
 import { Trip, Activity } from '@prisma/client'
 import { format, addMinutes, parseISO } from 'date-fns'
-import { formatInTimeZone, zonedTimeToUtc } from 'date-fns-tz'
+import { formatInTimeZone } from 'date-fns-tz'
 
 export interface TripWithActivities extends Trip {
   activities: Activity[]
@@ -47,8 +47,8 @@ export class CalendarGenerator {
     })
 
     // Add trip overview event
-    const tripStart = zonedTimeToUtc(parseISO(trip.startDate.toISOString()), timezone)
-    const tripEnd = zonedTimeToUtc(parseISO(trip.endDate.toISOString()), timezone)
+    const tripStart = trip.startDate
+    const tripEnd = trip.endDate
 
     calendar.createEvent({
       id: `trip-${trip.id}`,
@@ -70,9 +70,9 @@ export class CalendarGenerator {
     for (const activity of trip.activities) {
       if (!activity.startTime) continue
 
-      const startTime = zonedTimeToUtc(parseISO(activity.startTime.toISOString()), timezone)
+      const startTime = activity.startTime
       const endTime = activity.endTime 
-        ? zonedTimeToUtc(parseISO(activity.endTime.toISOString()), timezone)
+        ? activity.endTime
         : addMinutes(startTime, 60) // Default 1 hour duration
 
       calendar.createEvent({

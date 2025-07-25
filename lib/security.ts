@@ -1,6 +1,3 @@
-import { NextRequest } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
 import { z } from "zod"
 
 // Input sanitization
@@ -20,21 +17,8 @@ export const idSchema = z.string().cuid()
 export const emailSchema = z.string().email()
 export const passwordSchema = z.string().min(8).max(128)
 
-// Session validation
-export async function validateSession(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized", status: 401 }
-    }
-
-    return { success: true, userId: session.user.id, session }
-  } catch (error) {
-    console.error("Session validation error:", error)
-    return { success: false, error: "Session validation failed", status: 500 }
-  }
-}
+// Session validation (not compatible with Edge Runtime - use in API routes only)
+// Moved to separate auth-utils.ts file for server-side usage
 
 // Request validation middleware
 export function validateRequest(schema: z.ZodSchema) {
@@ -47,7 +31,7 @@ export function validateRequest(schema: z.ZodSchema) {
         return {
           success: false,
           error: "Invalid input data",
-          details: error.errors,
+          details: error.issues,
           status: 400,
         }
       }

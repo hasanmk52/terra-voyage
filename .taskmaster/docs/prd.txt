@@ -4,7 +4,7 @@
 
 This Product Requirements Document (PRD) defines the functional and technical requirements for TerraVoyage, a modern AI-powered travel planning application. The document serves as a comprehensive guide for development teams, stakeholders, and quality assurance to build a user-friendly platform that enables travelers to create, customize, and manage personalized multi-day travel itineraries.
 
-TerraVoyage aims to differentiate itself in the competitive travel planning market by combining intelligent AI recommendations with intuitive user experience, real-time integrations, and collaborative features that make trip planning both efficient and enjoyable.
+TerraVoyage aims to differentiate itself in the competitive travel planning market by combining intelligent AI recommendations with a simplified, no-authentication user experience that makes trip planning both efficient and immediately accessible.
 
 ## 2. Product overview
 
@@ -15,9 +15,9 @@ The application focuses on delivering a seamless experience from initial trip co
 ## 3. Goals and objectives
 
 ### Primary Goals
-- **User Acquisition**: Achieve 10,000+ registered users within 6 months of launch
+- **User Acquisition**: Achieve 10,000+ active users within 6 months of launch (no registration required)
 - **Engagement**: Generate 500+ completed itineraries per month by month 3
-- **Retention**: Maintain 40%+ monthly active user rate among registered users
+- **Retention**: Maintain 40%+ monthly active user rate through excellent user experience
 - **Revenue**: Establish foundation for sustainable monetization through affiliate partnerships and premium features
 
 ### Business Objectives
@@ -57,9 +57,10 @@ The application focuses on delivering a seamless experience from initial trip co
 
 #### Landing Page & Onboarding
 - Compelling hero section showcasing TerraVoyage's value proposition
-- Sample itinerary previews demonstrating platform capabilities
-- Smart onboarding flow for first-time users
-- Quick start option for experienced travelers
+- Enhanced gradient logo with modern design aesthetics
+- Beautiful header with improved navigation and call-to-action
+- Optional onboarding flow that works without user accounts
+- Immediate access to trip planning without authentication barriers
 
 #### Trip Planning Engine
 - AI-powered itinerary generation based on user preferences
@@ -68,17 +69,17 @@ The application focuses on delivering a seamless experience from initial trip co
 - Budget-aware recommendations with pricing integration
 - Hidden gems discovery through local insights
 
-#### User Management
-- OAuth 2.0 authentication with Google Sign-In
-- Comprehensive user profiles with travel preferences
-- Trip history and favorites management
-- Personal travel style assessment
+#### Simplified User Experience
+- No authentication required - immediate access to planning tools
+- Local storage for user preferences and trip data
+- Optional onboarding to capture travel style preferences
+- Simplified data management focused on essential features
 
-#### Collaboration Tools
-- Shared itinerary access with permission levels
-- Real-time collaborative editing
-- Voting system for group decision-making
-- Comment and suggestion features
+#### Core Planning Features (Simplified)
+- AI-powered itinerary generation
+- Trip customization and editing
+- Export capabilities (PDF, calendar)
+- Local storage for trip persistence
 
 #### Maps & Navigation
 - Interactive map integration (Mapbox or Google Maps)
@@ -114,23 +115,23 @@ The application focuses on delivering a seamless experience from initial trip co
 
 ## 6. User stories and acceptance criteria
 
-### Authentication & User Management
+### Simplified User Experience
 
-**ST-101: User Registration and Authentication**
-- As a new user, I want to register using my Google account so that I can quickly access the platform
+**ST-101: Immediate Access**
+- As a new user, I want to start planning immediately without creating an account
 - **Acceptance Criteria:**
-  - User can sign up using Google OAuth 2.0
-  - User profile is automatically created with basic information
-  - User is redirected to onboarding flow after successful registration
-  - Error handling for failed authentication attempts
+  - User can access all core features without authentication
+  - Local storage preserves trip data and preferences
+  - Optional onboarding flow captures travel style preferences
+  - Beautiful, modern design with enhanced header and logo
 
-**ST-102: User Profile Management**
-- As a registered user, I want to manage my travel preferences so that I receive personalized recommendations
+**ST-102: Preference Management**
+- As a user, I want to set my travel preferences so that I receive personalized recommendations
 - **Acceptance Criteria:**
-  - User can update travel style preferences (adventure, luxury, budget, cultural)
-  - User can set dietary restrictions and accessibility needs
-  - User can save favorite destinations and activities
-  - Changes are saved automatically and reflected in future recommendations
+  - User can set travel style preferences through onboarding
+  - Preferences stored locally for personalized experience
+  - Settings can be updated at any time
+  - Changes reflected immediately in recommendations
 
 ### Trip Planning Core Features
 
@@ -287,7 +288,7 @@ The application focuses on delivering a seamless experience from initial trip co
 ### Backend and APIs
 - **API Routes**: Next.js API routes for backend functionality
 - **Database**: PostgreSQL with Prisma ORM for data modeling
-- **Authentication**: NextAuth.js with Google OAuth 2.0 provider
+- **User Experience**: Simplified, no-authentication approach with local storage
 - **File Storage**: AWS S3 or Vercel Blob for PDF storage
 - **Caching**: Redis for session management and API response caching
 
@@ -323,11 +324,12 @@ The application focuses on delivering a seamless experience from initial trip co
 ## 8. Design and user interface
 
 ### Design Principles
+- **Immediate Access**: No barriers to entry, instant usability
+- **Modern Aesthetics**: Beautiful gradient logo and enhanced header design
 - **Minimalism**: Clean, uncluttered interface that focuses on content
 - **Accessibility**: WCAG 2.1 AA compliance for inclusive design
 - **Mobile-First**: Responsive design optimized for mobile devices
 - **Performance**: Optimized images and lazy loading for fast performance
-- **Consistency**: Unified design system across all components
 
 ### Visual Design Guidelines
 - **Color Palette**: Primary blue (#2563eb), secondary teal (#0d9488), neutral grays
@@ -339,10 +341,10 @@ The application focuses on delivering a seamless experience from initial trip co
 ### User Interface Components
 
 #### Navigation
-- Clean header with logo, main navigation, and user account access
-- Breadcrumb navigation for multi-step processes
-- Mobile hamburger menu with smooth animations
-- Sticky navigation for easy access during scrolling
+- Enhanced header with gradient logo and modern styling
+- Clean navigation with prominent "Start Planning" call-to-action
+- Mobile-optimized responsive design
+- Improved visual hierarchy and user flow
 
 #### Forms and Inputs
 - Progressive disclosure for complex trip planning forms
@@ -385,3 +387,58 @@ The application focuses on delivering a seamless experience from initial trip co
 - **Empty States**: Helpful guidance for new users or empty sections
 - **Offline Support**: Graceful degradation when connectivity is limited
 - **Success Feedback**: Confirmation messages and positive reinforcement
+
+### Development and Testing Strategy
+
+#### Mock Implementation
+- **Environment Control**: Global `USE_MOCKS` environment variable to toggle between real and mock APIs
+- **Mock Data Structure**: Centralized mock data and configuration in `lib/mock-data.ts`
+- **API Simulation**: Realistic mock responses matching production API schemas
+- **Performance Simulation**: Configurable response delays to simulate real-world conditions
+
+#### Mock Services
+1. **Flight Data (Amadeus)**
+   - Mock flight itineraries with realistic pricing
+   - Simulated route segments and carrier information
+   - Configurable response delays (default: 800ms)
+
+2. **Hotel Data (Booking.com)**
+   - Mock hotel listings with detailed information
+   - Simulated pricing and availability
+   - Realistic hotel amenities and images
+   - Configurable response delays (default: 600ms)
+
+3. **Weather Integration**
+   - Mock current weather and forecasts
+   - Simulated temperature ranges and conditions
+   - 7-day forecast generation
+   - Configurable response delays (default: 400ms)
+
+4. **Map Services (Mapbox)**
+   - Mock location data and coordinates
+   - Simulated points of interest
+   - Basic feature support for development
+   - Configurable response delays (default: 200ms)
+
+5. **Price Tracking**
+   - In-memory price history cache
+   - Simulated price fluctuations
+   - Mock historical data generation
+
+6. **Email Services**
+   - Mock email queue for development
+   - Simulated email templates
+   - Console logging for email actions
+
+#### Development Benefits
+- **Rapid Development**: No dependency on external API availability
+- **Cost Efficiency**: Avoid API usage charges during development
+- **Offline Development**: Work without internet connectivity
+- **Consistent Testing**: Predictable data for UI development
+- **Quick Iterations**: Instant feedback for UI/UX changes
+
+#### Production Transition
+- Gradual transition from mock to real APIs
+- Environment-specific API configuration
+- Feature flags for selective mock usage
+- Comprehensive testing with real APIs before deployment

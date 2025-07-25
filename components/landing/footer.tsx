@@ -5,32 +5,21 @@ import { MapPin, Mail, Phone, Twitter, Instagram, Facebook, Linkedin, Github } f
 
 const footerLinks = {
   product: [
-    { name: "How It Works", href: "#how-it-works" },
-    { name: "Features", href: "#features" },
+    { name: "Features", href: "/features" },
     { name: "Pricing", href: "/pricing" },
-    { name: "Sample Itineraries", href: "#samples" },
-    { name: "API", href: "/api-docs" }
+    { name: "Start Planning", href: "/plan" }
   ],
   company: [
     { name: "About Us", href: "/about" },
-    { name: "Careers", href: "/careers" },
-    { name: "Blog", href: "/blog" },
-    { name: "Press", href: "/press" },
     { name: "Contact", href: "/contact" }
   ],
   support: [
     { name: "Help Center", href: "/help" },
-    { name: "Travel Tips", href: "/tips" },
-    { name: "Destination Guides", href: "/guides" },
-    { name: "Community", href: "/community" },
-    { name: "Status", href: "/status" }
+    { name: "Travel Tips", href: "/tips" }
   ],
   legal: [
     { name: "Privacy Policy", href: "/privacy" },
-    { name: "Terms of Service", href: "/terms" },
-    { name: "Cookie Policy", href: "/cookies" },
-    { name: "GDPR", href: "/gdpr" },
-    { name: "Refund Policy", href: "/refunds" }
+    { name: "Terms of Service", href: "/terms" }
   ]
 }
 

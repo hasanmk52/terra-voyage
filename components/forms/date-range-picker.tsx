@@ -18,6 +18,8 @@ interface DateRangePickerProps {
   maxDate?: Date
   minDays?: number
   maxDays?: number
+  error?: boolean
+  errorMessage?: string
 }
 
 export function DateRangePicker({
@@ -31,6 +33,8 @@ export function DateRangePicker({
   maxDate,
   minDays = 1,
   maxDays = 365,
+  error = false,
+  errorMessage,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>({
@@ -77,11 +81,14 @@ export function DateRangePicker({
 
     setSelectedRange({ from, to })
 
-    // If both dates are selected, update parent and close dropdown
+    // Only close dropdown and notify parent when BOTH dates are selected
     if (from && to) {
       onChange(from, to)
-      setIsOpen(false)
+      // Add a small delay to show the selected range before closing
+      setTimeout(() => setIsOpen(false), 200)
     } else if (from) {
+      // Keep dropdown open when only start date is selected
+      // Update parent with partial selection but don't close
       onChange(from, undefined)
     }
   }
@@ -100,7 +107,7 @@ export function DateRangePicker({
       )} (${nights} night${nights !== 1 ? "s" : ""})`
     }
 
-    return `${format(selectedRange.from, "MMM d, yyyy")} - Select end date`
+    return `${format(selectedRange.from, "MMM d, yyyy")} - Please select end date`
   }
 
   // Handle clear
@@ -141,8 +148,11 @@ export function DateRangePicker({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          "w-full flex items-center justify-between px-4 py-3 text-left border border-gray-300 rounded-lg",
-          "hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+          "w-full flex items-center justify-between px-4 py-3 text-left border rounded-lg",
+          error 
+            ? "border-red-300 hover:border-red-400 focus:ring-red-500 focus:border-red-500" 
+            : "border-gray-300 hover:border-gray-400 focus:ring-blue-500 focus:border-blue-500",
+          "focus:outline-none focus:ring-2",
           "disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed",
           selectedRange?.from ? "text-gray-900" : "text-gray-500",
           className
@@ -155,13 +165,20 @@ export function DateRangePicker({
         
         <div className="flex items-center space-x-2">
           {selectedRange?.from && !disabled && (
-            <button
-              type="button"
+            <div
               onClick={handleClear}
-              className="p-1 hover:bg-gray-100 rounded"
+              className="p-1 hover:bg-gray-100 rounded cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleClear(e as React.MouseEvent<HTMLDivElement>)
+                }
+              }}
             >
               <X className="h-4 w-4 text-gray-400" />
-            </button>
+            </div>
           )}
           <ChevronDown className={cn(
             "h-4 w-4 text-gray-400 transition-transform",
@@ -176,6 +193,13 @@ export function DateRangePicker({
           className="absolute z-50 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4"
           style={{ minWidth: "320px" }}
         >
+          {/* Helper text */}
+          <div className="mb-4 text-sm text-gray-600">
+            {!selectedRange?.from && "Select your check-in date"}
+            {selectedRange?.from && !selectedRange?.to && "Now select your check-out date"}
+            {selectedRange?.from && selectedRange?.to && "Both dates selected"}
+          </div>
+          
           <DayPicker
             mode="range"
             selected={selectedRange}
@@ -209,11 +233,44 @@ export function DateRangePicker({
             }}
           />
 
-          {minDays > 1 && (
-            <div className="mt-4 text-xs text-gray-500 border-t pt-4">
-              Minimum stay: {minDays} night{minDays !== 1 ? "s" : ""}
+          <div className="mt-4 pt-4 border-t space-y-2">
+            {minDays > 1 && (
+              <div className="text-xs text-gray-500">
+                Minimum stay: {minDays} night{minDays !== 1 ? "s" : ""}
+              </div>
+            )}
+            
+            {/* Action buttons */}
+            <div className="flex justify-between items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRange(undefined)
+                  onChange(undefined, undefined)
+                }}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Clear dates
+              </button>
+              
+              {selectedRange?.from && selectedRange?.to && (
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Confirm dates
+                </button>
+              )}
             </div>
-          )}
+          </div>
+        </div>
+      )}
+      
+      {/* Error message */}
+      {error && errorMessage && (
+        <div className="mt-2 text-sm text-red-600">
+          {errorMessage}
         </div>
       )}
     </div>

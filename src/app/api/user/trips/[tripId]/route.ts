@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
-import { db } from "@/lib/db"
 import { z } from "zod"
+import { useMocks } from "@/lib/mock-data"
 
 const updateTripSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -26,68 +24,41 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const trip = await db.trip.findFirst({
-      where: {
+    // Use mock implementation for simplified experience
+    if (useMocks) {
+      const mockTrip = {
         id: params.tripId,
-        OR: [
-          { userId: session.user.id },
-          {
-            collaborations: {
-              some: {
-                userId: session.user.id,
-                acceptedAt: { not: null },
-              }
-            }
-          }
-        ]
-      },
-      include: {
-        activities: {
-          orderBy: [
-            { order: "asc" },
-            { startTime: "asc" },
-          ]
-        },
-        collaborations: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-              }
-            }
-          }
-        },
+        title: "Paris Adventure",
+        destination: "Paris, France",
+        description: "Exploring the City of Light",
+        startDate: "2024-06-15T00:00:00.000Z",
+        endDate: "2024-06-20T00:00:00.000Z",
+        budget: 2000,
+        travelers: 2,
+        status: "PLANNED",
+        isPublic: false,
+        userId: "guest-user",
+        createdAt: "2024-01-15T00:00:00.000Z",
+        updatedAt: "2024-01-15T00:00:00.000Z",
+        activities: [],
+        collaborations: [],
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-          }
+          id: "guest-user",
+          name: "Guest User",
+          email: "guest@example.com",
+          image: null
         },
         _count: {
-          select: {
-            comments: true,
-            votes: true,
-          }
+          comments: 0,
+          votes: 0,
         }
-      },
-    })
+      }
 
-    if (!trip) {
-      return NextResponse.json({ error: "Trip not found" }, { status: 404 })
+      return NextResponse.json({ trip: mockTrip })
     }
 
-    return NextResponse.json({ trip })
+    // Note: Database functionality disabled for simplified experience
+    return NextResponse.json({ error: "Database functionality not available in simplified mode" }, { status: 503 })
   } catch (error) {
     console.error("Trip fetch error:", error)
     return NextResponse.json(
@@ -103,38 +74,6 @@ export async function PUT(
   { params }: RouteParams
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    // Check if user owns the trip or has admin/editor permissions
-    const existingTrip = await db.trip.findFirst({
-      where: {
-        id: params.tripId,
-        OR: [
-          { userId: session.user.id },
-          {
-            collaborations: {
-              some: {
-                userId: session.user.id,
-                role: { in: ["ADMIN", "EDITOR"] },
-                acceptedAt: { not: null },
-              }
-            }
-          }
-        ]
-      },
-    })
-
-    if (!existingTrip) {
-      return NextResponse.json(
-        { error: "Trip not found or insufficient permissions" },
-        { status: 404 }
-      )
-    }
-
     const body = await request.json()
     const validatedData = updateTripSchema.parse(body)
 
@@ -151,30 +90,37 @@ export async function PUT(
       }
     }
 
-    const updateData = {
-      ...validatedData,
-      ...(validatedData.startDate && { startDate: new Date(validatedData.startDate) }),
-      ...(validatedData.endDate && { endDate: new Date(validatedData.endDate) }),
+    // Use mock implementation for simplified experience
+    if (useMocks) {
+      const mockUpdatedTrip = {
+        id: params.tripId,
+        title: validatedData.title || "Updated Trip",
+        destination: validatedData.destination || "Updated Destination",
+        description: validatedData.description || "Updated description",
+        startDate: validatedData.startDate || "2024-06-15T00:00:00.000Z",
+        endDate: validatedData.endDate || "2024-06-20T00:00:00.000Z",
+        budget: validatedData.budget || 2000,
+        travelers: validatedData.travelers || 2,
+        status: validatedData.status || "PLANNED",
+        isPublic: validatedData.isPublic || false,
+        userId: "guest-user",
+        updatedAt: new Date().toISOString(),
+        _count: {
+          activities: 0,
+          collaborations: 0,
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 300))
+      return NextResponse.json({ trip: mockUpdatedTrip })
     }
 
-    const updatedTrip = await db.trip.update({
-      where: { id: params.tripId },
-      data: updateData,
-      include: {
-        _count: {
-          select: {
-            activities: true,
-            collaborations: true,
-          }
-        }
-      },
-    })
-
-    return NextResponse.json({ trip: updatedTrip })
+    // Note: Database functionality disabled for simplified experience
+    return NextResponse.json({ error: "Database functionality not available in simplified mode" }, { status: 503 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid data", details: error.errors },
+        { error: "Invalid data", details: error.issues },
         { status: 400 }
       )
     }
@@ -193,32 +139,16 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Use mock implementation for simplified experience
+    if (useMocks) {
+      // Simulate deletion
+      await new Promise(resolve => setTimeout(resolve, 200))
+      console.log("✅ Mock trip deleted:", params.tripId)
+      return NextResponse.json({ success: true })
     }
 
-    // Only trip owner can delete
-    const trip = await db.trip.findFirst({
-      where: {
-        id: params.tripId,
-        userId: session.user.id,
-      },
-    })
-
-    if (!trip) {
-      return NextResponse.json(
-        { error: "Trip not found or insufficient permissions" },
-        { status: 404 }
-      )
-    }
-
-    await db.trip.delete({
-      where: { id: params.tripId },
-    })
-
-    return NextResponse.json({ success: true })
+    // Note: Database functionality disabled for simplified experience
+    return NextResponse.json({ error: "Database functionality not available in simplified mode" }, { status: 503 })
   } catch (error) {
     console.error("Trip deletion error:", error)
     return NextResponse.json(
