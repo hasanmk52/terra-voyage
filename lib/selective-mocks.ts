@@ -5,7 +5,8 @@ export const serviceConfig = {
   
   // Google Maps - use real service when API key is available  
   useRealMaps: !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && 
-               process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY !== "your-google-maps-api-key",
+               process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY !== "your-google-maps-api-key" &&
+               process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY.length > 20,
                
   // Weather API - use real service when API key is available
   useRealWeather: !!process.env.WEATHER_API_KEY && 

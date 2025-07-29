@@ -63,32 +63,7 @@ interface MockHotel {
   };
 }
 
-interface MockWeatherData {
-  current: {
-    temp: number;
-    feels_like: number;
-    humidity: number;
-    wind_speed: number;
-    weather: Array<{
-      main: string;
-      description: string;
-      icon: string;
-    }>;
-  };
-  forecast: Array<{
-    date: string;
-    temp: {
-      min: number;
-      max: number;
-    };
-    weather: Array<{
-      main: string;
-      description: string;
-      icon: string;
-    }>;
-    precipitation: number;
-  }>;
-}
+// MockWeatherData interface removed - now using OpenWeatherMap API structure directly
 
 interface MockMapFeature {
   type: string;
@@ -238,25 +213,18 @@ export const mockHotels: MockHotel[] = [
 ];
 
 // Mock data for weather
-export const mockWeather: MockWeatherData = {
+// Mock weather data that matches OpenWeatherMap API structure
+// Note: Using units=metric, so temperatures are in Celsius
+export const mockWeather = {
   current: {
-    temp: 22,
-    feels_like: 23,
-    humidity: 65,
-    wind_speed: 5.2,
-    weather: [
-      {
-        main: "Clear",
-        description: "clear sky",
-        icon: "01d",
-      },
-    ],
-  },
-  forecast: Array.from({ length: 7 }, (_, i) => ({
-    date: new Date(Date.now() + i * 86400000).toISOString(),
-    temp: {
-      min: 18 + i,
-      max: 25 + i,
+    dt: Math.floor(Date.now() / 1000),
+    main: {
+      temp: 22, // 22°C
+      feels_like: 23, // 23°C
+      temp_min: 20, // 20°C
+      temp_max: 25, // 25°C
+      pressure: 1013,
+      humidity: 65,
     },
     weather: [
       {
@@ -265,8 +233,54 @@ export const mockWeather: MockWeatherData = {
         icon: "01d",
       },
     ],
-    precipitation: 0,
-  })),
+    wind: {
+      speed: 5.2,
+      deg: 180,
+    },
+    visibility: 10000,
+    sys: {
+      sunrise: Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
+      sunset: Math.floor(Date.now() / 1000) + 25200,  // 7 hours from now
+      country: "FR",
+    },
+    name: "Paris",
+  },
+  forecast: {
+    list: Array.from({ length: 40 }, (_, i) => {
+      const date = new Date(Date.now() + i * 3 * 3600 * 1000); // Every 3 hours
+      return {
+        dt: Math.floor(date.getTime() / 1000),
+        main: {
+          temp: 20 + (i % 8), // 20°C base + variation
+          temp_min: 18 + (i % 6), // 18°C base + variation
+          temp_max: 22 + (i % 8), // 22°C base + variation
+          feels_like: 21 + (i % 8), // 21°C base + variation
+          pressure: 1013 + (i % 5),
+          humidity: 60 + (i % 20),
+        },
+        weather: [
+          {
+            main: i % 4 === 0 ? "Rain" : "Clear",
+            description: i % 4 === 0 ? "light rain" : "clear sky",
+            icon: i % 4 === 0 ? "10d" : "01d",
+          },
+        ],
+        wind: {
+          speed: 3 + (i % 5),
+          deg: 180 + (i % 180),
+        },
+        visibility: 10000,
+        pop: i % 4 === 0 ? 0.3 : 0,
+        rain: i % 4 === 0 ? { "3h": 0.5 } : undefined,
+      };
+    }),
+    city: {
+      name: "Paris",
+      country: "FR",
+      sunrise: Math.floor(Date.now() / 1000) - 3600,
+      sunset: Math.floor(Date.now() / 1000) + 25200,
+    },
+  },
 };
 
 // Mock data for maps

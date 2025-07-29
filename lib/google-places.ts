@@ -1,12 +1,9 @@
 "use client"
 
-import { Loader } from "@googlemaps/js-api-loader"
 import { mockDestinations, mockPlaceDetails, simulateDelay } from "./mock-data"
 import { useMockMaps } from "./selective-mocks"
 
 let googlePlacesLoaded = false
-let placesService: google.maps.places.PlacesService | null = null
-let autocompleteService: google.maps.places.AutocompleteService | null = null
 
 export interface PlaceResult {
   placeId: string
@@ -34,51 +31,15 @@ export interface PlaceDetails {
 }
 
 class GooglePlacesService {
-  private loader: Loader | null = null
+  private apiKey: string
 
   constructor() {
-    // Only create loader if not using mocks
-    if (!useMockMaps) {
-      this.loader = new Loader({
-        apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-        version: "weekly",
-        libraries: ["places"],
-      })
-    }
+    this.apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
   }
 
+  // New Places API doesn't require initialization
   async initialize(): Promise<void> {
-    if (googlePlacesLoaded) return
-
-    // Skip initialization if using mocks
-    if (useMockMaps) {
-      googlePlacesLoaded = true
-      // Mock data initialized
-      return
-    }
-
-    try {
-      if (!this.loader) {
-        throw new Error("Google Maps loader not initialized")
-      }
-      await this.loader.load()
-      
-      // Create a dummy map element for the PlacesService
-      const mapDiv = document.createElement("div")
-      const map = new google.maps.Map(mapDiv, {
-        center: { lat: 0, lng: 0 },
-        zoom: 1,
-      })
-
-      placesService = new google.maps.places.PlacesService(map)
-      autocompleteService = new google.maps.places.AutocompleteService()
-      
-      googlePlacesLoaded = true
-      // Google Places API loaded
-    } catch (error) {
-      // Failed to load Google Places API
-      throw error
-    }
+    googlePlacesLoaded = true
   }
 
   async searchDestinations(query: string): Promise<PlaceResult[]> {
@@ -95,36 +56,60 @@ class GooglePlacesService {
       return filteredDestinations.slice(0, 5) // Limit to 5 results like a real API
     }
 
-    await this.initialize()
-
-    if (!autocompleteService) {
-      throw new Error("Google Places service not initialized")
+    if (!this.apiKey) {
+      console.error("Google Maps API key not configured, using mock data")
+      await simulateDelay('maps')
+      const filteredDestinations = mockDestinations.filter(destination =>
+        destination.description.toLowerCase().includes(query.toLowerCase()) ||
+        destination.mainText.toLowerCase().includes(query.toLowerCase())
+      )
+      return filteredDestinations.slice(0, 5)
     }
 
-    return new Promise((resolve, reject) => {
-      const request: google.maps.places.AutocompletionRequest = {
-        input: query,
-        types: ["(cities)"], // Focus on cities for travel destinations
-        componentRestrictions: undefined, // Allow worldwide results
+    try {
+      // Use the new Places API Text Search
+      const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': this.apiKey,
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types'
+        },
+        body: JSON.stringify({
+          textQuery: `${query} city destination`,
+          maxResultCount: 5,
+          includedType: 'locality'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Places API error: ${response.status} ${response.statusText}`)
       }
 
-      autocompleteService!.getPlacePredictions(request, (predictions, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-          const results: PlaceResult[] = predictions.map(prediction => ({
-            placeId: prediction.place_id,
-            description: prediction.description,
-            mainText: prediction.structured_formatting.main_text,
-            secondaryText: prediction.structured_formatting.secondary_text || "",
-            types: prediction.types,
-          }))
-          resolve(results)
-        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-          resolve([])
-        } else {
-          reject(new Error(`Places search failed: ${status}`))
-        }
-      })
-    })
+      const data = await response.json()
+      
+      if (data.places && data.places.length > 0) {
+        const results: PlaceResult[] = data.places.map((place: any) => ({
+          placeId: place.id,
+          description: place.formattedAddress || place.displayName?.text || query,
+          mainText: place.displayName?.text || query,
+          secondaryText: place.formattedAddress || "",
+          types: place.types || []
+        }))
+        return results
+      }
+
+      return []
+    } catch (error) {
+      console.error("Places Text Search failed, falling back to mock data:", error)
+      // Fallback to mock data on API error
+      await simulateDelay('maps')
+      const filteredDestinations = mockDestinations.filter(destination =>
+        destination.description.toLowerCase().includes(query.toLowerCase()) ||
+        destination.mainText.toLowerCase().includes(query.toLowerCase())
+      )
+      return filteredDestinations.slice(0, 5)
+    }
   }
 
   async getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
@@ -135,52 +120,52 @@ class GooglePlacesService {
       return mockDetail || null
     }
 
-    await this.initialize()
-
-    if (!placesService) {
-      throw new Error("Google Places service not initialized")
+    if (!this.apiKey) {
+      console.error("Google Maps API key not configured, using mock data")
+      await simulateDelay('maps')
+      const mockDetail = mockPlaceDetails[placeId]
+      return mockDetail || null
     }
 
-    return new Promise((resolve, reject) => {
-      const request: google.maps.places.PlaceDetailsRequest = {
-        placeId,
-        fields: [
-          "place_id",
-          "name",
-          "formatted_address",
-          "geometry",
-          "types",
-          "photos",
-          "rating",
-          "website",
-          "formatted_phone_number",
-        ],
-      }
-
-      placesService!.getDetails(request, (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-          const details: PlaceDetails = {
-            placeId: place.place_id!,
-            name: place.name!,
-            formattedAddress: place.formatted_address!,
-            geometry: {
-              location: {
-                lat: place.geometry!.location!.lat(),
-                lng: place.geometry!.location!.lng(),
-              },
-            },
-            types: place.types || [],
-            photos: place.photos,
-            rating: place.rating,
-            website: place.website,
-            formattedPhoneNumber: place.formatted_phone_number,
-          }
-          resolve(details)
-        } else {
-          reject(new Error(`Place details fetch failed: ${status}`))
+    try {
+      // Use the new Places API Place Details
+      const response = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+        method: 'GET',
+        headers: {
+          'X-Goog-Api-Key': this.apiKey,
+          'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,types,rating,websiteUri,nationalPhoneNumber'
         }
       })
-    })
+
+      if (!response.ok) {
+        throw new Error(`Place Details API error: ${response.status} ${response.statusText}`)
+      }
+
+      const place = await response.json()
+      
+      const details: PlaceDetails = {
+        placeId: place.id,
+        name: place.displayName?.text || "Unknown Place",
+        formattedAddress: place.formattedAddress || "",
+        geometry: {
+          location: {
+            lat: place.location?.latitude || 0,
+            lng: place.location?.longitude || 0,
+          },
+        },
+        types: place.types || [],
+        rating: place.rating,
+        website: place.websiteUri,
+        formattedPhoneNumber: place.nationalPhoneNumber,
+      }
+      
+      return details
+    } catch (error) {
+      console.error("Place Details fetch failed, falling back to mock data:", error)
+      await simulateDelay('maps')
+      const mockDetail = mockPlaceDetails[placeId]
+      return mockDetail || null
+    }
   }
 
   async searchNearbyAttractions(
@@ -224,43 +209,121 @@ class GooglePlacesService {
       return mockAttractions
     }
 
-    await this.initialize()
-
-    if (!placesService) {
-      throw new Error("Google Places service not initialized")
+    if (!this.apiKey) {
+      console.error("Google Maps API key not configured, using mock data")
+      await simulateDelay('maps')
+      const mockAttractions: PlaceDetails[] = [
+        {
+          placeId: "mock-attraction-1",
+          name: "Mock Museum",
+          formattedAddress: "123 Tourist Street",
+          geometry: {
+            location: {
+              lat: location.lat + 0.001,
+              lng: location.lng + 0.001,
+            },
+          },
+          types: ["tourist_attraction", "museum"],
+          rating: 4.5,
+        },
+        {
+          placeId: "mock-attraction-2", 
+          name: "Mock Park",
+          formattedAddress: "456 Park Avenue",
+          geometry: {
+            location: {
+              lat: location.lat - 0.001,
+              lng: location.lng - 0.001,
+            },
+          },
+          types: ["tourist_attraction", "park"],
+          rating: 4.3,
+        },
+      ]
+      return mockAttractions
     }
 
-    return new Promise((resolve, reject) => {
-      const request: google.maps.places.PlaceSearchRequest = {
-        location: new google.maps.LatLng(location.lat, location.lng),
-        radius,
-        type: "tourist_attraction",
+    try {
+      // Use the new Places API Nearby Search
+      const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': this.apiKey,
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating'
+        },
+        body: JSON.stringify({
+          includedTypes: ["tourist_attraction"],
+          maxResultCount: 10,
+          locationRestriction: {
+            circle: {
+              center: {
+                latitude: location.lat,
+                longitude: location.lng
+              },
+              radius: radius
+            }
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Nearby Search API error: ${response.status} ${response.statusText}`)
       }
 
-      placesService!.nearbySearch(request, (results, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-          const attractions: PlaceDetails[] = results
-            .filter(place => place.place_id && place.name && place.geometry?.location)
-            .map(place => ({
-              placeId: place.place_id!,
-              name: place.name!,
-              formattedAddress: place.vicinity || "",
-              geometry: {
-                location: {
-                  lat: place.geometry!.location!.lat(),
-                  lng: place.geometry!.location!.lng(),
-                },
-              },
-              types: place.types || [],
-              photos: place.photos,
-              rating: place.rating,
-            }))
-          resolve(attractions)
-        } else {
-          reject(new Error(`Nearby search failed: ${status}`))
-        }
-      })
-    })
+      const data = await response.json()
+      
+      if (data.places && data.places.length > 0) {
+        const attractions: PlaceDetails[] = data.places.map((place: any) => ({
+          placeId: place.id,
+          name: place.displayName?.text || "Unknown Attraction",
+          formattedAddress: place.formattedAddress || "",
+          geometry: {
+            location: {
+              lat: place.location?.latitude || location.lat,
+              lng: place.location?.longitude || location.lng,
+            },
+          },
+          types: place.types || [],
+          rating: place.rating,
+        }))
+        return attractions
+      }
+
+      return []
+    } catch (error) {
+      console.error("Nearby attractions search failed, falling back to mock data:", error)
+      await simulateDelay('maps')
+      const mockAttractions: PlaceDetails[] = [
+        {
+          placeId: "mock-attraction-1",
+          name: "Mock Museum",
+          formattedAddress: "123 Tourist Street",
+          geometry: {
+            location: {
+              lat: location.lat + 0.001,
+              lng: location.lng + 0.001,
+            },
+          },
+          types: ["tourist_attraction", "museum"],
+          rating: 4.5,
+        },
+        {
+          placeId: "mock-attraction-2", 
+          name: "Mock Park",
+          formattedAddress: "456 Park Avenue",
+          geometry: {
+            location: {
+              lat: location.lat - 0.001,
+              lng: location.lng - 0.001,
+            },
+          },
+          types: ["tourist_attraction", "park"],
+          rating: 4.3,
+        },
+      ]
+      return mockAttractions
+    }
   }
 }
 

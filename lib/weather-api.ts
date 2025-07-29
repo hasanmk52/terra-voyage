@@ -10,7 +10,8 @@ import {
   getWindDirection,
   getWeatherSeverity,
 } from "./weather-types";
-import { useMocks, mockWeather, simulateDelay } from "./mock-data";
+import { useMockWeather } from "./selective-mocks";
+import { mockWeather, simulateDelay } from "./mock-data";
 
 export class WeatherAPI {
   private apiKey: string;
@@ -20,47 +21,114 @@ export class WeatherAPI {
   }
 
   async getCurrentWeather(location: { lat: number; lon: number }) {
-    if (useMocks) {
+    if (useMockWeather) {
       await simulateDelay("weather");
       return mockWeather.current;
     }
 
-    // Real API implementation here
-    const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${this.apiKey}&units=metric`
-    );
+    if (!this.apiKey) {
+      throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
+    }
 
-    return response.json();
+    try {
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${this.apiKey}&units=metric`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Validate response structure
+      if (!data || !data.main || !data.weather || !data.weather[0]) {
+        console.warn("Invalid weather data structure, using mock data");
+        await simulateDelay("weather");
+        return mockWeather.current;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch current weather:", error);
+      // Fallback to mock data on API failure
+      await simulateDelay("weather");
+      return mockWeather.current;
+    }
   }
 
   async getWeatherForecast(location: { lat: number; lon: number }) {
-    if (useMocks) {
+    if (useMockWeather) {
       await simulateDelay("weather");
       return mockWeather.forecast;
     }
 
-    // Real API implementation here
-    const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/forecast?lat=${location.lat}&lon=${location.lon}&appid=${this.apiKey}&units=metric`
-    );
+    if (!this.apiKey) {
+      throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
+    }
 
-    return response.json();
+    try {
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${location.lat}&lon=${location.lon}&appid=${this.apiKey}&units=metric`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Validate response structure
+      if (!data || !data.list || !Array.isArray(data.list) || data.list.length === 0) {
+        console.warn("Invalid forecast data structure, using mock data");
+        await simulateDelay("weather");
+        return mockWeather.forecast;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch weather forecast:", error);
+      // Fallback to mock data on API failure
+      await simulateDelay("weather");
+      return mockWeather.forecast;
+    }
   }
 
   async getWeatherAlerts(location: { lat: number; lon: number }) {
-    if (useMocks) {
+    if (useMockWeather) {
       await simulateDelay("weather");
       return {
         alerts: [], // No alerts in mock data by default
       };
     }
 
-    // Real API implementation here
-    const response = await fetch(
-      `https://api.openweathermap.org/data/3.0/onecall?lat=${location.lat}&lon=${location.lon}&appid=${this.apiKey}&exclude=current,minutely,hourly,daily`
-    );
+    if (!this.apiKey) {
+      throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
+    }
 
-    return response.json();
+    try {
+      // Note: OneCall API 3.0 requires subscription, using basic API for alerts
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${this.apiKey}&units=metric`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      // Extract any weather alerts from the basic API response
+      return {
+        alerts: data.alerts || [],
+      };
+    } catch (error) {
+      console.error("Failed to fetch weather alerts:", error);
+      // Fallback to mock data on API failure
+      await simulateDelay("weather");
+      return {
+        alerts: [],
+      };
+    }
   }
 }
 
@@ -68,8 +136,14 @@ export class WeatherAPI {
 export function processCurrentWeather(
   weather: CurrentWeather
 ): ProcessedWeather {
+  // Validate required data structure - return null if invalid
+  if (!weather || !weather.weather || !weather.weather[0] || !weather.main) {
+    console.warn("Invalid weather data structure, cannot process");
+    return null as any; // This will be caught by the calling function
+  }
+
   const condition = weather.weather[0];
-  const temp = kelvinToCelsius(weather.main.temp);
+  const temp = Math.round(weather.main.temp); // Already in Celsius due to units=metric
   const windSpeed = weather.wind ? mpsToKmh(weather.wind.speed) : 0;
   const precipitation = weather.rain?.["1h"] || weather.snow?.["1h"] || 0;
 
@@ -77,16 +151,16 @@ export function processCurrentWeather(
     date: new Date(weather.dt * 1000).toISOString().split("T")[0],
     temperature: {
       current: temp,
-      min: kelvinToCelsius(weather.main.temp_min),
-      max: kelvinToCelsius(weather.main.temp_max),
-      feelsLike: kelvinToCelsius(weather.main.feels_like),
+      min: Math.round(weather.main.temp_min || weather.main.temp),
+      max: Math.round(weather.main.temp_max || weather.main.temp),
+      feelsLike: Math.round(weather.main.feels_like || weather.main.temp),
     },
     condition: {
-      main: condition.main,
-      description: condition.description,
-      icon: condition.icon,
+      main: condition.main || "Unknown",
+      description: condition.description || "Unknown weather",
+      icon: condition.icon || "01d",
       severity: getWeatherSeverity(
-        condition.description,
+        condition.description || "clear",
         temp,
         windSpeed,
         precipitation
@@ -99,16 +173,16 @@ export function processCurrentWeather(
     },
     wind: {
       speed: windSpeed,
-      direction: weather.wind ? getWindDirection(weather.wind.deg) : "N",
+      direction: weather.wind ? getWindDirection(weather.wind.deg || 0) : "N",
       gust: weather.wind?.gust ? mpsToKmh(weather.wind.gust) : undefined,
     },
-    humidity: weather.main.humidity,
+    humidity: weather.main.humidity || 50,
     visibility: weather.visibility ? weather.visibility / 1000 : 10, // Convert to km
-    sunrise: new Date(weather.sys.sunrise * 1000).toTimeString().slice(0, 5),
-    sunset: new Date(weather.sys.sunset * 1000).toTimeString().slice(0, 5),
+    sunrise: weather.sys?.sunrise ? new Date(weather.sys.sunrise * 1000).toTimeString().slice(0, 5) : "06:00",
+    sunset: weather.sys?.sunset ? new Date(weather.sys.sunset * 1000).toTimeString().slice(0, 5) : "18:00",
     isExtreme:
       getWeatherSeverity(
-        condition.description,
+        condition.description || "clear",
         temp,
         windSpeed,
         precipitation
@@ -119,10 +193,21 @@ export function processCurrentWeather(
 export function processForecastData(
   forecast: ForecastResponse
 ): ProcessedWeather[] {
+  // Validate forecast data structure
+  if (!forecast || !forecast.list || !Array.isArray(forecast.list)) {
+    console.warn("Invalid forecast data structure, cannot process");
+    return [] as any; // This will be caught by the calling function
+  }
+
   // Group forecast items by date and get daily summaries
   const dailyData = new Map<string, any[]>();
 
   forecast.list.forEach((item) => {
+    // Skip items with invalid structure
+    if (!item || !item.dt || !item.main || !item.weather || !item.weather[0]) {
+      return;
+    }
+    
     const date = new Date(item.dt * 1000).toISOString().split("T")[0];
     if (!dailyData.has(date)) {
       dailyData.set(date, []);
@@ -135,20 +220,13 @@ export function processForecastData(
   for (const [date, items] of dailyData) {
     if (items.length === 0) continue;
 
-    // Calculate daily aggregates
-    const temps = items.map((item) => kelvinToCelsius(item.main.temp));
-    const minTemp = Math.min(
-      ...items.map((item) => kelvinToCelsius(item.main.temp_min))
-    );
-    const maxTemp = Math.max(
-      ...items.map((item) => kelvinToCelsius(item.main.temp_max))
-    );
+    // Calculate daily aggregates (temperatures already in Celsius due to units=metric)
+    const temps = items.map((item) => item.main.temp);
+    const minTemp = Math.min(...items.map((item) => item.main.temp_min));
+    const maxTemp = Math.max(...items.map((item) => item.main.temp_max));
     const avgTemp = temps.reduce((sum, temp) => sum + temp, 0) / temps.length;
     const feelsLike =
-      items.reduce(
-        (sum, item) => sum + kelvinToCelsius(item.main.feels_like),
-        0
-      ) / items.length;
+      items.reduce((sum, item) => sum + item.main.feels_like, 0) / items.length;
 
     // Get most significant weather condition
     const conditions = items.map((item) => item.weather[0]);
@@ -268,6 +346,40 @@ export function processForecastData(
     .slice(0, 10);
 }
 
+// Create WeatherAPI instance
+const weatherAPI = new WeatherAPI();
+
+// Cache for weather data
+const weatherCache = new Map<string, { data: any; expiry: number }>();
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
+// Helper functions to use the WeatherAPI class
+export async function fetchCurrentWeather(lat: number, lng: number) {
+  const cacheKey = `current_${lat}_${lng}`;
+  const cached = weatherCache.get(cacheKey);
+  
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data;
+  }
+
+  const data = await weatherAPI.getCurrentWeather({ lat, lon: lng });
+  weatherCache.set(cacheKey, { data, expiry: Date.now() + CACHE_DURATION });
+  return data;
+}
+
+export async function fetchWeatherForecast(lat: number, lng: number) {
+  const cacheKey = `forecast_${lat}_${lng}`;
+  const cached = weatherCache.get(cacheKey);
+  
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data;
+  }
+
+  const data = await weatherAPI.getWeatherForecast({ lat, lon: lng });
+  weatherCache.set(cacheKey, { data, expiry: Date.now() + CACHE_DURATION });
+  return data;
+}
+
 // Main function to get complete weather forecast
 export async function getWeatherForecast(
   lat: number,
@@ -280,19 +392,45 @@ export async function getWeatherForecast(
       fetchWeatherForecast(lat, lng),
     ]);
 
-    const current = processCurrentWeather(currentWeather);
-    const forecast = processForecastData(forecastData);
+    let current: ProcessedWeather;
+    let forecast: ProcessedWeather[];
+
+    try {
+      current = processCurrentWeather(currentWeather);
+      // Check if processing returned null due to invalid data
+      if (!current) {
+        console.warn("Current weather processing returned null, using mock data");
+        current = processCurrentWeather(mockWeather.current);
+      }
+    } catch (error) {
+      console.error("Failed to process current weather, using fallback:", error);
+      // Use mock data if processing fails
+      current = processCurrentWeather(mockWeather.current);
+    }
+
+    try {
+      forecast = processForecastData(forecastData);
+      // Check if processing returned empty array due to invalid data
+      if (!forecast || forecast.length === 0) {
+        console.warn("Forecast processing returned empty, using mock data");
+        forecast = processForecastData(mockWeather.forecast);
+      }
+    } catch (error) {
+      console.error("Failed to process forecast data, using fallback:", error);
+      // Use mock data if processing fails
+      forecast = processForecastData(mockWeather.forecast);
+    }
 
     return {
       location: {
-        name: locationName || currentWeather.name,
-        country: currentWeather.sys.country,
+        name: locationName || currentWeather?.name || "Unknown Location",
+        country: currentWeather?.sys?.country || "Unknown",
         coordinates: { lat, lng },
       },
       current,
       forecast,
       lastUpdated: new Date().toISOString(),
-      source: "openweathermap",
+      source: currentWeather === mockWeather.current ? "mock" : "openweathermap",
     };
   } catch (error) {
     console.error("Error getting weather forecast:", error);

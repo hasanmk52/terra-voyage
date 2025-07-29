@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -261,10 +261,60 @@ export function ItineraryDisplay({
   }
 
   // Calculate total statistics
-  const totalActivities = days.reduce((sum, day) => sum + day.activities.length, 0)
-  const totalDuration = days.reduce((sum, day) => {
+  // Apply sorting and filtering to days
+  const processedDays = useMemo(() => {
+    return days.map(day => {
+      // Filter activities within each day
+      let filteredActivities = day.activities.filter(activity => {
+        // Type filter
+        if (timelineConfig.filterBy.type && activity.type !== timelineConfig.filterBy.type) {
+          return false
+        }
+        
+        // Time slot filter
+        if (timelineConfig.filterBy.timeSlot && activity.timeSlot !== timelineConfig.filterBy.timeSlot) {
+          return false
+        }
+        
+        // Price range filter
+        if (timelineConfig.filterBy.priceRange) {
+          const [min, max] = timelineConfig.filterBy.priceRange
+          const activityPrice = activity.pricing?.amount || 0
+          if (activityPrice < min || activityPrice > max) {
+            return false
+          }
+        }
+        
+        return true
+      })
+
+      // Sort activities within each day
+      filteredActivities = [...filteredActivities].sort((a, b) => {
+        switch (timelineConfig.sortBy) {
+          case 'time':
+            return a.startTime.localeCompare(b.startTime)
+          case 'type':
+            return a.type.localeCompare(b.type)
+          case 'price':
+            const priceA = a.pricing?.amount || 0
+            const priceB = b.pricing?.amount || 0
+            return priceA - priceB
+          default:
+            return 0
+        }
+      })
+
+      return {
+        ...day,
+        activities: filteredActivities
+      }
+    })
+  }, [days, timelineConfig.filterBy, timelineConfig.sortBy])
+
+  const totalActivities = processedDays.reduce((sum, day) => sum + day.activities.length, 0)
+  const totalDuration = processedDays.reduce((sum, day) => {
     return sum + day.activities.reduce((daySum, activity) => {
-      const duration = parseInt(activity.duration.match(/\d+/)?.[0] || '0')
+      const duration = parseInt(activity.duration?.match(/\d+/)?.[0] || '0')
       return daySum + duration
     }, 0)
   }, 0)
@@ -278,7 +328,7 @@ export function ItineraryDisplay({
           <div className="flex flex-wrap gap-4 text-sm text-gray-600">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              <span>{days.length} days</span>
+              <span>{processedDays.length} days</span>
             </div>
             <div className="flex items-center gap-1">
               <MapPin className="h-4 w-4" />
@@ -340,7 +390,7 @@ export function ItineraryDisplay({
       >
         {timelineConfig.viewMode === 'timeline' ? (
           <TimelineView
-            days={days}
+            days={processedDays}
             config={timelineConfig}
             onActivitySelect={setSelectedActivity}
             onActivityEdit={handleEditActivity}
@@ -349,7 +399,7 @@ export function ItineraryDisplay({
         ) : (
           <div className="grid gap-6">
             <AnimatePresence mode="popLayout">
-              {days.map((day) => (
+              {processedDays.map((day) => (
                 <motion.div
                   key={day.day}
                   layout

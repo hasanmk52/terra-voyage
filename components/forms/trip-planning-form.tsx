@@ -310,13 +310,13 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
       // Clear saved form data
       localStorage.removeItem("trip-planning-form")
 
-      // Call completion handler or redirect to success
+      // Call completion handler or redirect to trip details
       if (onComplete) {
         onComplete(formData)
       } else {
-        // Show success message and redirect to home
+        // Show success message and redirect to trip details
         alert(`🎉 Your trip "${response.trip.title}" has been created successfully! This is a demo version.`)
-        router.push("/")
+        router.push(`/trip/${response.trip.id}`)
       }
     } catch (error) {
       console.error("Trip creation failed:", error)

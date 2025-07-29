@@ -201,10 +201,10 @@ export function ItineraryControls({
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Activity Type</Label>
                   <Select
-                    value={config.filterBy.type || ''}
+                    value={config.filterBy.type || 'all'}
                     onValueChange={(value) => 
                       handleFilterChange({ 
-                        type: value || undefined 
+                        type: value === 'all' ? undefined : value as any
                       })
                     }
                   >
@@ -212,7 +212,7 @@ export function ItineraryControls({
                       <SelectValue placeholder="All types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All types</SelectItem>
+                      <SelectItem value="all">All types</SelectItem>
                       {activityTypes.map((type) => (
                         <SelectItem key={type.value} value={type.value}>
                           <div className="flex items-center gap-2">
@@ -229,10 +229,10 @@ export function ItineraryControls({
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Time Slot</Label>
                   <Select
-                    value={config.filterBy.timeSlot || ''}
+                    value={config.filterBy.timeSlot || 'all'}
                     onValueChange={(value) => 
                       handleFilterChange({ 
-                        timeSlot: value as any || undefined 
+                        timeSlot: value === 'all' ? undefined : value as any
                       })
                     }
                   >
@@ -240,7 +240,7 @@ export function ItineraryControls({
                       <SelectValue placeholder="All times" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All times</SelectItem>
+                      <SelectItem value="all">All times</SelectItem>
                       {timeSlots.map((slot) => (
                         <SelectItem key={slot.value} value={slot.value}>
                           {slot.label}

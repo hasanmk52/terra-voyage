@@ -306,12 +306,307 @@
             "testStrategy": "Verify email templates render correctly, test queue functionality, validate error scenarios"
           }
         ]
+      },
+      {
+        "id": 13,
+        "title": "OpenWeatherMap API Integration (Weather) - Easy",
+        "description": "Setup real weather API integration to replace mock weather service",
+        "details": "Integrate OpenWeatherMap API for real weather data. Code structure already exists in lib/weather-api.ts, just need API key configuration and environment setup. Update selective-mocks.ts to enable real weather service when API key is available.",
+        "testStrategy": "Test real weather API responses, verify data structure matches mock format, test API error handling and fallbacks",
+        "priority": "high",
+        "dependencies": [12],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Get OpenWeatherMap API Key",
+            "description": "Sign up for OpenWeatherMap account and obtain API key",
+            "dependencies": [],
+            "details": "Create account at openweathermap.org, obtain free API key with sufficient quota for development testing",
+            "status": "done",
+            "testStrategy": "Verify API key works with test requests"
+          },
+          {
+            "id": 2,
+            "title": "Configure Environment Variables",
+            "description": "Add weather API key to environment configuration",
+            "dependencies": [1],
+            "details": "Add WEATHER_API_KEY to .env.example and .env.local, update selective-mocks.ts to detect API key presence",
+            "status": "done",
+            "testStrategy": "Test environment variable detection and mock switching"
+          },
+          {
+            "id": 3,
+            "title": "Test Real API Integration",
+            "description": "Verify weather API works with real data",
+            "dependencies": [2],
+            "details": "Test current weather and forecast endpoints, verify response processing, test error handling for invalid API keys",
+            "status": "done",
+            "testStrategy": "Compare real API responses with mock data structure"
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Google Maps API Integration - Easy",
+        "description": "Setup Google Places API for destination search and autocomplete functionality",
+        "details": "Integrate Google Places API to replace mock location data. Enable Places API in Google Cloud Console, configure API key, and update components/forms/destination-autocomplete.tsx to use real API responses.",
+        "testStrategy": "Test destination autocomplete functionality, verify place details retrieval, test API quota management",
+        "priority": "high",
+        "dependencies": [12],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Setup Google Cloud Project",
+            "description": "Create Google Cloud project and enable Places API",
+            "dependencies": [],
+            "details": "Create Google Cloud Console project, enable Places API, Maps JavaScript API, and Geocoding API. Configure API restrictions and quotas.",
+            "status": "done",
+            "testStrategy": "Verify APIs are enabled and accessible"
+          },
+          {
+            "id": 2,
+            "title": "Configure API Key and Environment",
+            "description": "Add Google Maps API key to environment configuration",
+            "dependencies": [1],
+            "details": "Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to environment files, update selective-mocks.ts configuration",
+            "status": "done",
+            "testStrategy": "Test API key detection and service switching"
+          },
+          {
+            "id": 3,
+            "title": "Update Destination Autocomplete Component",
+            "description": "Integrate real Google Places API in autocomplete component",
+            "dependencies": [2],
+            "details": "Update destination-autocomplete.tsx to use real Places API, implement proper error handling and loading states",
+            "status": "done",
+            "testStrategy": "Test autocomplete suggestions and place selection"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Mapbox Integration for Interactive Maps - Easy", 
+        "description": "Setup Mapbox for real interactive maps with clustering and routing",
+        "details": "Replace mock map service with real Mapbox GL JS integration. Configure map styles, implement activity markers with clustering, and integrate routing functionality using Mapbox Directions API.",
+        "testStrategy": "Test map rendering performance, verify marker clustering, test routing between activities",
+        "priority": "high",
+        "dependencies": [12],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Setup Mapbox Account and Token",
+            "description": "Create Mapbox account and obtain access token",
+            "dependencies": [],
+            "details": "Sign up for Mapbox account, create access token with appropriate scopes for maps and directions",
+            "status": "pending",
+            "testStrategy": "Verify token has correct permissions"
+          },
+          {
+            "id": 2,
+            "title": "Configure Mapbox Environment",
+            "description": "Add Mapbox token to environment configuration",
+            "dependencies": [1],
+            "details": "Add MAPBOX_ACCESS_TOKEN to environment files, update mapbox-config.ts and selective-mocks.ts",
+            "status": "pending",
+            "testStrategy": "Test token detection and map service switching"
+          },
+          {
+            "id": 3,
+            "title": "Update Travel Map Component",
+            "description": "Integrate real Mapbox in travel map component",
+            "dependencies": [2],
+            "details": "Update components/maps/travel-map.tsx to use real Mapbox GL JS, implement clustering and routing",
+            "status": "pending", 
+            "testStrategy": "Test map interactivity and performance"
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "PostgreSQL Database Connection - Medium",
+        "description": "Connect to real PostgreSQL database for data persistence",
+        "details": "Setup PostgreSQL database connection to replace mock database. Configure Prisma with real database URL, run migrations, and update database service configuration.",
+        "testStrategy": "Test database connections, verify migrations run successfully, test data persistence",
+        "priority": "medium", 
+        "dependencies": [12],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Setup PostgreSQL Database",
+            "description": "Create PostgreSQL database instance",
+            "dependencies": [],
+            "details": "Setup local PostgreSQL or cloud database (Neon, Supabase, etc.), create database with appropriate user permissions",
+            "status": "pending",
+            "testStrategy": "Test database connection and basic operations"
+          },
+          {
+            "id": 2,
+            "title": "Configure Database URL",
+            "description": "Add database URL to environment configuration", 
+            "dependencies": [1],
+            "details": "Add DATABASE_URL to environment files, update selective-mocks.ts to enable real database when URL is present",
+            "status": "pending",
+            "testStrategy": "Test database URL configuration and connection"
+          },
+          {
+            "id": 3,
+            "title": "Run Database Migrations",
+            "description": "Execute Prisma migrations on real database",
+            "dependencies": [2],
+            "details": "Run 'npx prisma db push' or 'npx prisma migrate dev' to create tables, seed database with initial data",
+            "status": "pending",
+            "testStrategy": "Verify all tables created correctly and seed data loads"
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "Redis Caching Setup - Medium",
+        "description": "Implement Redis caching for API responses and session management",
+        "details": "Setup Redis instance for caching to improve performance and reduce API calls. Configure cache service to use Redis instead of in-memory caching.",
+        "testStrategy": "Test Redis connection, verify caching performance improvements, test cache invalidation",
+        "priority": "medium",
+        "dependencies": [13, 14],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Setup Redis Instance",
+            "description": "Create Redis database instance",
+            "dependencies": [],
+            "details": "Setup local Redis server or cloud Redis instance (Upstash, Railway, etc.), configure connection parameters",
+            "status": "pending",
+            "testStrategy": "Test Redis connection and basic operations"
+          },
+          {
+            "id": 2,
+            "title": "Configure Redis Environment",
+            "description": "Add Redis URL to environment configuration",
+            "dependencies": [1],
+            "details": "Add REDIS_URL to environment files, update cache-service.ts to use Redis when available",
+            "status": "pending",
+            "testStrategy": "Test Redis URL configuration and connection switching"
+          },
+          {
+            "id": 3,
+            "title": "Update Cache Service Implementation",
+            "description": "Modify cache service to use Redis instead of in-memory cache",
+            "dependencies": [2],
+            "details": "Update lib/cache-service.ts to use Redis client, implement proper serialization/deserialization",
+            "status": "pending",
+            "testStrategy": "Test cache operations with Redis backend"
+          }
+        ]
+      },
+      {
+        "id": 18,
+        "title": "NextAuth.js Database Adapter - Medium",
+        "description": "Configure NextAuth with PostgreSQL adapter for real user authentication",
+        "details": "Setup NextAuth.js with Prisma adapter for PostgreSQL database. Configure OAuth providers and implement real user authentication flow.",
+        "testStrategy": "Test OAuth login flow, verify user data persistence, test session management",
+        "priority": "medium",
+        "dependencies": [16],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Configure NextAuth Prisma Adapter",
+            "description": "Setup NextAuth with Prisma database adapter",
+            "dependencies": [],
+            "details": "Install @next-auth/prisma-adapter, configure NextAuth to use Prisma adapter with PostgreSQL",
+            "status": "pending",
+            "testStrategy": "Test NextAuth configuration and database connection"
+          },
+          {
+            "id": 2,
+            "title": "Setup OAuth Providers",
+            "description": "Configure Google and other OAuth providers",
+            "dependencies": [1],
+            "details": "Setup Google OAuth credentials, configure provider settings in NextAuth configuration",
+            "status": "pending",
+            "testStrategy": "Test OAuth login flow with real providers"
+          },
+          {
+            "id": 3,
+            "title": "Update Authentication Context",
+            "description": "Modify auth context to use real authentication",
+            "dependencies": [2],
+            "details": "Update lib/auth-context.tsx to work with real NextAuth sessions, remove local storage auth",
+            "status": "pending",
+            "testStrategy": "Test authentication state management and persistence"
+          }
+        ]
+      },
+      {
+        "id": 19,
+        "title": "Amadeus API Integration for Flight Data - Complex",
+        "description": "Integrate Amadeus Self-Service APIs for real flight search and booking",
+        "details": "Setup Amadeus API for real flight data including search, pricing, and booking redirects. Implement OAuth authentication and handle complex API responses.",
+        "testStrategy": "Test flight search functionality, verify pricing accuracy, test booking redirect flow",
+        "priority": "low",
+        "dependencies": [17],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Setup Amadeus Developer Account",
+            "description": "Create Amadeus for Developers account and obtain API credentials",
+            "dependencies": [],
+            "details": "Register at developers.amadeus.com, create application, obtain API key and secret for Self-Service APIs",
+            "status": "pending",
+            "testStrategy": "Verify API credentials work with test endpoints"
+          },
+          {
+            "id": 2,
+            "title": "Implement OAuth Authentication",
+            "description": "Setup OAuth flow for Amadeus API authentication",
+            "dependencies": [1],
+            "details": "Implement OAuth 2.0 client credentials flow, handle token refresh, add error handling",
+            "status": "pending",
+            "testStrategy": "Test OAuth token acquisition and refresh"
+          },
+          {
+            "id": 3,
+            "title": "Update Flight Search Implementation",
+            "description": "Replace mock flight data with real Amadeus API calls",
+            "dependencies": [2],
+            "details": "Update lib/amadeus-client.ts to use real API endpoints, handle complex response structures",
+            "status": "pending",
+            "testStrategy": "Test flight search with various parameters and destinations"
+          }
+        ]
+      },
+      {
+        "id": 20,
+        "title": "API Error Handling and Fallbacks - Medium",
+        "description": "Implement robust error handling and graceful fallbacks when APIs fail",
+        "details": "Add comprehensive error handling for all external APIs with circuit breaker patterns, retry logic, and fallback to mock data when services are unavailable.",
+        "testStrategy": "Test API failure scenarios, verify fallback mechanisms, test retry logic and circuit breakers",
+        "priority": "medium",
+        "dependencies": [13, 14, 15],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 21,
+        "title": "Environment Configuration Documentation",
+        "description": "Create comprehensive guide for environment variable setup and API configuration",
+        "details": "Document all required environment variables, provide setup instructions for each API service, include troubleshooting tips and production deployment guidelines.",
+        "testStrategy": "Verify documentation accuracy, test setup process with fresh environment",
+        "priority": "medium",
+        "dependencies": [13, 14, 15],
+        "status": "pending",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-07-24T06:48:55.552Z",
-      "updated": "2025-07-25T14:30:00.000Z",
-      "description": "Tasks for master context"
+      "updated": "2025-07-28T00:00:00.000Z",
+      "description": "Tasks for master context - Updated with Real API Implementation roadmap"
     }
   }
 }

@@ -23,7 +23,7 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Suitcase,
+  Luggage,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -401,7 +401,7 @@ export function WeatherItineraryIntegration({
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Suitcase className="h-5 w-5 text-gray-500" />
+                <Luggage className="h-5 w-5 text-gray-500" />
                 <CardTitle className="text-lg">Weather-Based Packing List</CardTitle>
               </div>
               
