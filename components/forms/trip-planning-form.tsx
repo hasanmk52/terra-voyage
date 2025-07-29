@@ -314,8 +314,7 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
       if (onComplete) {
         onComplete(formData)
       } else {
-        // Show success message and redirect to trip details
-        alert(`🎉 Your trip "${response.trip.title}" has been created successfully! This is a demo version.`)
+        // Redirect to trip details without alert
         router.push(`/trip/${response.trip.id}`)
       }
     } catch (error) {

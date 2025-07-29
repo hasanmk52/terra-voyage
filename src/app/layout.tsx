@@ -25,6 +25,12 @@ export default function RootLayout({
             </div>
             <nav className="hidden md:flex flex-1 items-center gap-8 text-sm font-medium">
               <a
+                href="/trips"
+                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors duration-200"
+              >
+                My Trips
+              </a>
+              <a
                 href="/features"
                 className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors duration-200"
               >

@@ -21,6 +21,77 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
+// Helper function to generate mock itinerary based on destination and dates
+function generateMockItinerary(destination: string, startDate: string, endDate: string, baseCoords?: { lat: number; lng: number }): Day[] {
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const dayCount = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  
+  // Use provided coordinates or default to Paris
+  const coords = baseCoords || { lat: 48.8566, lng: 2.3522 }
+  
+  const days: Day[] = []
+  
+  for (let i = 0; i < dayCount; i++) {
+    const currentDate = new Date(start)
+    currentDate.setDate(start.getDate() + i)
+    
+    days.push({
+      day: i + 1,
+      date: currentDate.toISOString().split('T')[0],
+      transportation: undefined,
+      dailyBudget: undefined,
+      theme: `Day ${i + 1} in ${destination}`,
+      activities: [
+        {
+          id: `activity-${i + 1}-1`,
+          name: i === 0 ? "Arrival and Check-in" : `Explore ${destination}`,
+          description: i === 0 ? "Arrive at destination and settle in" : `Discover the best of ${destination}`,
+          location: {
+            name: destination,
+            address: `${destination} City Center`,
+            coordinates: { lat: coords.lat + (Math.random() - 0.5) * 0.01, lng: coords.lng + (Math.random() - 0.5) * 0.01 }
+          },
+          startTime: "09:00",
+          endTime: "12:00",
+          duration: 180,
+          type: i === 0 ? "accommodation" : "sightseeing",
+          price: {
+            amount: 0,
+            currency: "USD"
+          },
+          isBooked: false,
+          notes: `Generated activity for ${destination}`,
+          bookingUrl: undefined
+        },
+        {
+          id: `activity-${i + 1}-2`,
+          name: `Lunch at Local Restaurant`,
+          description: `Enjoy local cuisine in ${destination}`,
+          location: {
+            name: `${destination} Restaurant`,
+            address: `${destination} Downtown`,
+            coordinates: { lat: coords.lat + (Math.random() - 0.5) * 0.01, lng: coords.lng + (Math.random() - 0.5) * 0.01 }
+          },
+          startTime: "13:00",
+          endTime: "14:30",
+          duration: 90,
+          type: "dining",
+          price: {
+            amount: 35,
+            currency: "USD"
+          },
+          isBooked: false,
+          notes: "Local cuisine experience",
+          bookingUrl: undefined
+        }
+      ]
+    })
+  }
+  
+  return days
+}
+
 interface TripData {
   id: string
   title: string
@@ -54,15 +125,52 @@ export default function TripDetailsPage() {
   const [selectedDay, setSelectedDay] = useState<number | undefined>(undefined)
   const [showMap, setShowMap] = useState(true)
 
-  // Mock trip data for demonstration
+  // Load trip data from API or use mock data
   useEffect(() => {
     const loadTrip = async () => {
       setIsLoading(true)
       setError(null)
       
       try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Try to fetch from API first
+        try {
+          const response = await fetch(`/api/user/trips/${tripId}`)
+          if (response.ok) {
+            const data = await response.json()
+            
+            // Transform API response to match our TripData interface
+            const apiTrip: TripData = {
+              id: data.trip.id,
+              title: data.trip.title,
+              destination: {
+                name: data.trip.destination,
+                coordinates: data.trip.destinationCoords || { lat: 48.8566, lng: 2.3522 } // Use actual coords or fallback to Paris
+              },
+              startDate: data.trip.startDate.split('T')[0],
+              endDate: data.trip.endDate.split('T')[0],
+              travelers: {
+                adults: data.trip.travelers || 2,
+                children: 0,
+                infants: 0
+              },
+              budget: {
+                amount: data.trip.budget || 2000,
+                currency: "USD"
+              },
+              days: generateMockItinerary(data.trip.destination, data.trip.startDate, data.trip.endDate, data.trip.destinationCoords),
+              status: data.trip.status || "PLANNED"
+            }
+            
+            setTrip(apiTrip)
+            setIsLoading(false)
+            return
+          }
+        } catch (apiError) {
+          console.log("API fetch failed, using mock data:", apiError)
+        }
+        
+        // Fallback to mock data
+        await new Promise(resolve => setTimeout(resolve, 500))
         
         // Mock trip data
         const mockTrip: TripData = {

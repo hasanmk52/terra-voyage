@@ -12,6 +12,8 @@ import {
 } from "./weather-types";
 import { useMockWeather } from "./selective-mocks";
 import { mockWeather, simulateDelay } from "./mock-data";
+import { circuitBreakers } from "./circuit-breaker";
+import { retryManagers } from "./retry-logic";
 
 export class WeatherAPI {
   private apiKey: string;
@@ -21,16 +23,7 @@ export class WeatherAPI {
   }
 
   async getCurrentWeather(location: { lat: number; lon: number }) {
-    if (useMockWeather) {
-      await simulateDelay("weather");
-      return mockWeather.current;
-    }
-
-    if (!this.apiKey) {
-      throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
-    }
-
-    // Validate coordinates to prevent injection
+    // Validate coordinates first
     if (typeof location.lat !== 'number' || typeof location.lon !== 'number' ||
         location.lat < -90 || location.lat > 90 ||
         location.lon < -180 || location.lon > 180 ||
@@ -38,45 +31,56 @@ export class WeatherAPI {
       throw new Error("Invalid coordinates provided");
     }
 
-    try {
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${encodeURIComponent(this.apiKey)}&units=metric`
-      );
+    // Use circuit breaker with fallback to mock data
+    return circuitBreakers.weather.execute(
+      async () => {
+        if (useMockWeather) {
+          await simulateDelay("weather");
+          return mockWeather.current;
+        }
 
-      if (!response.ok) {
-        throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
-      }
+        if (!this.apiKey) {
+          throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
+        }
 
-      const data = await response.json();
+        // Execute with retry logic
+        return retryManagers.weather.execute(async () => {
+          const response = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${encodeURIComponent(this.apiKey)}&units=metric`,
+            {
+              headers: {
+                'User-Agent': 'TerraVoyage/1.0',
+              },
+            }
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            throw new Error(`Weather API error: ${response.status} ${response.statusText} - ${errorText}`);
+          }
+
+          const data = await response.json();
       
-      // Validate response structure
-      if (!data || !data.main || !data.weather || !data.weather[0]) {
-        console.warn("Invalid weather data structure, using mock data");
+          // Validate response structure
+          if (!data || !data.main || !data.weather || !data.weather[0]) {
+            console.warn("Invalid weather data structure, using fallback");
+            throw new Error("Invalid weather data structure");
+          }
+
+          return data;
+        });
+      },
+      async () => {
+        // Fallback to mock data
+        console.log("Using weather mock data as fallback");
         await simulateDelay("weather");
         return mockWeather.current;
       }
-
-      return data;
-    } catch (error) {
-      // Log sanitized error without exposing sensitive details
-      console.error("Failed to fetch current weather:", error instanceof Error ? error.message : 'Unknown error');
-      // Fallback to mock data on API failure
-      await simulateDelay("weather");
-      return mockWeather.current;
-    }
+    );
   }
 
   async getWeatherForecast(location: { lat: number; lon: number }) {
-    if (useMockWeather) {
-      await simulateDelay("weather");
-      return mockWeather.forecast;
-    }
-
-    if (!this.apiKey) {
-      throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
-    }
-
-    // Validate coordinates to prevent injection
+    // Validate coordinates first
     if (typeof location.lat !== 'number' || typeof location.lon !== 'number' ||
         location.lat < -90 || location.lat > 90 ||
         location.lon < -180 || location.lon > 180 ||
@@ -84,47 +88,56 @@ export class WeatherAPI {
       throw new Error("Invalid coordinates provided");
     }
 
-    try {
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/forecast?lat=${location.lat}&lon=${location.lon}&appid=${encodeURIComponent(this.apiKey)}&units=metric`
-      );
+    // Use circuit breaker with fallback to mock data
+    return circuitBreakers.weather.execute(
+      async () => {
+        if (useMockWeather) {
+          await simulateDelay("weather");
+          return mockWeather.forecast;
+        }
 
-      if (!response.ok) {
-        throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
-      }
+        if (!this.apiKey) {
+          throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
+        }
 
-      const data = await response.json();
-      
-      // Validate response structure
-      if (!data || !data.list || !Array.isArray(data.list) || data.list.length === 0) {
-        console.warn("Invalid forecast data structure, using mock data");
+        // Execute with retry logic
+        return retryManagers.weather.execute(async () => {
+          const response = await fetch(
+            `https://api.openweathermap.org/data/2.5/forecast?lat=${location.lat}&lon=${location.lon}&appid=${encodeURIComponent(this.apiKey)}&units=metric`,
+            {
+              headers: {
+                'User-Agent': 'TerraVoyage/1.0',
+              },
+            }
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            throw new Error(`Weather API error: ${response.status} ${response.statusText} - ${errorText}`);
+          }
+
+          const data = await response.json();
+          
+          // Validate response structure
+          if (!data || !data.list || !Array.isArray(data.list) || data.list.length === 0) {
+            console.warn("Invalid forecast data structure, using fallback");
+            throw new Error("Invalid forecast data structure");
+          }
+
+          return data;
+        });
+      },
+      async () => {
+        // Fallback to mock data
+        console.log("Using weather forecast mock data as fallback");
         await simulateDelay("weather");
         return mockWeather.forecast;
       }
-
-      return data;
-    } catch (error) {
-      // Log sanitized error without exposing sensitive details
-      console.error("Failed to fetch weather forecast:", error instanceof Error ? error.message : 'Unknown error');
-      // Fallback to mock data on API failure
-      await simulateDelay("weather");
-      return mockWeather.forecast;
-    }
+    );
   }
 
   async getWeatherAlerts(location: { lat: number; lon: number }) {
-    if (useMockWeather) {
-      await simulateDelay("weather");
-      return {
-        alerts: [], // No alerts in mock data by default
-      };
-    }
-
-    if (!this.apiKey) {
-      throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
-    }
-
-    // Validate coordinates to prevent injection
+    // Validate coordinates first
     if (typeof location.lat !== 'number' || typeof location.lon !== 'number' ||
         location.lat < -90 || location.lat > 90 ||
         location.lon < -180 || location.lon > 180 ||
@@ -132,30 +145,53 @@ export class WeatherAPI {
       throw new Error("Invalid coordinates provided");
     }
 
-    try {
-      // Note: OneCall API 3.0 requires subscription, using basic API for alerts
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${encodeURIComponent(this.apiKey)}&units=metric`
-      );
+    // Use circuit breaker with fallback to mock data
+    return circuitBreakers.weather.execute(
+      async () => {
+        if (useMockWeather) {
+          await simulateDelay("weather");
+          return {
+            alerts: [], // No alerts in mock data by default
+          };
+        }
 
-      if (!response.ok) {
-        throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
+        if (!this.apiKey) {
+          throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
+        }
+
+        // Execute with retry logic
+        return retryManagers.weather.execute(async () => {
+          // Note: OneCall API 3.0 requires subscription, using basic API for alerts
+          const response = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${encodeURIComponent(this.apiKey)}&units=metric`,
+            {
+              headers: {
+                'User-Agent': 'TerraVoyage/1.0',
+              },
+            }
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            throw new Error(`Weather API error: ${response.status} ${response.statusText} - ${errorText}`);
+          }
+
+          const data = await response.json();
+          // Extract any weather alerts from the basic API response
+          return {
+            alerts: data.alerts || [],
+          };
+        });
+      },
+      async () => {
+        // Fallback to mock data
+        console.log("Using weather alerts mock data as fallback");
+        await simulateDelay("weather");
+        return {
+          alerts: [],
+        };
       }
-
-      const data = await response.json();
-      // Extract any weather alerts from the basic API response
-      return {
-        alerts: data.alerts || [],
-      };
-    } catch (error) {
-      // Log sanitized error without exposing sensitive details
-      console.error("Failed to fetch weather alerts:", error instanceof Error ? error.message : 'Unknown error');
-      // Fallback to mock data on API failure
-      await simulateDelay("weather");
-      return {
-        alerts: [],
-      };
-    }
+    );
   }
 }
 
@@ -244,7 +280,7 @@ export function processForecastData(
 
   const processedDays: ProcessedWeather[] = [];
 
-  for (const [date, items] of dailyData) {
+  for (const [date, items] of Array.from(dailyData.entries())) {
     if (items.length === 0) continue;
 
     // Calculate daily aggregates (temperatures already in Celsius due to units=metric)
@@ -427,12 +463,12 @@ export async function getWeatherForecast(
       // Check if processing returned null due to invalid data
       if (!current) {
         console.warn("Current weather processing returned null, using mock data");
-        current = processCurrentWeather(mockWeather.current);
+        current = processCurrentWeather(mockWeather.current as any);
       }
     } catch (error) {
       console.error("Failed to process current weather, using fallback:", error);
       // Use mock data if processing fails
-      current = processCurrentWeather(mockWeather.current);
+      current = processCurrentWeather(mockWeather.current as any);
     }
 
     try {
@@ -440,12 +476,12 @@ export async function getWeatherForecast(
       // Check if processing returned empty array due to invalid data
       if (!forecast || forecast.length === 0) {
         console.warn("Forecast processing returned empty, using mock data");
-        forecast = processForecastData(mockWeather.forecast);
+        forecast = processForecastData(mockWeather.forecast as any);
       }
     } catch (error) {
       console.error("Failed to process forecast data, using fallback:", error);
       // Use mock data if processing fails
-      forecast = processForecastData(mockWeather.forecast);
+      forecast = processForecastData(mockWeather.forecast as any);
     }
 
     return {

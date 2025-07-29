@@ -148,7 +148,7 @@ export const weatherForecastSchema = z.object({
   current: processedWeatherSchema,
   forecast: z.array(processedWeatherSchema),
   lastUpdated: z.string(), // ISO timestamp
-  source: z.literal('openweathermap')
+  source: z.enum(['openweathermap', 'mock'])
 })
 
 // Activity suitability types

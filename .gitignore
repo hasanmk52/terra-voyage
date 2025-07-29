@@ -33,9 +33,12 @@ logs/
 *.log
 dev-debug.log
 
-# Env files
-.env*
-*.env.local
+# Environment files (keep only .env.example in git)
+.env.local
+.env
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Vercel
 .vercel/

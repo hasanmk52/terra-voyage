@@ -319,7 +319,9 @@ export function ItineraryDisplay({
   const totalActivities = processedDays.reduce((sum, day) => sum + day.activities.length, 0)
   const totalDuration = processedDays.reduce((sum, day) => {
     return sum + day.activities.reduce((daySum, activity) => {
-      const duration = parseInt(activity.duration?.match(/\d+/)?.[0] || '0')
+      // Safely extract duration number from string, handling cases where duration might not be a string
+      const durationStr = typeof activity.duration === 'string' ? activity.duration : ''
+      const duration = parseInt(durationStr.match(/\d+/)?.[0] || '0')
       return daySum + duration
     }, 0)
   }, 0)

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { useMocks } from "@/lib/mock-data"
+import { useMockDatabase } from "@/lib/selective-mocks"
+import { simulateDelay } from "@/lib/mock-data"
+import { db } from "@/lib/db"
 
 const updateTripSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -24,13 +26,42 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    // Use mock implementation for simplified experience
-    if (useMocks) {
+    const tripId = params.tripId
+
+    // Validate tripId
+    if (!tripId || typeof tripId !== 'string') {
+      return NextResponse.json(
+        { error: "Invalid trip ID" },
+        { status: 400 }
+      )
+    }
+
+    // Use mock implementation when database is mocked
+    if (useMockDatabase) {
+      await simulateDelay("database")
+      
+      // Generate mock trip based on tripId to simulate different destinations
+      const mockDestinations = [
+        { name: "Tokyo, Japan", coords: { lat: 35.6762, lng: 139.6503 } },
+        { name: "New York, NY, USA", coords: { lat: 40.7128, lng: -74.0060 } },
+        { name: "London, UK", coords: { lat: 51.5074, lng: -0.1278 } },
+        { name: "Dubai, UAE", coords: { lat: 25.2048, lng: 55.2708 } },
+        { name: "Sydney, Australia", coords: { lat: -33.8688, lng: 151.2093 } },
+        { name: "Paris, France", coords: { lat: 48.8566, lng: 2.3522 } },
+        { name: "Rome, Italy", coords: { lat: 41.9028, lng: 12.4964 } },
+        { name: "Barcelona, Spain", coords: { lat: 41.3851, lng: 2.1734 } }
+      ]
+      
+      // Use tripId hash to select consistent destination for same trip
+      const destinationIndex = Math.abs(tripId.split('').reduce((hash, char) => hash + char.charCodeAt(0), 0)) % mockDestinations.length
+      const selectedDestination = mockDestinations[destinationIndex]
+      
       const mockTrip = {
-        id: params.tripId,
-        title: "Paris Adventure",
-        destination: "Paris, France",
-        description: "Exploring the City of Light",
+        id: tripId,
+        title: `Amazing ${selectedDestination.name.split(',')[0]} Adventure`,
+        destination: selectedDestination.name,
+        destinationCoords: selectedDestination.coords,
+        description: `Exploring the best of ${selectedDestination.name.split(',')[0]}`,
         startDate: "2024-06-15T00:00:00.000Z",
         endDate: "2024-06-20T00:00:00.000Z",
         budget: 2000,
@@ -57,8 +88,50 @@ export async function GET(
       return NextResponse.json({ trip: mockTrip })
     }
 
-    // Note: Database functionality disabled for simplified experience
-    return NextResponse.json({ error: "Database functionality not available in simplified mode" }, { status: 503 })
+    // Use real database
+    try {
+      const trip = await db.trip.findFirst({
+        where: {
+          id: tripId,
+          isPublic: true // Only return public trips for security
+        },
+        select: {
+          id: true,
+          title: true,
+          destination: true,
+          description: true,
+          startDate: true,
+          endDate: true,
+          budget: true,
+          travelers: true,
+          status: true,
+          isPublic: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              activities: true,
+              collaborations: true,
+            }
+          }
+        }
+      })
+
+      if (!trip) {
+        return NextResponse.json(
+          { error: "Trip not found" },
+          { status: 404 }
+        )
+      }
+
+      return NextResponse.json({ trip })
+    } catch (dbError) {
+      console.error("Database error:", dbError)
+      return NextResponse.json(
+        { error: "Database error" },
+        { status: 500 }
+      )
+    }
   } catch (error) {
     console.error("Trip fetch error:", error)
     return NextResponse.json(

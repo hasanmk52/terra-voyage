@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { useMockDatabase } from "@/lib/selective-mocks"
 import { simulateDelay } from "@/lib/mock-data"
+import { db } from "@/lib/db"
 
 const createTripSchema = z.object({
   title: z.string().min(1).max(200),
@@ -17,8 +18,28 @@ const createTripSchema = z.object({
 // GET /api/user/trips - Get user's trips
 export async function GET(request: NextRequest) {
   try {
-    // Use mock implementation for simplified experience
+    // Input validation and sanitization
+    const url = new URL(request.url)
+    const pageParam = url.searchParams.get('page')
+    const limitParam = url.searchParams.get('limit')
+    
+    // Validate and sanitize pagination parameters
+    const page = Math.max(1, Math.min(1000, parseInt(pageParam || '1') || 1))
+    const limit = Math.max(1, Math.min(100, parseInt(limitParam || '10') || 10))
+    const skip = (page - 1) * limit
+
+    // Validate numeric inputs to prevent injection
+    if (isNaN(page) || isNaN(limit) || page < 1 || limit < 1) {
+      return NextResponse.json(
+        { error: "Invalid pagination parameters" },
+        { status: 400 }
+      )
+    }
+
+    // Use mock implementation when database is mocked
     if (useMockDatabase) {
+      await simulateDelay("database")
+      
       const mockTrips = [
         {
           id: "mock-trip-1",
@@ -51,10 +72,59 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Note: Database functionality disabled for simplified experience
-    return NextResponse.json({ error: "Database functionality not available in simplified mode" }, { status: 503 })
+    // Use real database
+    // Security: Only return public trips or implement proper authentication
+    // For demo purposes, only return public trips to prevent data exposure
+    const [trips, total] = await Promise.all([
+      db.trip.findMany({
+        where: {
+          isPublic: true // Only return public trips for security
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          // Only select safe fields, exclude sensitive information
+          id: true,
+          title: true,
+          destination: true,
+          description: true,
+          startDate: true,
+          endDate: true,
+          travelers: true,
+          status: true,
+          isPublic: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              activities: true,
+              collaborations: true,
+            }
+          }
+          // Excluded: userId, budget, coverImage (sensitive data)
+        }
+      }),
+      db.trip.count({
+        where: {
+          isPublic: true
+        }
+      })
+    ])
+
+    const pages = Math.ceil(total / limit)
+
+    return NextResponse.json({
+      trips,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages,
+      }
+    })
   } catch (error) {
-    // Trips fetch error
+    console.error("Trips fetch error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -68,9 +138,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createTripSchema.parse(body)
 
-    // Validate dates
+    // Validate dates with additional security checks
     const startDate = new Date(validatedData.startDate)
     const endDate = new Date(validatedData.endDate)
+    
+    // Security: Validate date inputs to prevent injection and unreasonable values
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return NextResponse.json(
+        { error: "Invalid date format" },
+        { status: 400 }
+      )
+    }
     
     if (endDate <= startDate) {
       return NextResponse.json(
@@ -79,9 +157,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use mock implementation for simplified experience
+    // Security: Prevent creating trips too far in the future (prevents abuse)
+    const maxFutureDate = new Date()
+    maxFutureDate.setFullYear(maxFutureDate.getFullYear() + 2)
+    
+    if (startDate > maxFutureDate) {
+      return NextResponse.json(
+        { error: "Trip start date cannot be more than 2 years in the future" },
+        { status: 400 }
+      )
+    }
+
+    // Security: Prevent creating trips in the distant past
+    const minPastDate = new Date()
+    minPastDate.setFullYear(minPastDate.getFullYear() - 1)
+    
+    if (endDate < minPastDate) {
+      return NextResponse.json(
+        { error: "Trip cannot be more than 1 year in the past" },
+        { status: 400 }
+      )
+    }
+
+    // Use mock implementation when database is mocked
     if (useMockDatabase) {
-      // Simulate trip creation with mock response
+      await simulateDelay("database")
+      
+      // Simulate trip creation with mock response (only if database is actually mocked)
       const mockTrip = {
         id: `mock-trip-${Date.now()}`,
         ...validatedData,
@@ -97,15 +199,61 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Simulate delay like a real API
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Mock trip created successfully
       return NextResponse.json({ trip: mockTrip }, { status: 201 })
     }
 
-    // Note: Database functionality disabled for simplified experience
-    return NextResponse.json({ error: "Database functionality not available in simplified mode" }, { status: 503 })
+    // Use real database
+    // Security: For demo purposes without authentication, create public trips only
+    // In production, this should require authentication and user validation
+    
+    // Security: Limit trip creation frequency (basic rate limiting)
+    const recentTripsCount = await db.trip.count({
+      where: {
+        createdAt: {
+          gte: new Date(Date.now() - 5 * 60 * 1000) // 5 minutes
+        }
+      }
+    })
+    
+    if (recentTripsCount > 10) {
+      return NextResponse.json(
+        { error: "Too many trips created recently. Please try again later." },
+        { status: 429 }
+      )
+    }
+
+    const trip = await db.trip.create({
+      data: {
+        ...validatedData,
+        startDate,
+        endDate,
+        userId: 'public-demo-user', // Use public demo user for security
+        isPublic: true, // Force public for demo security
+      },
+      select: {
+        // Security: Only return safe fields
+        id: true,
+        title: true,
+        destination: true,
+        description: true,
+        startDate: true,
+        endDate: true,
+        travelers: true,
+        status: true,
+        isPublic: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            activities: true,
+            collaborations: true,
+          }
+        }
+        // Excluded: userId (sensitive data)
+      }
+    })
+
+    return NextResponse.json({ trip }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

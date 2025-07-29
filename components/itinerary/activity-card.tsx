@@ -84,7 +84,9 @@ export function ActivityCard({
   }
 
   const formatDuration = (duration: string) => {
-    const minutes = parseInt(duration.match(/\d+/)?.[0] || '0')
+    // Safely extract duration number from string, handling cases where duration might not be a string
+    const durationStr = typeof duration === 'string' ? duration : ''
+    const minutes = parseInt(durationStr.match(/\d+/)?.[0] || '0')
     if (minutes >= 60) {
       const hours = Math.floor(minutes / 60)
       const remainingMinutes = minutes % 60

@@ -17,8 +17,10 @@ export const serviceConfig = {
                  process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN !== "your-mapbox-token" &&
                  process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN.startsWith('pk.'),
                  
-  // Database - use real database when URL is configured (for now keep mocked)
-  useRealDatabase: false, // Set to true when you want to use real database
+  // Database - use real database when URL is configured
+  useRealDatabase: !!process.env.DATABASE_URL && 
+                   process.env.DATABASE_URL !== "postgresql://postgres:password@localhost:5432/terra_voyage" &&
+                   process.env.DATABASE_URL.startsWith('postgresql://'),
   
   // Redis Cache - use real Redis when URL is configured (for now keep mocked)  
   useRealCache: false, // Set to true when you want to use real Redis
@@ -61,6 +63,7 @@ if (process.env.NODE_ENV === 'development') {
     AI: useMockAI ? 'MOCK' : 'REAL',
     Maps: useMockMaps ? 'MOCK' : 'REAL', 
     Weather: useMockWeather ? 'MOCK' : 'REAL',
+    Mapbox: useMockMapbox ? 'MOCK' : 'REAL',
     Database: useMockDatabase ? 'MOCK' : 'REAL',
     Cache: useMockCache ? 'MOCK' : 'REAL',
     WebSocket: useMockWebSocket ? 'MOCK' : 'REAL',

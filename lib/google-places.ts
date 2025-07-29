@@ -2,6 +2,8 @@
 
 import { mockDestinations, mockPlaceDetails, simulateDelay } from "./mock-data"
 import { useMockMaps } from "./selective-mocks"
+import { circuitBreakers } from "./circuit-breaker"
+import { retryManagers } from "./retry-logic"
 
 let googlePlacesLoaded = false
 
@@ -24,7 +26,7 @@ export interface PlaceDetails {
     }
   }
   types: string[]
-  photos?: google.maps.places.PlacePhoto[]
+  photos?: any[]
   rating?: number
   website?: string
   formattedPhoneNumber?: string
@@ -43,90 +45,74 @@ class GooglePlacesService {
   }
 
   async searchDestinations(query: string): Promise<PlaceResult[]> {
-    // Use mock data if mocks are enabled
-    if (useMockMaps) {
-      await simulateDelay('maps')
-      
-      // Filter mock destinations based on query
+    const getMockResults = (query: string) => {
       const filteredDestinations = mockDestinations.filter(destination =>
         destination.description.toLowerCase().includes(query.toLowerCase()) ||
         destination.mainText.toLowerCase().includes(query.toLowerCase())
       )
-      
       return filteredDestinations.slice(0, 5) // Limit to 5 results like a real API
     }
 
-    if (!this.apiKey) {
-      console.error("Google Maps API key not configured, using mock data")
-      await simulateDelay('maps')
-      const filteredDestinations = mockDestinations.filter(destination =>
-        destination.description.toLowerCase().includes(query.toLowerCase()) ||
-        destination.mainText.toLowerCase().includes(query.toLowerCase())
-      )
-      return filteredDestinations.slice(0, 5)
-    }
+    // Use circuit breaker with fallback to mock data
+    return circuitBreakers.maps.execute(
+      async () => {
+        // Use mock data if mocks are enabled
+        if (useMockMaps) {
+          await simulateDelay('maps')
+          return getMockResults(query)
+        }
 
-    try {
-      // Use the new Places API Text Search
-      const requestBody = {
-        textQuery: `${query} city destination`,
-        maxResultCount: 5,
-        includedType: 'locality'
+        if (!this.apiKey) {
+          throw new Error("Google Maps API key not configured")
+        }
+
+        // Execute with retry logic
+        return retryManagers.maps.execute(async () => {
+          const requestBody = {
+            textQuery: `${query} city destination`,
+            maxResultCount: 5,
+            includedType: 'locality'
+          }
+
+          const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': this.apiKey,
+              'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types',
+              'User-Agent': 'TerraVoyage/1.0',
+            },
+            body: JSON.stringify(requestBody)
+          })
+
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error')
+            throw new Error(`Places API error: ${response.status} ${response.statusText} - ${errorText}`)
+          }
+
+          const data = await response.json()
+          
+          if (data.places && data.places.length > 0) {
+            const results: PlaceResult[] = data.places.map((place: any) => ({
+              placeId: place.id,
+              description: place.formattedAddress || place.displayName?.text || query,
+              mainText: place.displayName?.text || query,
+              secondaryText: place.formattedAddress || "",
+              types: place.types || []
+            }))
+            return results
+          }
+
+          return []
+        });
+      },
+      async () => {
+        // Fallback to mock data
+        console.log("Using Google Places mock data as fallback");
+        await simulateDelay('maps')
+        return getMockResults(query)
       }
-
-      console.log('🌍 Making Google Places API request:', {
-        url: 'https://places.googleapis.com/v1/places:searchText',
-        apiKey: this.apiKey ? `${this.apiKey.substring(0, 8)}...` : 'NOT SET',
-        body: requestBody
-      })
-
-      const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': this.apiKey,
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types'
-        },
-        body: JSON.stringify(requestBody)
-      })
-
-      console.log('🌍 Google Places API response:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('🌍 Places API error response:', errorText)
-        throw new Error(`Places API error: ${response.status} ${response.statusText} - ${errorText}`)
-      }
-
-      const data = await response.json()
-      console.log('🌍 Places API success:', { places: data.places?.length || 0 })
-      
-      if (data.places && data.places.length > 0) {
-        const results: PlaceResult[] = data.places.map((place: any) => ({
-          placeId: place.id,
-          description: place.formattedAddress || place.displayName?.text || query,
-          mainText: place.displayName?.text || query,
-          secondaryText: place.formattedAddress || "",
-          types: place.types || []
-        }))
-        return results
-      }
-
-      return []
-    } catch (error) {
-      console.error("🌍 Places Text Search failed, falling back to mock data:", error)
-      // Fallback to mock data on API error
-      await simulateDelay('maps')
-      const filteredDestinations = mockDestinations.filter(destination =>
-        destination.description.toLowerCase().includes(query.toLowerCase()) ||
-        destination.mainText.toLowerCase().includes(query.toLowerCase())
-      )
-      return filteredDestinations.slice(0, 5)
-    }
+    );
   }
 
   async getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {

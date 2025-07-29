@@ -20,7 +20,11 @@
       "Bash(WEATHER_API_KEY=\"invalid-key\" npx tsx scripts/test-weather.ts)",
       "Bash(npx tsx:*)",
       "Bash(grep:*)",
-      "Bash(-print)"
+      "Bash(-print)",
+      "Bash(npm run db:test)",
+      "Bash(dotenv -e .env.local -- npx prisma db push:*)",
+      "Bash(npm run test:env:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

@@ -5,7 +5,7 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Starting seed...')
 
-  // Create sample user
+  // Create demo user
   const user = await prisma.user.upsert({
     where: { email: 'demo@example.com' },
     update: {},
@@ -17,6 +17,18 @@ async function main() {
         interests: ['culture', 'food', 'nature'],
         accessibility: false,
       },
+    },
+  })
+
+  // Create public demo user for anonymous trips
+  const publicUser = await prisma.user.upsert({
+    where: { email: 'public@demo.com' },
+    update: {},
+    create: {
+      id: 'public-demo-user',
+      email: 'public@demo.com',
+      name: 'Public Demo',
+      preferences: {},
     },
   })
 
@@ -35,7 +47,7 @@ async function main() {
       budget: 2500.00,
       travelers: 2,
       status: 'PLANNED',
-      isPublic: false,
+      isPublic: true, // Make public for demo/security
     },
   })
 
