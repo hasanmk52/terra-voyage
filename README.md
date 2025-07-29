@@ -1,6 +1,6 @@
 # TerraVoyage: AI-Powered Travel Planner
 
-**Live Demo**: [https://terra-voyage-6xcn00s41-hasan-kagalwalas-projects.vercel.app/](https://terra-voyage-6xcn00s41-hasan-kagalwalas-projects.vercel.app/)
+**Live Demo**: [https://terra-voyage-bmsk31d9e-hasan-kagalwalas-projects.vercel.app/](https://terra-voyage-bmsk31d9e-hasan-kagalwalas-projects.vercel.app/)
 
 TerraVoyage is a modern, AI-powered travel planning application that helps users create personalized multi-day travel itineraries with intelligent AI recommendations and beautiful design.
 

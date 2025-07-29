@@ -41,11 +41,14 @@ export function DestinationAutocomplete({
 
     try {
       const results = await googlePlaces.searchDestinations(query)
+      console.log('🔍 Destination search results:', results.length)
       setSuggestions(results)
       setIsOpen(results.length > 0)
+      setError(null) // Clear any previous errors
     } catch (err) {
-      console.error("Destination search error:", err)
-      setError("Failed to search destinations")
+      console.error("🔍 Destination search error:", err)
+      const errorMessage = err instanceof Error ? err.message : "Failed to search destinations"
+      setError(`Search failed: ${errorMessage}`)
       setSuggestions([])
       setIsOpen(false)
     } finally {

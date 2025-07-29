@@ -12,5 +12,11 @@
   "env": {
     "USE_MOCKS": "false",
     "NEXT_PUBLIC_USE_MOCKS": "false"
+  },
+  "build": {
+    "env": {
+      "USE_MOCKS": "false",
+      "NEXT_PUBLIC_USE_MOCKS": "false"
+    }
   }
 }

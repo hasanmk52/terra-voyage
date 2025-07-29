@@ -2,6 +2,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { metadata, viewport } from "./metadata";
 import { Logo } from "../../components/ui/logo";
+import { ApiStatusDebug } from "../../components/debug/api-status";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -50,6 +51,7 @@ export default function RootLayout({
           </div>
         </header>
         {children}
+        <ApiStatusDebug />
       </body>
     </html>
   );

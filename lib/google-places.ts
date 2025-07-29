@@ -68,6 +68,18 @@ class GooglePlacesService {
 
     try {
       // Use the new Places API Text Search
+      const requestBody = {
+        textQuery: `${query} city destination`,
+        maxResultCount: 5,
+        includedType: 'locality'
+      }
+
+      console.log('🌍 Making Google Places API request:', {
+        url: 'https://places.googleapis.com/v1/places:searchText',
+        apiKey: this.apiKey ? `${this.apiKey.substring(0, 8)}...` : 'NOT SET',
+        body: requestBody
+      })
+
       const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
         method: 'POST',
         headers: {
@@ -75,18 +87,23 @@ class GooglePlacesService {
           'X-Goog-Api-Key': this.apiKey,
           'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types'
         },
-        body: JSON.stringify({
-          textQuery: `${query} city destination`,
-          maxResultCount: 5,
-          includedType: 'locality'
-        })
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌍 Google Places API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       })
 
       if (!response.ok) {
-        throw new Error(`Places API error: ${response.status} ${response.statusText}`)
+        const errorText = await response.text()
+        console.error('🌍 Places API error response:', errorText)
+        throw new Error(`Places API error: ${response.status} ${response.statusText} - ${errorText}`)
       }
 
       const data = await response.json()
+      console.log('🌍 Places API success:', { places: data.places?.length || 0 })
       
       if (data.places && data.places.length > 0) {
         const results: PlaceResult[] = data.places.map((place: any) => ({
@@ -101,7 +118,7 @@ class GooglePlacesService {
 
       return []
     } catch (error) {
-      console.error("Places Text Search failed, falling back to mock data:", error)
+      console.error("🌍 Places Text Search failed, falling back to mock data:", error)
       // Fallback to mock data on API error
       await simulateDelay('maps')
       const filteredDestinations = mockDestinations.filter(destination =>
