@@ -12,9 +12,10 @@ export const serviceConfig = {
   useRealWeather: !!process.env.WEATHER_API_KEY && 
                   process.env.WEATHER_API_KEY !== "your-weather-api-key",
                   
-  // Mapbox - use real service when token is available
-  useRealMapbox: !!process.env.MAPBOX_ACCESS_TOKEN && 
-                 process.env.MAPBOX_ACCESS_TOKEN !== "your-mapbox-token",
+  // Mapbox - use real service when valid public token is available
+  useRealMapbox: !!process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN && 
+                 process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN !== "your-mapbox-token" &&
+                 process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN.startsWith('pk.'),
                  
   // Database - use real database when URL is configured (for now keep mocked)
   useRealDatabase: false, // Set to true when you want to use real database

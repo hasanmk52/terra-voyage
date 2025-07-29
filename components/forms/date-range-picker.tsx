@@ -81,16 +81,16 @@ export function DateRangePicker({
 
     setSelectedRange({ from, to })
 
-    // Only close dropdown and notify parent when BOTH dates are selected
-    if (from && to) {
-      onChange(from, to)
-      // Add a small delay to show the selected range before closing
-      setTimeout(() => setIsOpen(false), 200)
-    } else if (from) {
+    // Update parent immediately for reactivity
+    onChange(from, to)
+    
+    // Only close dropdown when BOTH dates are selected AND user confirms
+    // Keep dropdown open for partial selections
+    if (from && !to) {
       // Keep dropdown open when only start date is selected
-      // Update parent with partial selection but don't close
-      onChange(from, undefined)
+      // This allows user to see their selection and pick end date
     }
+    // Note: Dropdown will only close via "Confirm dates" button or click outside
   }
 
   // Format display text
@@ -107,7 +107,7 @@ export function DateRangePicker({
       )} (${nights} night${nights !== 1 ? "s" : ""})`
     }
 
-    return `${format(selectedRange.from, "MMM d, yyyy")} - Please select end date`
+    return `${format(selectedRange.from, "MMM d, yyyy")} - Select check-out date`
   }
 
   // Handle clear
@@ -117,7 +117,7 @@ export function DateRangePicker({
     onChange(undefined, undefined)
   }
 
-  // Handle click outside
+  // Handle click outside and keyboard shortcuts
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -129,9 +129,28 @@ export function DateRangePicker({
       }
     }
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isOpen) return
+      
+      // Close with Escape
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+      
+      // Confirm selection with Enter when both dates are selected
+      if (event.key === 'Enter' && selectedRange?.from && selectedRange?.to) {
+        setIsOpen(false)
+      }
+    }
+
     document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    document.addEventListener("keydown", handleKeyDown)
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [isOpen, selectedRange])
 
   // Set up date constraints
   const today = startOfDay(new Date())
@@ -193,11 +212,28 @@ export function DateRangePicker({
           className="absolute z-50 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4"
           style={{ minWidth: "320px" }}
         >
-          {/* Helper text */}
-          <div className="mb-4 text-sm text-gray-600">
-            {!selectedRange?.from && "Select your check-in date"}
-            {selectedRange?.from && !selectedRange?.to && "Now select your check-out date"}
-            {selectedRange?.from && selectedRange?.to && "Both dates selected"}
+          {/* Helper text with better visual feedback */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 text-sm">
+              {!selectedRange?.from && (
+                <>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-gray-700 font-medium">Step 1: Select your check-in date</span>
+                </>
+              )}
+              {selectedRange?.from && !selectedRange?.to && (
+                <>
+                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                  <span className="text-gray-700 font-medium">Step 2: Select your check-out date</span>
+                </>
+              )}
+              {selectedRange?.from && selectedRange?.to && (
+                <>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-green-700 font-medium">✓ Both dates selected - Ready to confirm</span>
+                </>
+              )}
+            </div>
           </div>
           
           <DayPicker
@@ -234,11 +270,17 @@ export function DateRangePicker({
           />
 
           <div className="mt-4 pt-4 border-t space-y-2">
-            {minDays > 1 && (
-              <div className="text-xs text-gray-500">
-                Minimum stay: {minDays} night{minDays !== 1 ? "s" : ""}
+            <div className="flex justify-between items-center text-xs text-gray-500">
+              {minDays > 1 && (
+                <span>Minimum stay: {minDays} night{minDays !== 1 ? "s" : ""}</span>
+              )}
+              <div className="flex gap-4">
+                <span>Press <kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">Esc</kbd> to close</span>
+                {selectedRange?.from && selectedRange?.to && (
+                  <span>Press <kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">Enter</kbd> to confirm</span>
+                )}
               </div>
-            )}
+            </div>
             
             {/* Action buttons */}
             <div className="flex justify-between items-center">
@@ -248,20 +290,33 @@ export function DateRangePicker({
                   setSelectedRange(undefined)
                   onChange(undefined, undefined)
                 }}
-                className="text-sm text-gray-500 hover:text-gray-700"
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
               >
                 Clear dates
               </button>
               
-              {selectedRange?.from && selectedRange?.to && (
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Confirm dates
-                </button>
-              )}
+              <div className="flex gap-2">
+                {selectedRange?.from && selectedRange?.to ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Confirm Selection
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="px-4 py-2 bg-gray-300 text-gray-500 text-sm rounded-md cursor-not-allowed"
+                  >
+                    Select both dates first
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

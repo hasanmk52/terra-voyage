@@ -51,12 +51,18 @@ export class MapClustering {
       if (selectedDay !== undefined && selectedDay !== day.day) return
 
       day.activities.forEach(activity => {
-        // Skip invalid coordinates
+        // Validate coordinates for security
+        const lat = activity.location.coordinates.lat;
+        const lng = activity.location.coordinates.lng;
+        
         if (
-          activity.location.coordinates.lat === 0 && 
-          activity.location.coordinates.lng === 0
+          typeof lat !== 'number' || typeof lng !== 'number' ||
+          isNaN(lat) || isNaN(lng) ||
+          lat < -90 || lat > 90 || lng < -180 || lng > 180 ||
+          (lat === 0 && lng === 0)
         ) {
-          return
+          console.warn('Invalid coordinates in clustering, skipping activity');
+          return; // Skip invalid coordinates
         }
 
         points.push({

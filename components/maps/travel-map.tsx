@@ -75,7 +75,14 @@ export function TravelMap({
   useEffect(() => {
     if (!mapContainer.current || map.current || !isIntersecting) return
 
-    // Set Mapbox access token
+    // Validate and set Mapbox access token
+    if (MAPBOX_CONFIG.ACCESS_TOKEN === "mock-mapbox-token") {
+      console.log('🗺️ Using mock map data (no valid Mapbox token provided)')
+    } else if (!MAPBOX_CONFIG.ACCESS_TOKEN.startsWith('pk.')) {
+      console.error('❌ Invalid Mapbox token: Client-side apps need PUBLIC tokens (pk.*), not secret tokens (sk.*)')
+      return
+    }
+    
     mapboxgl.accessToken = MAPBOX_CONFIG.ACCESS_TOKEN
 
     // Create map instance
@@ -222,8 +229,18 @@ export function TravelMap({
       if (selectedDay !== undefined && selectedDay !== day.day) return
 
       day.activities.forEach(activity => {
-        if (activity.location.coordinates.lat === 0 && activity.location.coordinates.lng === 0) {
-          return // Skip invalid coordinates
+        // Validate coordinates for security
+        const lat = activity.location.coordinates.lat;
+        const lng = activity.location.coordinates.lng;
+        
+        if (
+          typeof lat !== 'number' || typeof lng !== 'number' ||
+          isNaN(lat) || isNaN(lng) ||
+          lat < -90 || lat > 90 || lng < -180 || lng > 180 ||
+          (lat === 0 && lng === 0)
+        ) {
+          console.warn('Invalid or suspicious coordinates detected, skipping activity');
+          return; // Skip invalid/suspicious coordinates
         }
 
         const coordinates: [number, number] = [
@@ -369,10 +386,18 @@ export function TravelMap({
       if (selectedDay !== undefined && selectedDay !== day.day) return
 
       const coordinates = day.activities
-        .filter(activity => 
-          activity.location.coordinates.lat !== 0 && 
-          activity.location.coordinates.lng !== 0
-        )
+        .filter(activity => {
+          const lat = activity.location.coordinates.lat;
+          const lng = activity.location.coordinates.lng;
+          
+          // Validate coordinates for security
+          return (
+            typeof lat === 'number' && typeof lng === 'number' &&
+            !isNaN(lat) && !isNaN(lng) &&
+            lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 &&
+            !(lat === 0 && lng === 0)
+          );
+        })
         .map(activity => [
           activity.location.coordinates.lng,
           activity.location.coordinates.lat
@@ -381,6 +406,12 @@ export function TravelMap({
       if (coordinates.length < 2) return
 
       try {
+        // Validate transport mode for security
+        if (!['walking', 'driving', 'cycling'].includes(transportMode)) {
+          console.warn('Invalid transport mode detected:', transportMode);
+          return;
+        }
+        
         // Create route using Mapbox Directions API
         const coordinateString = coordinates.map(coord => coord.join(',')).join(';')
         const response = await fetch(
@@ -469,6 +500,40 @@ export function TravelMap({
       }
     }
   }, [])
+
+  // Check for invalid Mapbox token
+  const hasInvalidToken = MAPBOX_CONFIG.ACCESS_TOKEN !== "mock-mapbox-token" && 
+                         !MAPBOX_CONFIG.ACCESS_TOKEN.startsWith('pk.')
+  
+  if (hasInvalidToken) {
+    return (
+      <div className={`relative w-full h-full ${className}`}>
+        <div className="absolute inset-0 bg-red-50 rounded-lg flex items-center justify-center">
+          <div className="text-center p-6 max-w-md">
+            <div className="w-16 h-16 bg-red-100 rounded-lg mb-4 mx-auto flex items-center justify-center">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 19c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-red-900 mb-2">Invalid Mapbox Token</h3>
+            <p className="text-sm text-red-700 mb-4">
+              Mapbox GL JS requires a <strong>public access token</strong> (starts with 'pk.'), 
+              not a secret token (starts with 'sk.').
+            </p>
+            <div className="text-xs text-red-600 bg-red-100 p-3 rounded-lg">
+              <p className="font-medium mb-1">To fix this:</p>
+              <p>1. Get a public token from <br/>
+                 <a href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener noreferrer" className="underline">
+                   account.mapbox.com/access-tokens
+                 </a>
+              </p>
+              <p>2. Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="pk.your-token"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`relative w-full h-full ${className}`}>

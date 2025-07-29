@@ -37,11 +37,22 @@
    - Without API key: Should show mock cities
 3. **Console**: Check browser console for API status logs
 
-### 4. Weather API Testing  
-- **Command Line**: `WEATHER_API_KEY="your-openweather-api-key" npx tsx scripts/test-weather.ts`
+### 4. API Testing Commands
+- **Weather API**: `WEATHER_API_KEY="your-openweather-api-key" npx tsx scripts/test-weather.ts`
 - **Google Maps**: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="your-google-maps-api-key" npx tsx scripts/test-google-maps.ts`
 
-**Note**: Replace with your actual API keys. Never commit real API keys to version control.
+### 5. Mapbox Integration
+The map integration uses **Mapbox GL JS** which requires a **PUBLIC access token** (starts with `pk.`).
+
+**Environment Variable**: `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="pk.your-public-token"`
+
+**⚠️ IMPORTANT**: 
+- Use **PUBLIC tokens** (`pk.*`) for client-side Mapbox GL JS
+- **SECRET tokens** (`sk.*`) are only for server-side API calls
+- Get your public token from: https://account.mapbox.com/access-tokens/
+
+**SECURITY WARNING**: Replace placeholders with your actual API keys. Never commit real API keys to version control.
+**NOTE**: All example API keys in this file are placeholders. Use your own keys from the respective service providers.
 
 ## Expected Results
 

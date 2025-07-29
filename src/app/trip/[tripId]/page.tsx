@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { ItineraryDisplay } from '@/components/itinerary/itinerary-display'
 import { WeatherSidebar } from '@/components/weather/weather-sidebar'
+import { TravelMap } from '@/components/maps/travel-map'
 // import { ExportButton } from '@/components/export-button'
 import { Day } from '@/lib/itinerary-types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -50,6 +51,8 @@ export default function TripDetailsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showWeather, setShowWeather] = useState(true)
+  const [selectedDay, setSelectedDay] = useState<number | undefined>(undefined)
+  const [showMap, setShowMap] = useState(true)
 
   // Mock trip data for demonstration
   useEffect(() => {
@@ -89,43 +92,73 @@ export default function TripDetailsPage() {
                   id: "activity-1",
                   name: "Arrive at Charles de Gaulle Airport",
                   description: "Flight arrival and transfer to hotel",
-                  location: "Charles de Gaulle Airport",
+                  location: {
+                    name: "Charles de Gaulle Airport",
+                    address: "95700 Roissy-en-France, France",
+                    coordinates: { lat: 49.0097, lng: 2.5479 }
+                  },
                   startTime: "09:00",
                   endTime: "11:00",
                   duration: "120 minutes",
                   type: "transportation",
                   timeSlot: "morning",
                   pricing: { amount: 0, currency: "USD", priceType: "free" },
-                  bookingUrl: null,
-                  notes: "Check flight status before departure"
+                  tips: ["Check flight status online", "Arrive early for customs"],
+                  bookingRequired: false,
+                  accessibility: {
+                    wheelchairAccessible: true,
+                    hasElevator: true,
+                    notes: "Wheelchair accessible"
+                  },
+                  bookingUrl: undefined,
                 },
                 {
                   id: "activity-2", 
                   name: "Check-in at Hotel",
                   description: "Hotel check-in and rest",
-                  location: "Hotel des Grands Boulevards",
+                  location: {
+                    name: "Hotel des Grands Boulevards",
+                    address: "17 Boulevard Poissonnière, 75002 Paris, France",
+                    coordinates: { lat: 48.8708, lng: 2.3439 }
+                  },
                   startTime: "14:00",
                   endTime: "15:00",
                   duration: "60 minutes",
                   type: "accommodation",
                   timeSlot: "afternoon",
                   pricing: { amount: 150, currency: "USD", priceType: "per_group" },
-                  bookingUrl: null,
-                  notes: "Early check-in available"
+                  tips: ["Request early check-in", "Ask for room upgrade"],
+                  bookingRequired: true,
+                  accessibility: {
+                    wheelchairAccessible: true,
+                    hasElevator: true,
+                    notes: "Accessible rooms available"
+                  },
+                  bookingUrl: undefined,
                 },
                 {
                   id: "activity-3",
                   name: "Evening Stroll along Seine",
                   description: "Romantic walk along the Seine River",
-                  location: "Seine River",
+                  location: {
+                    name: "Seine River",
+                    address: "Seine River, Paris, France",
+                    coordinates: { lat: 48.8566, lng: 2.3522 }
+                  },
                   startTime: "18:00",
                   endTime: "20:00", 
                   duration: "120 minutes",
                   type: "attraction",
                   timeSlot: "evening",
                   pricing: { amount: 0, currency: "USD", priceType: "free" },
-                  bookingUrl: null,
-                  notes: "Perfect for sunset photos"
+                  tips: ["Perfect for sunset photos", "Bring a jacket"],
+                  bookingRequired: false,
+                  accessibility: {
+                    wheelchairAccessible: true,
+                    hasElevator: false,
+                    notes: "Some areas may be difficult to access"
+                  },
+                  bookingUrl: undefined,
                 }
               ]
             },
@@ -137,43 +170,73 @@ export default function TripDetailsPage() {
                   id: "activity-4",
                   name: "Visit the Louvre Museum",
                   description: "Explore the world's largest art museum",
-                  location: "Louvre Museum",
+                  location: {
+                    name: "Louvre Museum",
+                    address: "Rue de Rivoli, 75001 Paris, France",
+                    coordinates: { lat: 48.8606, lng: 2.3376 }
+                  },
                   startTime: "09:00",
                   endTime: "13:00",
                   duration: "240 minutes",
                   type: "attraction",
                   timeSlot: "morning",
                   pricing: { amount: 17, currency: "USD", priceType: "per_person" },
-                  bookingUrl: null,
-                  notes: "Book tickets online to skip the line"
+                  tips: ["Book tickets online", "Visit Mona Lisa early", "Allow 4+ hours"],
+                  bookingRequired: true,
+                  accessibility: {
+                    wheelchairAccessible: true,
+                    hasElevator: true,
+                    notes: "Fully accessible with ramps and lifts"
+                  },
+                  bookingUrl: undefined,
                 },
                 {
                   id: "activity-5",
                   name: "Lunch at Café de Flore",
                   description: "Historic café in Saint-Germain",
-                  location: "172 Boulevard Saint-Germain",
+                  location: {
+                    name: "Café de Flore",
+                    address: "172 Boulevard Saint-Germain, 75006 Paris, France",
+                    coordinates: { lat: 48.8542, lng: 2.3320 }
+                  },
                   startTime: "13:30",
                   endTime: "15:00",
                   duration: "90 minutes",
                   type: "restaurant",
                   timeSlot: "afternoon",
                   pricing: { amount: 45, currency: "USD", priceType: "per_person" },
-                  bookingUrl: null,
-                  notes: "Famous for its literary history"
+                  tips: ["Famous for literary history", "Try the hot chocolate", "Can be crowded"],
+                  bookingRequired: false,
+                  accessibility: {
+                    wheelchairAccessible: false,
+                    hasElevator: false,
+                    notes: "Historic café with steps"
+                  },
+                  bookingUrl: undefined,
                 },
                 {
                   id: "activity-6",
                   name: "Climb the Eiffel Tower",
                   description: "Iconic tower with panoramic city views",
-                  location: "Eiffel Tower",
+                  location: {
+                    name: "Eiffel Tower",
+                    address: "Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France",
+                    coordinates: { lat: 48.8584, lng: 2.2945 }
+                  },
                   startTime: "16:00",
                   endTime: "18:00",
                   duration: "120 minutes",
                   type: "attraction",
                   timeSlot: "afternoon",
                   pricing: { amount: 25, currency: "USD", priceType: "per_person" },
-                  bookingUrl: null,
-                  notes: "Best views at sunset"
+                  tips: ["Best views at sunset", "Book skip-the-line tickets", "Bring a camera"],
+                  bookingRequired: true,
+                  accessibility: {
+                    wheelchairAccessible: true,
+                    hasElevator: true,
+                    notes: "Elevator access to 2nd floor only"
+                  },
+                  bookingUrl: undefined,
                 }
               ]
             }
@@ -301,7 +364,52 @@ export default function TripDetailsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 space-y-8">
+            {/* Map Section */}
+            {showMap && (
+              <Card>
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Trip Map</CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowMap(false)}
+                    >
+                      Hide Map
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-96 rounded-lg overflow-hidden">
+                    <TravelMap
+                      days={trip.days}
+                      selectedDay={selectedDay}
+                      onDaySelect={setSelectedDay}
+                      showRoutes={true}
+                      transportMode="walking"
+                      mapStyle="streets"
+                      enableClustering={true}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {!showMap && (
+              <div className="text-center py-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowMap(true)}
+                  className="flex items-center gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Show Map
+                </Button>
+              </div>
+            )}
+            
+            {/* Itinerary Section */}
             <ItineraryDisplay
               days={trip.days}
               onUpdateDays={handleUpdateDays}
