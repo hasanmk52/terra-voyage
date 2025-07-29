@@ -38,8 +38,10 @@
 3. **Console**: Check browser console for API status logs
 
 ### 4. Weather API Testing  
-- **Command Line**: `WEATHER_API_KEY="6d6fa1a29acd6989f9e71d4e6f695c2a" npx tsx scripts/test-weather.ts`
-- **Google Maps**: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="AIzaSyBpWO-x91LnpXv82kQJscj8LWJTlUQgcvA" npx tsx scripts/test-google-maps.ts`
+- **Command Line**: `WEATHER_API_KEY="your-openweather-api-key" npx tsx scripts/test-weather.ts`
+- **Google Maps**: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="your-google-maps-api-key" npx tsx scripts/test-google-maps.ts`
+
+**Note**: Replace with your actual API keys. Never commit real API keys to version control.
 
 ## Expected Results
 

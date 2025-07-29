@@ -30,9 +30,17 @@ export class WeatherAPI {
       throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
     }
 
+    // Validate coordinates to prevent injection
+    if (typeof location.lat !== 'number' || typeof location.lon !== 'number' ||
+        location.lat < -90 || location.lat > 90 ||
+        location.lon < -180 || location.lon > 180 ||
+        !isFinite(location.lat) || !isFinite(location.lon)) {
+      throw new Error("Invalid coordinates provided");
+    }
+
     try {
       const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${this.apiKey}&units=metric`
+        `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${encodeURIComponent(this.apiKey)}&units=metric`
       );
 
       if (!response.ok) {
@@ -50,7 +58,8 @@ export class WeatherAPI {
 
       return data;
     } catch (error) {
-      console.error("Failed to fetch current weather:", error);
+      // Log sanitized error without exposing sensitive details
+      console.error("Failed to fetch current weather:", error instanceof Error ? error.message : 'Unknown error');
       // Fallback to mock data on API failure
       await simulateDelay("weather");
       return mockWeather.current;
@@ -67,9 +76,17 @@ export class WeatherAPI {
       throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
     }
 
+    // Validate coordinates to prevent injection
+    if (typeof location.lat !== 'number' || typeof location.lon !== 'number' ||
+        location.lat < -90 || location.lat > 90 ||
+        location.lon < -180 || location.lon > 180 ||
+        !isFinite(location.lat) || !isFinite(location.lon)) {
+      throw new Error("Invalid coordinates provided");
+    }
+
     try {
       const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/forecast?lat=${location.lat}&lon=${location.lon}&appid=${this.apiKey}&units=metric`
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${location.lat}&lon=${location.lon}&appid=${encodeURIComponent(this.apiKey)}&units=metric`
       );
 
       if (!response.ok) {
@@ -87,7 +104,8 @@ export class WeatherAPI {
 
       return data;
     } catch (error) {
-      console.error("Failed to fetch weather forecast:", error);
+      // Log sanitized error without exposing sensitive details
+      console.error("Failed to fetch weather forecast:", error instanceof Error ? error.message : 'Unknown error');
       // Fallback to mock data on API failure
       await simulateDelay("weather");
       return mockWeather.forecast;
@@ -106,10 +124,18 @@ export class WeatherAPI {
       throw new Error("Weather API key is required. Please set WEATHER_API_KEY in your environment variables.");
     }
 
+    // Validate coordinates to prevent injection
+    if (typeof location.lat !== 'number' || typeof location.lon !== 'number' ||
+        location.lat < -90 || location.lat > 90 ||
+        location.lon < -180 || location.lon > 180 ||
+        !isFinite(location.lat) || !isFinite(location.lon)) {
+      throw new Error("Invalid coordinates provided");
+    }
+
     try {
       // Note: OneCall API 3.0 requires subscription, using basic API for alerts
       const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${this.apiKey}&units=metric`
+        `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${encodeURIComponent(this.apiKey)}&units=metric`
       );
 
       if (!response.ok) {
@@ -122,7 +148,8 @@ export class WeatherAPI {
         alerts: data.alerts || [],
       };
     } catch (error) {
-      console.error("Failed to fetch weather alerts:", error);
+      // Log sanitized error without exposing sensitive details
+      console.error("Failed to fetch weather alerts:", error instanceof Error ? error.message : 'Unknown error');
       // Fallback to mock data on API failure
       await simulateDelay("weather");
       return {

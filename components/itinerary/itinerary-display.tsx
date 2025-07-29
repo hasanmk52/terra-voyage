@@ -279,6 +279,11 @@ export function ItineraryDisplay({
         // Price range filter
         if (timelineConfig.filterBy.priceRange) {
           const [min, max] = timelineConfig.filterBy.priceRange
+          // Validate filter values to prevent issues
+          if (typeof min !== 'number' || typeof max !== 'number' || 
+              !isFinite(min) || !isFinite(max) || min < 0 || max < 0 || min > max) {
+            return true // Skip invalid filter
+          }
           const activityPrice = activity.pricing?.amount || 0
           if (activityPrice < min || activityPrice > max) {
             return false

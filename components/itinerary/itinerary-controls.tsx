@@ -256,11 +256,14 @@ export function ItineraryControls({
                   <div className="flex gap-2">
                     <input
                       type="number"
+                      min="0"
+                      max="100000"
                       placeholder="Min"
                       className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md"
                       value={config.filterBy.priceRange?.[0] || ''}
                       onChange={(e) => {
-                        const min = parseFloat(e.target.value) || 0
+                        const value = e.target.value.trim()
+                        const min = value === '' ? 0 : Math.max(0, Math.min(100000, parseFloat(value) || 0))
                         const max = config.filterBy.priceRange?.[1] || 1000
                         handleFilterChange({ 
                           priceRange: min > 0 || max < 1000 ? [min, max] : undefined 
@@ -269,11 +272,14 @@ export function ItineraryControls({
                     />
                     <input
                       type="number"
+                      min="0"
+                      max="100000"
                       placeholder="Max"
                       className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md"
                       value={config.filterBy.priceRange?.[1] || ''}
                       onChange={(e) => {
-                        const max = parseFloat(e.target.value) || 1000
+                        const value = e.target.value.trim()
+                        const max = value === '' ? 1000 : Math.max(0, Math.min(100000, parseFloat(value) || 1000))
                         const min = config.filterBy.priceRange?.[0] || 0
                         handleFilterChange({ 
                           priceRange: min > 0 || max < 1000 ? [min, max] : undefined 

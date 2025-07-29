@@ -18,8 +18,9 @@
       "Bash(npx tsc:*)",
       "Bash(rm:*)",
       "Bash(WEATHER_API_KEY=\"invalid-key\" npx tsx scripts/test-weather.ts)",
-      "Bash(WEATHER_API_KEY=\"6d6fa1a29acd6989f9e71d4e6f695c2a\" npx tsx -e \"\nimport { WeatherAPI } from ''./lib/weather-api.ts'';\n\nconst api = new WeatherAPI();\nconsole.log(''Testing weather API...'');\n\napi.getCurrentWeather({ lat: 48.8566, lon: 2.3522 })\n  .then(data => {\n    console.log(''Weather API Response Structure:'');\n    console.log(''Has main?'', !!data?.main);\n    console.log(''Has weather?'', !!data?.weather);\n    console.log(''Weather array length:'', data?.weather?.length || 0);\n    console.log(''Full response keys:'', Object.keys(data || {}));\n    if (data?.main) {\n      console.log(''Main object keys:'', Object.keys(data.main));\n    }\n    if (data?.weather?.[0]) {\n      console.log(''Weather[0] keys:'', Object.keys(data.weather[0]));\n    }\n  })\n  .catch(err => console.error(''Error:'', err.message));\n\")",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(grep:*)",
+      "Bash(-print)"
     ],
     "deny": []
   }
