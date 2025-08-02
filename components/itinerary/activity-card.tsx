@@ -121,9 +121,9 @@ export function ActivityCard({
       transition={{ duration: 0.2 }}
     >
       <Card 
-        className={`group hover:shadow-md transition-all duration-200 border-l-4 ${getPriorityColor()} ${
-          activity.isFavorite ? 'ring-2 ring-pink-200' : ''
-        }`}
+        className={`group hover:shadow-lg hover:shadow-blue-100/50 transition-all duration-300 border-l-4 ${getPriorityColor()} ${
+          activity.isFavorite ? 'ring-2 ring-pink-200 bg-gradient-to-r from-pink-50/30' : 'hover:bg-gradient-to-r hover:from-blue-50/30'
+        } hover:border-blue-200 hover:-translate-y-1 hover:scale-[1.02] border-gray-100 bg-white/80 backdrop-blur-sm`}
       >
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
@@ -131,13 +131,13 @@ export function ActivityCard({
             <div 
               {...attributes}
               {...listeners}
-              className="cursor-grab active:cursor-grabbing p-1 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="cursor-grab active:cursor-grabbing p-1 -ml-1 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-gray-100 rounded"
             >
-              <GripVertical className="h-4 w-4 text-gray-400" />
+              <GripVertical className="h-4 w-4 text-gray-400 hover:text-gray-600" />
             </div>
 
             {/* Activity icon */}
-            <div className="text-2xl flex-shrink-0 mt-1">
+            <div className="text-2xl flex-shrink-0 mt-1 p-2 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg shadow-sm">
               {getActivityIcon(activity.type)}
             </div>
 
@@ -164,14 +164,14 @@ export function ActivityCard({
                   </div>
 
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge className={getActivityColor(activity.type)}>
+                    <Badge className={`${getActivityColor(activity.type)} shadow-sm`}>
                       {activity.type}
                     </Badge>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
                       {activity.timeSlot}
                     </Badge>
                     {activity.bookingRequired && (
-                      <Badge variant="destructive" className="text-xs">
+                      <Badge variant="destructive" className="text-xs shadow-sm bg-gradient-to-r from-red-500 to-red-600">
                         Booking Required
                       </Badge>
                     )}
@@ -253,17 +253,18 @@ export function ActivityCard({
                 </div>
 
                 {/* Actions menu */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="p-1 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                <div className="relative z-50">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 h-8 w-8 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-gray-100 hover:shadow-sm rounded-full"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 z-[9999] shadow-xl border-0 bg-white/95 backdrop-blur-sm">
                     <DropdownMenuItem onClick={() => onSelect(activity)}>
                       <Eye className="h-4 w-4 mr-2" />
                       View Details
@@ -299,8 +300,9 @@ export function ActivityCard({
                       <Trash2 className="h-4 w-4 mr-2" />
                       Remove
                     </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </div>
           </div>

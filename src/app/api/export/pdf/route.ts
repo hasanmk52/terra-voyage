@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { pdfGenerator } from '@/lib/pdf-generator'
 import { z } from 'zod'
-import { useMocks, simulateDelay } from '@/lib/mock-data'
 
 const exportRequestSchema = z.object({
   tripId: z.string(),

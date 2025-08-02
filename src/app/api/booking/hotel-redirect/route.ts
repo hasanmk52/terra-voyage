@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { affiliateSystem } from '@/lib/affiliate-system'
 import { headers } from 'next/headers'
 import { format } from 'date-fns'
-import { useMocks, simulateDelay } from '@/lib/mock-data'
 
 export async function GET(request: NextRequest) {
   try {

@@ -3,7 +3,14 @@
 import { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import { googlePlaces } from '@/lib/google-places'
-import { serviceConfig } from '@/lib/selective-mocks'
+// API status configuration
+const serviceConfig = {
+  useRealAI: !!process.env.GEMINI_API_KEY,
+  useRealMaps: !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+  useRealWeather: !!process.env.WEATHER_API_KEY,
+  useRealMapbox: !!process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
+  useRealDatabase: !!process.env.DATABASE_URL,
+}
 
 interface ApiStatus {
   name: string

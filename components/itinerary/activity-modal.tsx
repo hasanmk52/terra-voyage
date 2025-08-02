@@ -34,7 +34,7 @@ import {
 // Form validation schema
 const activityFormSchema = z.object({
   name: z.string().min(1, 'Activity name is required'),
-  type: z.enum(['attraction', 'restaurant', 'experience', 'transportation', 'accommodation']),
+  type: z.enum(['attraction', 'restaurant', 'experience', 'transportation', 'accommodation', 'shopping']),
   description: z.string().min(10, 'Description must be at least 10 characters'),
   startTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
   endTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
@@ -238,7 +238,7 @@ export function ActivityModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white z-50">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? 'Edit Activity' : `Add Activity - Day ${dayNumber}`}
@@ -553,13 +553,25 @@ export function ActivityModal({
             </div>
           </div>
 
-          <DialogFooter className="flex gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <DialogFooter className="flex gap-3 pt-6">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose}
+              className="px-6 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={!isValid || isLoading}>
+            <Button 
+              type="submit" 
+              disabled={!isValid || isLoading}
+              className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 text-white disabled:text-gray-500 shadow-md hover:shadow-lg transition-all duration-200"
+            >
               {isLoading ? (
-                <>Saving...</>
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
               ) : (
                 <>
                   <Save className="h-4 w-4 mr-2" />

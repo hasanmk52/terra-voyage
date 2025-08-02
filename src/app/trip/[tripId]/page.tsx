@@ -21,6 +21,51 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
+// Helper function to transform API days data to UI format
+function transformApiDaysToUiFormat(apiDays: any[]): Day[] {
+  return apiDays.map(day => ({
+    day: day.dayNumber,
+    date: day.date,
+    transportation: day.transportation,
+    dailyBudget: day.dailyBudget,
+    theme: day.theme || `Day ${day.dayNumber}`,
+    activities: day.activities.map((activity: any) => ({
+      id: activity.id,
+      name: activity.name,
+      description: activity.description || '',
+      location: {
+        name: activity.location || activity.name,
+        address: activity.address || '',
+        coordinates: activity.coordinates || { lat: 0, lng: 0 }
+      },
+      startTime: activity.startTime || '09:00',
+      endTime: activity.endTime || '11:00',
+      duration: activity.duration || '120 minutes',
+      type: activity.type?.toLowerCase() || 'attraction',
+      price: {
+        amount: activity.price || 0,
+        currency: activity.currency || 'USD'
+      },
+      isBooked: activity.bookingStatus === 'CONFIRMED',
+      notes: activity.notes || '',
+      bookingUrl: activity.bookingUrl || undefined,
+      timeSlot: activity.timeSlot || 'morning',
+      pricing: {
+        amount: activity.price || 0,
+        currency: activity.currency || 'USD',
+        priceType: activity.priceType || 'per_person'
+      },
+      tips: Array.isArray(activity.tips) ? activity.tips : [],
+      bookingRequired: activity.bookingRequired || false,
+      accessibility: activity.accessibility || {
+        wheelchairAccessible: true,
+        hasElevator: false,
+        notes: 'Contact venue for accessibility information'
+      }
+    }))
+  }))
+}
+
 // Helper function to generate mock itinerary based on destination and dates
 function generateMockItinerary(destination: string, startDate: string, endDate: string, baseCoords?: { lat: number; lng: number }): Day[] {
   const start = new Date(startDate)
@@ -39,8 +84,8 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
     days.push({
       day: i + 1,
       date: currentDate.toISOString().split('T')[0],
-      transportation: undefined,
-      dailyBudget: undefined,
+      transportation: { primaryMethod: 'walking' as const, estimatedCost: 0, notes: '' },
+      dailyBudget: { amount: 100, currency: 'USD' },
       theme: `Day ${i + 1} in ${destination}`,
       activities: [
         {
@@ -54,15 +99,28 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
           },
           startTime: "09:00",
           endTime: "12:00",
-          duration: 180,
-          type: i === 0 ? "accommodation" : "sightseeing",
+          duration: "180 minutes",
+          type: i === 0 ? "accommodation" : "attraction",
           price: {
             amount: 0,
             currency: "USD"
           },
           isBooked: false,
           notes: `Generated activity for ${destination}`,
-          bookingUrl: undefined
+          bookingUrl: undefined,
+          timeSlot: "morning",
+          pricing: {
+            amount: 0,
+            currency: "USD",
+            priceType: "free"
+          },
+          tips: [],
+          bookingRequired: false,
+          accessibility: {
+            wheelchairAccessible: true,
+            hasElevator: false,
+            notes: 'Contact venue for accessibility information'
+          }
         },
         {
           id: `activity-${i + 1}-2`,
@@ -75,15 +133,28 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
           },
           startTime: "13:00",
           endTime: "14:30",
-          duration: 90,
-          type: "dining",
+          duration: "90 minutes",
+          type: "restaurant",
           price: {
             amount: 35,
             currency: "USD"
           },
           isBooked: false,
           notes: "Local cuisine experience",
-          bookingUrl: undefined
+          bookingUrl: undefined,
+          timeSlot: "afternoon",
+          pricing: {
+            amount: 35,
+            currency: "USD",
+            priceType: "per_person"
+          },
+          tips: [],
+          bookingRequired: false,
+          accessibility: {
+            wheelchairAccessible: true,
+            hasElevator: false,
+            notes: 'Contact venue for accessibility information'
+          }
         }
       ]
     })
@@ -157,7 +228,10 @@ export default function TripDetailsPage() {
                 amount: data.trip.budget || 2000,
                 currency: "USD"
               },
-              days: generateMockItinerary(data.trip.destination, data.trip.startDate, data.trip.endDate, data.trip.destinationCoords),
+              // Use REAL itinerary data from API if available, otherwise fallback to generated mock
+              days: data.trip.days && data.trip.days.length > 0 
+                ? transformApiDaysToUiFormat(data.trip.days)
+                : generateMockItinerary(data.trip.destination, data.trip.startDate, data.trip.endDate, data.trip.destinationCoords),
               status: data.trip.status || "PLANNED"
             }
             
@@ -492,6 +566,7 @@ export default function TripDetailsPage() {
                   <div className="h-96 rounded-lg overflow-hidden">
                     <TravelMap
                       days={trip.days}
+                      destinationCoords={trip.destination.coordinates}
                       selectedDay={selectedDay}
                       onDaySelect={setSelectedDay}
                       showRoutes={true}

@@ -1,5 +1,3 @@
-import { useMockMapbox } from "./selective-mocks";
-import { mockMapFeatures, simulateDelay } from "./mock-data";
 
 // Validate Mapbox token type
 const validateMapboxToken = (token: string): boolean => {
@@ -19,8 +17,8 @@ const rawToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || "";
 const isValidToken = validateMapboxToken(rawToken);
 
 export const MAPBOX_CONFIG = {
-  ACCESS_TOKEN: useMockMapbox || !isValidToken
-    ? "mock-mapbox-token"
+  ACCESS_TOKEN: !isValidToken
+    ? ""
     : rawToken,
   STYLES: {
     streets: "mapbox://styles/mapbox/streets-v12",
@@ -117,34 +115,45 @@ export class MapboxService {
       throw new Error('Invalid query parameter');
     }
 
-    if (useMockMapbox) {
-      await simulateDelay("maps");
-      return {
-        features: mockMapFeatures.filter(
-          (feature) =>
-            feature.properties.title
-              .toLowerCase()
-              .includes(sanitizedQuery.toLowerCase()) ||
-            feature.properties.description
-              .toLowerCase()
-              .includes(sanitizedQuery.toLowerCase())
-        ),
-      };
+    if (!MAPBOX_CONFIG.ACCESS_TOKEN) {
+      throw new Error('Mapbox access token not configured. Please set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN environment variable.');
     }
 
-    // Real API implementation here
-    const response = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-        sanitizedQuery
-      )}.json?access_token=${MAPBOX_CONFIG.ACCESS_TOKEN}`
-    );
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+          sanitizedQuery
+        )}.json?access_token=${MAPBOX_CONFIG.ACCESS_TOKEN}`,
+        {
+          // No timeout - let it complete
+          headers: {
+            'User-Agent': 'TerraVoyage/1.0',
+          },
+        }
+      );
 
-    if (!response.ok) {
-      throw new Error(`Mapbox API error: ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        if (response.status === 401) {
+          throw new Error(`Mapbox authentication failed. Please check your NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN is valid.`);
+        } else if (response.status === 403) {
+          throw new Error(`Mapbox access denied. Your API key may not have geocoding permissions.`);
+        } else if (response.status === 429) {
+          throw new Error(`Mapbox rate limit exceeded. Please try again in a moment.`);
+        } else {
+          throw new Error(`Mapbox API error (${response.status}): ${errorText}`);
+        }
+      }
+
+      const data = await response.json();
+      console.log(`✅ Mapbox found ${data.features?.length || 0} locations for "${sanitizedQuery}"`);
+      return data;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error; // Re-throw with our detailed message
+      }
+      throw new Error(`Network error connecting to Mapbox: ${error}`);
     }
-
-    const data = await response.json();
-    return data;
   }
 
   async getDirections(
@@ -163,39 +172,10 @@ export class MapboxService {
       throw new Error('Invalid transport mode');
     }
 
-    if (useMockMapbox) {
-      await simulateDelay("maps");
-      
-      // Generate a more realistic route with multiple points
-      const midPoint: [number, number] = [
-        (origin[0] + destination[0]) / 2 + (Math.random() - 0.5) * 0.01,
-        (origin[1] + destination[1]) / 2 + (Math.random() - 0.5) * 0.01
-      ];
-      
-      // Calculate approximate distance and duration
-      const distance = Math.sqrt(
-        Math.pow(destination[0] - origin[0], 2) + 
-        Math.pow(destination[1] - origin[1], 2)
-      ) * 111000; // Rough conversion to meters
-      
-      const speedMultiplier = mode === 'walking' ? 5 : mode === 'cycling' ? 15 : 50; // km/h
-      const duration = Math.round(distance / 1000 / speedMultiplier * 3600); // seconds
-      
-      return {
-        routes: [
-          {
-            distance: Math.round(distance),
-            duration: duration,
-            geometry: {
-              coordinates: [origin, midPoint, destination],
-              type: "LineString",
-            },
-          },
-        ],
-      };
+    if (!MAPBOX_CONFIG.ACCESS_TOKEN) {
+      throw new Error('Mapbox access token not configured. Please set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN environment variable.');
     }
 
-    // Real API implementation here
     const response = await fetch(
       `https://api.mapbox.com/directions/v5/mapbox/${mode}/${origin.join(
         ","

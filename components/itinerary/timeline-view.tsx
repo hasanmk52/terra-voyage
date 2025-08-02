@@ -172,127 +172,89 @@ export function TimelineView({
                     <p>No activities planned for this day</p>
                   </div>
                 ) : (
-                  <div className="relative">
-                    {/* Timeline */}
-                    <div className="flex">
-                      {/* Time column */}
-                      <div className="w-20 flex-shrink-0 bg-gray-50 border-r">
-                        <div className="sticky top-0 py-4 space-y-4">
-                          {Array.from({ length: 17 }, (_, i) => {
-                            const hour = i + 6 // Start from 6 AM
-                            return (
-                              <div key={hour} className="text-xs text-gray-500 text-center">
-                                {formatTime(`${hour.toString().padStart(2, '0')}:00`)}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Activities column */}
-                      <div className="flex-1 relative min-h-[400px]">
-                        {/* Hour lines */}
-                        {Array.from({ length: 17 }, (_, i) => (
-                          <div
-                            key={i}
-                            className="absolute left-0 right-0 border-t border-gray-100"
-                            style={{ top: `${(i / 16) * 100}%` }}
-                          />
-                        ))}
-
-                        {/* Activities */}
-                        <div className="relative p-4">
-                          {filteredActivities.map((activity, index) => {
-                            const topPosition = getTimelinePosition(activity.startTime)
-                            const duration = getActivityDuration(activity)
-                            const height = (duration / (16 * 60)) * 100 // 16 hours * 60 minutes
-
-                            return (
-                              <motion.div
-                                key={activity.id}
-                                layout
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                                className="absolute left-4 right-4 cursor-pointer group"
-                                style={{
-                                  top: `${topPosition}%`,
-                                  height: `${Math.max(height, 8)}%` // Minimum height for visibility
-                                }}
-                                onMouseEnter={() => setHoveredActivity(activity.id)}
-                                onMouseLeave={() => setHoveredActivity(null)}
-                                onClick={() => onActivitySelect(activity)}
-                              >
-                                <div
-                                  className={`h-full rounded-lg border-l-4 bg-white shadow-sm hover:shadow-md transition-all duration-200 ${
-                                    hoveredActivity === activity.id ? 'scale-105 z-10' : ''
-                                  }`}
-                                  style={{
-                                    borderLeftColor: getActivityColor(activity.type).includes('red') ? '#EF4444' :
-                                                   getActivityColor(activity.type).includes('amber') ? '#F59E0B' :
-                                                   getActivityColor(activity.type).includes('emerald') ? '#10B981' :
-                                                   getActivityColor(activity.type).includes('blue') ? '#3B82F6' :
-                                                   getActivityColor(activity.type).includes('purple') ? '#8B5CF6' :
-                                                   '#6B7280'
-                                  }}
-                                >
-                                  <div className="p-3 h-full flex flex-col justify-center">
-                                    <div className="flex items-start gap-2">
-                                      <div className="text-lg flex-shrink-0">
-                                        {getActivityIcon(activity.type)}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <h4 className="font-medium text-sm text-gray-900 truncate">
-                                            {activity.name}
-                                          </h4>
-                                          <Badge className={`text-xs ${getActivityColor(activity.type)}`}>
-                                            {activity.type}
-                                          </Badge>
-                                        </div>
-                                        
-                                        <div className="text-xs text-gray-600 space-y-1">
-                                          <div className="flex items-center gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            <span>{formatTimeRange(activity.startTime, activity.endTime)}</span>
-                                          </div>
-                                          <div className="flex items-center gap-1">
-                                            <MapPin className="h-3 w-3" />
-                                            <span className="truncate">{activity.location.name}</span>
-                                          </div>
-                                          {activity.pricing && activity.pricing.amount > 0 && (
-                                            <div className="flex items-center gap-1">
-                                              <DollarSign className="h-3 w-3" />
-                                              <span>{formatCurrency(activity.pricing.amount)}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                      
-                                      <ChevronRight className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </div>
-                                  </div>
-                                </div>
-                              </motion.div>
-                            )
-                          })}
-                        </div>
-
-                        {/* Current time indicator (if viewing today) */}
-                        {day.date === new Date().toISOString().split('T')[0] && (
-                          <div
-                            className="absolute left-0 right-0 border-t-2 border-red-500 z-20"
-                            style={{
-                              top: `${getTimelinePosition(
-                                new Date().toTimeString().slice(0, 5)
-                              )}%`
-                            }}
-                          >
-                            <div className="absolute left-2 -top-2 w-4 h-4 bg-red-500 rounded-full" />
+                  <div className="space-y-3 p-4">
+                    {/* Simplified Timeline */}
+                    {filteredActivities.map((activity, index) => (
+                      <motion.div
+                        key={activity.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex gap-4 p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                        onMouseEnter={() => setHoveredActivity(activity.id)}
+                        onMouseLeave={() => setHoveredActivity(null)}
+                        onClick={() => onActivitySelect(activity)}
+                      >
+                        {/* Time */}
+                        <div className="flex-shrink-0 w-20 text-center">
+                          <div className="text-sm font-medium text-gray-900">
+                            {formatTime(activity.startTime)}
                           </div>
-                        )}
-                      </div>
-                    </div>
+                          <div className="text-xs text-gray-500">
+                            {formatTime(activity.endTime)}
+                          </div>
+                        </div>
+
+                        {/* Timeline connector */}
+                        <div className="flex-shrink-0 flex flex-col items-center">
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{
+                              backgroundColor: getActivityColor(activity.type).includes('red') ? '#EF4444' :
+                                             getActivityColor(activity.type).includes('amber') ? '#F59E0B' :
+                                             getActivityColor(activity.type).includes('emerald') ? '#10B981' :
+                                             getActivityColor(activity.type).includes('blue') ? '#3B82F6' :
+                                             getActivityColor(activity.type).includes('purple') ? '#8B5CF6' :
+                                             '#6B7280'
+                            }}
+                          />
+                          {index < filteredActivities.length - 1 && (
+                            <div className="w-0.5 h-8 bg-gray-200 mt-2" />
+                          )}
+                        </div>
+
+                        {/* Activity content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="text-lg flex-shrink-0">
+                                {getActivityIcon(activity.type)}
+                              </div>
+                              <h4 className="font-medium text-gray-900 truncate">
+                                {activity.name}
+                              </h4>
+                            </div>
+                            <Badge className={`text-xs ${getActivityColor(activity.type)} flex-shrink-0`}>
+                              {activity.type}
+                            </Badge>
+                          </div>
+                          
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-4 w-4" />
+                              <span className="truncate">{activity.location.name}</span>
+                            </div>
+                            {activity.pricing && activity.pricing.amount > 0 && (
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="h-4 w-4" />
+                                <span>{formatCurrency(activity.pricing.amount)}</span>
+                              </div>
+                            )}
+                            {activity.description && (
+                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                {activity.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Arrow indicator */}
+                        <div className="flex-shrink-0 self-center">
+                          <ChevronRight className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
                 )}
               </CardContent>

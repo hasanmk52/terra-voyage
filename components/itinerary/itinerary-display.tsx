@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -48,6 +48,33 @@ export function ItineraryDisplay({
     sortBy: 'time',
     filterBy: {}
   })
+
+  // Handle showAllDays toggle functionality
+  const handleConfigChange = useCallback((newConfig: TimelineConfig) => {
+    // If showAllDays changed, expand/collapse all days accordingly
+    if (newConfig.showAllDays !== timelineConfig.showAllDays) {
+      const newExpandedDays = newConfig.showAllDays 
+        ? new Set(days.map(d => d.day)) // Expand all days
+        : new Set() // Collapse all days
+      
+      setTimelineConfig({
+        ...newConfig,
+        expandedDays: newExpandedDays
+      })
+    } else {
+      setTimelineConfig(newConfig)
+    }
+  }, [timelineConfig.showAllDays, days])
+
+  // Update expandedDays when days change and showAllDays is true
+  useEffect(() => {
+    if (timelineConfig.showAllDays) {
+      setTimelineConfig(prev => ({
+        ...prev,
+        expandedDays: new Set(days.map(d => d.day))
+      }))
+    }
+  }, [days, timelineConfig.showAllDays])
 
   // Execute action and update history
   const executeAction = useCallback((action: ActivityAction, addToHistory = true) => {
@@ -349,35 +376,46 @@ export function ItineraryDisplay({
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleUndo}
-            disabled={history.past.length === 0}
-            className="flex items-center gap-1"
-          >
-            <Undo2 className="h-4 w-4" />
-            Undo
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRedo}
-            disabled={history.future.length === 0}
-            className="flex items-center gap-1"
-          >
-            <Redo2 className="h-4 w-4" />
-            Redo
-          </Button>
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg text-sm text-gray-700 border border-gray-200 shadow-sm">
+            {isDirty && <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>}
+            <span className="font-medium">{isDirty ? 'Unsaved changes' : 'All changes saved'}</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUndo}
+              disabled={history.past.length === 0}
+              className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 transition-all duration-200 shadow-sm"
+              title={`Undo last action${history.past.length > 0 ? ` (${history.past.length} actions available)` : ''}`}
+            >
+              <Undo2 className="h-4 w-4" />
+              Undo
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRedo}
+              disabled={history.future.length === 0}
+              className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 transition-all duration-200 shadow-sm"
+              title={`Redo action${history.future.length > 0 ? ` (${history.future.length} actions available)` : ''}`}
+            >
+              <Redo2 className="h-4 w-4" />
+              Redo
+            </Button>
+          </div>
+          
           {onSave && (
             <Button
               onClick={onSave}
               disabled={isLoading || !isDirty}
-              className="flex items-center gap-1"
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 shadow-md hover:shadow-lg transition-all duration-200"
+              title={isDirty ? 'Save changes to server' : 'No changes to save'}
             >
               <Save className="h-4 w-4" />
-              {isLoading ? 'Saving...' : 'Save'}
+              {isLoading ? 'Saving...' : 'Save Changes'}
             </Button>
           )}
         </div>
@@ -386,7 +424,8 @@ export function ItineraryDisplay({
       {/* View controls */}
       <ItineraryControls
         config={timelineConfig}
-        onConfigChange={setTimelineConfig}
+        onConfigChange={handleConfigChange}
+        totalDays={days.length}
       />
 
       {/* Main content */}
@@ -406,9 +445,9 @@ export function ItineraryDisplay({
         ) : (
           <div className="grid gap-6">
             <AnimatePresence mode="popLayout">
-              {processedDays.map((day) => (
+              {processedDays.map((day, index) => (
                 <motion.div
-                  key={day.day}
+                  key={`day-${day.day || index}-${day.date || index}`}
                   layout
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}

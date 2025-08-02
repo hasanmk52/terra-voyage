@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, ChevronRight, Check } from "lucide-react"
+import { ChevronLeft, ChevronRight, Check, MapPin, Calendar, Sparkles, Plane } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
@@ -44,6 +44,7 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [currentLoadingStep, setCurrentLoadingStep] = useState(0)
 
   // Form state
   const [destination, setDestination] = useState<DestinationData>({
@@ -278,12 +279,32 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
     }
   }
 
+  // Loading steps for progress indication
+  const loadingSteps = [
+    { id: 0, title: "Processing your preferences", icon: Sparkles, duration: 2000 },
+    { id: 1, title: "Finding amazing destinations", icon: MapPin, duration: 3000 },
+    { id: 2, title: "Optimizing your travel dates", icon: Calendar, duration: 2500 },
+    { id: 3, title: "Crafting your perfect itinerary", icon: Plane, duration: 4000 },
+    { id: 4, title: "Adding final touches", icon: Check, duration: 1500 }
+  ]
+
   // Handle form submission
   const handleSubmit = async () => {
     if (!currentStepData.isValid) return
 
     setIsSubmitting(true)
     setSubmitError(null)
+    setCurrentLoadingStep(0)
+
+    // Simulate progress through loading steps
+    const progressInterval = setInterval(() => {
+      setCurrentLoadingStep(prev => {
+        if (prev < loadingSteps.length - 1) {
+          return prev + 1
+        }
+        return prev
+      })
+    }, 2500) // Average step duration
 
     try {
       // Validate complete form
@@ -304,8 +325,12 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
         endDate: dateRange.endDate!.toISOString(),
         budget: budget.amount,
         travelers: travelers.adults + travelers.children + travelers.infants,
-        // Add other fields as needed
+        generateItinerary: true, // Enable itinerary generation
+        interests,
+        accommodationType: preferences.accommodationType
       })
+
+      clearInterval(progressInterval)
 
       // Clear saved form data
       localStorage.removeItem("trip-planning-form")
@@ -318,15 +343,103 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
         router.push(`/trip/${response.trip.id}`)
       }
     } catch (error) {
+      clearInterval(progressInterval)
       console.error("Trip creation failed:", error)
       setSubmitError(error instanceof Error ? error.message : "Failed to create trip")
     } finally {
       setIsSubmitting(false)
+      setCurrentLoadingStep(0)
     }
   }
 
   return (
-    <div className={cn("max-w-4xl mx-auto", className)}>
+    <div className={cn("max-w-4xl mx-auto relative", className)}>
+      {/* Loading Overlay */}
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Plane className="w-8 h-8 text-blue-600 animate-pulse" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Creating Your Perfect Trip
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Our AI is crafting a personalized itinerary just for you
+              </p>
+            </div>
+
+            {/* Progress Steps */}
+            <div className="space-y-4">
+              {loadingSteps.map((step, index) => {
+                const Icon = step.icon
+                const isActive = index === currentLoadingStep
+                const isCompleted = index < currentLoadingStep
+                
+                return (
+                  <div key={step.id} className="flex items-center space-x-3">
+                    <div className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500",
+                      isCompleted
+                        ? "bg-green-100 text-green-600"
+                        : isActive
+                        ? "bg-blue-100 text-blue-600"
+                        : "bg-gray-100 text-gray-400"
+                    )}>
+                      {isCompleted ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Icon className={cn("w-4 h-4", isActive && "animate-pulse")} />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={cn(
+                        "text-sm font-medium transition-colors duration-300",
+                        isCompleted
+                          ? "text-green-600"
+                          : isActive
+                          ? "text-blue-600"
+                          : "text-gray-400"
+                      )}>
+                        {step.title}
+                      </p>
+                    </div>
+                    {isActive && (
+                      <div className="flex space-x-1">
+                        <div className="w-1 h-1 bg-blue-600 rounded-full animate-pulse"></div>
+                        <div className="w-1 h-1 bg-blue-600 rounded-full animate-pulse delay-100"></div>
+                        <div className="w-1 h-1 bg-blue-600 rounded-full animate-pulse delay-200"></div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mt-6">
+              <div className="flex justify-between text-xs text-gray-500 mb-2">
+                <span>Progress</span>
+                <span>{Math.round(((currentLoadingStep + 1) / loadingSteps.length) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${((currentLoadingStep + 1) / loadingSteps.length) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <p className="text-xs text-gray-500">
+                This may take a few moments while we create something amazing for you
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Progress indicator */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">

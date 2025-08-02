@@ -23,11 +23,13 @@ import { useState } from 'react'
 interface ItineraryControlsProps {
   config: TimelineConfig
   onConfigChange: (config: TimelineConfig) => void
+  totalDays: number
 }
 
 export function ItineraryControls({
   config,
-  onConfigChange
+  onConfigChange,
+  totalDays
 }: ItineraryControlsProps) {
   const [showFilters, setShowFilters] = useState(false)
 
@@ -78,14 +80,14 @@ export function ItineraryControls({
   ]
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 relative">
       {/* Main controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="flex flex-wrap items-center gap-4">
           {/* View mode toggle */}
           <div className="flex items-center gap-2">
             <Label className="text-sm font-medium">View:</Label>
-            <div className="flex rounded-lg border border-gray-200 p-1">
+            <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-50">
               <Button
                 variant={config.viewMode === 'cards' ? 'default' : 'ghost'}
                 size="sm"
@@ -111,19 +113,8 @@ export function ItineraryControls({
           <div className="flex items-center gap-2">
             <Label className="text-sm font-medium">Sort:</Label>
             <Select value={config.sortBy} onValueChange={handleSortChange}>
-              <SelectTrigger className="w-32 h-8">
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const option = sortOptions.find(opt => opt.value === config.sortBy)
-                    const Icon = option?.icon || Clock
-                    return (
-                      <>
-                        <Icon className="h-3 w-3" />
-                        <SelectValue />
-                      </>
-                    )
-                  })()}
-                </div>
+              <SelectTrigger className="w-36 h-9">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {sortOptions.map((option) => {
@@ -143,7 +134,7 @@ export function ItineraryControls({
         </div>
 
         {/* Filter controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {hasActiveFilters && (
             <Badge variant="secondary" className="flex items-center gap-1">
               <Filter className="h-3 w-3" />
@@ -181,7 +172,7 @@ export function ItineraryControls({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+            <div className="bg-gray-50 rounded-lg p-6 space-y-6 border border-gray-200 relative">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium text-gray-900">Filters</h3>
                 {hasActiveFilters && (
@@ -196,7 +187,7 @@ export function ItineraryControls({
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Activity type filter */}
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Activity Type</Label>
@@ -208,7 +199,7 @@ export function ItineraryControls({
                       })
                     }
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full h-10">
                       <SelectValue placeholder="All types" />
                     </SelectTrigger>
                     <SelectContent>
@@ -236,7 +227,7 @@ export function ItineraryControls({
                       })
                     }
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full h-10">
                       <SelectValue placeholder="All times" />
                     </SelectTrigger>
                     <SelectContent>
@@ -253,13 +244,13 @@ export function ItineraryControls({
                 {/* Price range filter */}
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Price Range</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <input
                       type="number"
                       min="0"
                       max="100000"
                       placeholder="Min"
-                      className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md"
+                      className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       value={config.filterBy.priceRange?.[0] || ''}
                       onChange={(e) => {
                         const value = e.target.value.trim()
@@ -275,7 +266,7 @@ export function ItineraryControls({
                       min="0"
                       max="100000"
                       placeholder="Max"
-                      className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md"
+                      className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       value={config.filterBy.priceRange?.[1] || ''}
                       onChange={(e) => {
                         const value = e.target.value.trim()
@@ -291,12 +282,17 @@ export function ItineraryControls({
               </div>
 
               {/* Quick filter buttons */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-sm font-medium">Quick Filters</Label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   <Button
                     variant={config.filterBy.type === 'restaurant' ? 'default' : 'outline'}
                     size="sm"
+                    className={`transition-all duration-200 ${
+                      config.filterBy.type === 'restaurant' 
+                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200 scale-105' 
+                        : 'hover:bg-blue-50 hover:border-blue-300 hover:shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400'
+                    }`}
                     onClick={() => 
                       handleFilterChange({ 
                         type: config.filterBy.type === 'restaurant' ? undefined : 'restaurant' 
@@ -308,6 +304,11 @@ export function ItineraryControls({
                   <Button
                     variant={config.filterBy.type === 'attraction' ? 'default' : 'outline'}
                     size="sm"
+                    className={`transition-all duration-200 ${
+                      config.filterBy.type === 'attraction' 
+                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200 scale-105' 
+                        : 'hover:bg-blue-50 hover:border-blue-300 hover:shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400'
+                    }`}
                     onClick={() => 
                       handleFilterChange({ 
                         type: config.filterBy.type === 'attraction' ? undefined : 'attraction' 
@@ -319,6 +320,11 @@ export function ItineraryControls({
                   <Button
                     variant={config.filterBy.priceRange?.[0] === 0 && config.filterBy.priceRange?.[1] === 0 ? 'default' : 'outline'}
                     size="sm"
+                    className={`transition-all duration-200 ${
+                      config.filterBy.priceRange?.[0] === 0 && config.filterBy.priceRange?.[1] === 0 
+                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200 scale-105' 
+                        : 'hover:bg-blue-50 hover:border-blue-300 hover:shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400'
+                    }`}
                     onClick={() => 
                       handleFilterChange({ 
                         priceRange: (config.filterBy.priceRange?.[0] === 0 && config.filterBy.priceRange?.[1] === 0) 
@@ -332,6 +338,11 @@ export function ItineraryControls({
                   <Button
                     variant={config.filterBy.timeSlot === 'morning' ? 'default' : 'outline'}
                     size="sm"
+                    className={`transition-all duration-200 ${
+                      config.filterBy.timeSlot === 'morning' 
+                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200 scale-105' 
+                        : 'hover:bg-blue-50 hover:border-blue-300 hover:shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400'
+                    }`}
                     onClick={() => 
                       handleFilterChange({ 
                         timeSlot: config.filterBy.timeSlot === 'morning' ? undefined : 'morning' 
@@ -347,23 +358,60 @@ export function ItineraryControls({
         )}
       </AnimatePresence>
 
-      {/* Show all days toggle */}
-      <div className="flex items-center justify-between py-2 border-t border-gray-200">
-        <div className="flex items-center gap-3">
-          <Switch
-            id="showAllDays"
-            checked={config.showAllDays}
-            onCheckedChange={(checked) => 
-              onConfigChange({ ...config, showAllDays: checked })
-            }
-          />
-          <Label htmlFor="showAllDays" className="text-sm">
-            Show all days expanded by default
-          </Label>
+      {/* Show all days toggle - Bootstrap 5 style */}
+      <div className="flex items-center justify-between py-5 px-6 bg-gradient-to-r from-white to-blue-50/30 rounded-xl border border-blue-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-300">
+        <div className="flex items-center gap-4">
+          {/* Custom Bootstrap-style toggle */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="showAllDays"
+              checked={config.showAllDays}
+              onChange={(e) => 
+                onConfigChange({ ...config, showAllDays: e.target.checked })
+              }
+              className="sr-only"
+            />
+            <label
+              htmlFor="showAllDays"
+              className={`relative inline-flex items-center h-6 w-11 cursor-pointer rounded-full border-2 transition-all duration-300 ease-in-out focus-within:ring-4 focus-within:ring-blue-200 ${
+                config.showAllDays
+                  ? 'bg-blue-600 border-blue-600'
+                  : 'bg-gray-200 border-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform duration-300 ease-in-out ${
+                  config.showAllDays ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+              {/* Optional ON/OFF text */}
+              <span
+                className={`absolute inset-0 flex items-center justify-center text-xs font-bold transition-opacity duration-200 ${
+                  config.showAllDays ? 'text-white' : 'text-gray-500'
+                }`}
+                style={{ 
+                  fontSize: '8px',
+                  left: config.showAllDays ? '2px' : 'auto',
+                  right: config.showAllDays ? 'auto' : '2px'
+                }}
+              >
+                {config.showAllDays ? 'ON' : 'OFF'}
+              </span>
+            </label>
+          </div>
+          
+          <div className="flex flex-col">
+            <Label htmlFor="showAllDays" className="text-base font-semibold cursor-pointer hover:text-blue-700 transition-colors text-gray-900">
+              Show all days expanded
+            </Label>
+            <p className="text-sm text-gray-500 mt-0.5">Automatically expand all day cards when loading</p>
+          </div>
         </div>
         
-        <div className="text-sm text-gray-600">
-          {config.expandedDays.size} of {10} days expanded
+        <div className="flex items-center gap-2 text-sm text-gray-600 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border border-gray-200 shadow-sm">
+          <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${config.showAllDays ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+          <span className="font-medium">{config.expandedDays.size} of {totalDays} expanded</span>
         </div>
       </div>
     </div>

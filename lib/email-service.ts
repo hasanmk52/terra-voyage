@@ -1,4 +1,3 @@
-import { useMocks, mockEmailQueue, simulateDelay } from "./mock-data";
 
 export class EmailService {
   private apiKey: string;

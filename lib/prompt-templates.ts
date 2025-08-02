@@ -1,5 +1,40 @@
 import { TripPlanningFormData } from './trip-validation'
 
+// Security utility functions
+function sanitizeInput(input: string): string {
+  if (!input || typeof input !== 'string') return ''
+  
+  // Remove potential prompt injection patterns
+  return input
+    .replace(/[{}]/g, '') // Remove template literal brackets
+    .replace(/\n\s*SYSTEM:/gi, '') // Remove system prompt attempts
+    .replace(/\n\s*ASSISTANT:/gi, '') // Remove assistant prompt attempts  
+    .replace(/\n\s*USER:/gi, '') // Remove user prompt attempts
+    .replace(/```/g, '') // Remove code blocks
+    .replace(/\n\s*IGNORE\s+PREVIOUS/gi, '') // Remove ignore instructions
+    .replace(/\n\s*FORGET\s+EVERYTHING/gi, '') // Remove forget instructions
+    .replace(/\|\|\s*true/gi, '') // Remove boolean injection attempts
+    .replace(/;\s*(DROP|DELETE|UPDATE|INSERT)/gi, '') // Remove SQL injection attempts
+    .trim()
+    .substring(0, 500) // Limit length to prevent excessive input
+}
+
+function sanitizeArray(arr: string[]): string[] {
+  if (!Array.isArray(arr)) return []
+  return arr
+    .filter(item => typeof item === 'string')
+    .map(item => sanitizeInput(item))
+    .filter(item => item.length > 0)
+    .slice(0, 10) // Limit array size
+}
+
+function sanitizeNumber(num: any): number {
+  if (typeof num === 'number' && !isNaN(num) && isFinite(num)) {
+    return Math.max(0, Math.min(num, 1000000)) // Reasonable bounds
+  }
+  return 0
+}
+
 // Prompt template interface
 export interface PromptTemplate {
   systemPrompt: string
@@ -38,12 +73,18 @@ function formatTravelPreferences(preferences: TripPlanningFormData['preferences'
     result += 'IMPORTANT: All recommendations must be wheelchair accessible\n'
   }
 
-  if (preferences.dietaryRestrictions.length > 0) {
-    result += `Dietary restrictions: ${preferences.dietaryRestrictions.join(', ')}\n`
+  if (preferences.dietaryRestrictions && preferences.dietaryRestrictions.length > 0) {
+    const sanitizedRestrictions = sanitizeArray(preferences.dietaryRestrictions)
+    if (sanitizedRestrictions.length > 0) {
+      result += `Dietary restrictions: ${sanitizedRestrictions.join(', ')}\n`
+    }
   }
 
   if (preferences.specialRequests) {
-    result += `Special requests: ${preferences.specialRequests}\n`
+    const sanitizedRequests = sanitizeInput(preferences.specialRequests)
+    if (sanitizedRequests) {
+      result += `Special requests: ${sanitizedRequests}\n`
+    }
   }
 
   return result
@@ -70,8 +111,11 @@ function formatInterests(interests: string[]): string {
     beach: 'water sports, coastal activities, beach relaxation'
   }
 
-  return interests
-    .map(interest => interestDescriptions[interest] || interest)
+  // Sanitize interests array
+  const sanitizedInterests = sanitizeArray(interests)
+  
+  return sanitizedInterests
+    .map(interest => interestDescriptions[interest] || sanitizeInput(interest))
     .join(', ')
 }
 
@@ -97,9 +141,14 @@ export function createItineraryPrompt(formData: TripPlanningFormData): PromptTem
   const preferences = formatTravelPreferences(formData.preferences)
   const interests = formatInterests(formData.interests)
   
+  // Sanitize critical user inputs
+  const sanitizedDestination = sanitizeInput(formData.destination.destination)
+  const sanitizedCurrency = sanitizeInput(formData.budget.currency)
+  const sanitizedAmount = sanitizeNumber(formData.budget.amount)
+  
   const budgetInfo = formData.budget.range === 'per-person' 
-    ? `${formData.budget.amount} ${formData.budget.currency} per person`
-    : `${formData.budget.amount} ${formData.budget.currency} total for the group`
+    ? `${sanitizedAmount} ${sanitizedCurrency} per person`
+    : `${sanitizedAmount} ${sanitizedCurrency} total for the group`
 
   const systemPrompt = `You are an expert travel planner with deep knowledge of destinations worldwide. Create detailed, personalized itineraries that are practical, culturally enriching, and budget-conscious.
 
@@ -114,13 +163,20 @@ Key requirements:
 - Suggest appropriate transportation between locations
 - Ensure activities match the traveler group composition and interests
 
+CRITICAL: Use only these exact enum values:
+- Activity types: "attraction", "restaurant", "experience", "transportation", "accommodation", "shopping"
+- Time slots: "morning", "afternoon", "evening"
+- Transportation methods: "walking", "public", "taxi", "rental_car"
+- Price types: "per_person", "per_group", "free"
+
 Response format requirements:
-- Return ONLY valid JSON, no additional text
+- Return ONLY valid JSON, no additional text or markdown
 - Use the exact structure specified in the user prompt
 - Include realistic pricing in the specified currency
-- Provide practical tips and cultural insights for each activity`
+- Provide practical tips and cultural insights for each activity
+- NEVER use values outside the specified enums`
 
-  const userPrompt = `Create a ${duration}-day itinerary for ${travelerInfo} visiting ${formData.destination.destination}.
+  const userPrompt = `Create a ${duration}-day itinerary for ${travelerInfo} visiting ${sanitizedDestination}.
 
 Trip Details:
 - Dates: ${formData.dateRange.startDate.toDateString()} to ${formData.dateRange.endDate.toDateString()}
@@ -135,11 +191,11 @@ Interests: ${interests}
 Return a JSON object with this exact structure:
 {
   "itinerary": {
-    "destination": "${formData.destination.destination}",
+    "destination": "${sanitizedDestination}",
     "duration": ${duration},
     "totalBudgetEstimate": {
       "amount": number,
-      "currency": "${formData.budget.currency}",
+      "currency": "${sanitizedCurrency}",
       "breakdown": {
         "accommodation": number,
         "food": number,
@@ -156,11 +212,11 @@ Return a JSON object with this exact structure:
         "activities": [
           {
             "id": "unique_id",
-            "timeSlot": "morning|afternoon|evening",
+            "timeSlot": "morning OR afternoon OR evening (exactly one of these)",
             "startTime": "HH:MM",
             "endTime": "HH:MM",
             "name": "Activity Name",
-            "type": "attraction|restaurant|experience|transportation|accommodation",
+            "type": "attraction OR restaurant OR experience OR transportation OR accommodation OR shopping (exactly one of these)",
             "description": "Detailed description with cultural context",
             "location": {
               "name": "Venue Name",
@@ -172,8 +228,8 @@ Return a JSON object with this exact structure:
             },
             "pricing": {
               "amount": number,
-              "currency": "${formData.budget.currency}",
-              "priceType": "per_person|per_group|free"
+              "currency": "${sanitizedCurrency}",
+              "priceType": "per_person OR per_group OR free (exactly one of these)"
             },
             "duration": "estimated duration in minutes",
             "tips": [
@@ -193,7 +249,7 @@ Return a JSON object with this exact structure:
           "currency": "${formData.budget.currency}"
         },
         "transportation": {
-          "primaryMethod": "walking|public|taxi|rental_car",
+          "primaryMethod": "walking OR public OR taxi OR rental_car (exactly one of these)",
           "estimatedCost": number,
           "notes": "transportation tips for the day"
         }
@@ -212,12 +268,19 @@ Return a JSON object with this exact structure:
   }
 }
 
-Ensure all coordinates are accurate, prices are realistic for the destination and current year, and activities are appropriate for the specified travel dates and group composition.`
+Ensure all coordinates are accurate, prices are realistic for the destination and current year, and activities are appropriate for the specified travel dates and group composition.
+
+CRITICAL VALIDATION REQUIREMENTS:
+- Every "type" field must be exactly one of: "attraction", "restaurant", "experience", "transportation", "accommodation", "shopping"
+- Every "timeSlot" field must be exactly one of: "morning", "afternoon", "evening"  
+- Every "primaryMethod" field must be exactly one of: "walking", "public", "taxi", "rental_car"
+- Every "priceType" field must be exactly one of: "per_person", "per_group", "free"
+- Use ONLY these exact strings - no variations, typos, or alternatives`
 
   return {
     systemPrompt,
     userPrompt,
-    maxTokens: 4000,
+    maxTokens: 8000,
     temperature: 0.7
   }
 }
@@ -230,11 +293,18 @@ export function createQuickItineraryPrompt(
   budget: number,
   currency: string
 ): PromptTemplate {
+  // Sanitize inputs
+  const sanitizedDestination = sanitizeInput(destination)
+  const sanitizedDuration = Math.max(1, Math.min(duration, 30)) // 1-30 days max
+  const sanitizedInterests = sanitizeArray(interests)
+  const sanitizedBudget = sanitizeNumber(budget)
+  const sanitizedCurrency = sanitizeInput(currency)
+  
   const systemPrompt = `You are a travel expert. Create a concise itinerary with essential activities and realistic pricing.`
 
-  const userPrompt = `Create a ${duration}-day itinerary for ${destination} with budget ${budget} ${currency}.
+  const userPrompt = `Create a ${sanitizedDuration}-day itinerary for ${sanitizedDestination} with budget ${sanitizedBudget} ${sanitizedCurrency}.
 
-Focus on: ${interests.join(', ')}
+Focus on: ${sanitizedInterests.join(', ')}
 
 Return JSON with structure:
 {
@@ -244,8 +314,8 @@ Return JSON with structure:
       "activities": [
         {
           "name": "activity name",
-          "type": "attraction|restaurant|experience",
-          "timeSlot": "morning|afternoon|evening",
+          "type": "attraction OR restaurant OR experience (exactly one of these)",
+          "timeSlot": "morning OR afternoon OR evening (exactly one of these)",
           "price": number,
           "description": "brief description"
         }
@@ -272,12 +342,20 @@ export function createActivitySuggestionPrompt(
   budget: number,
   currency: string
 ): PromptTemplate {
-  const systemPrompt = `You are a local travel expert specializing in ${destination}. Suggest authentic, high-quality activities.`
+  // Sanitize inputs
+  const sanitizedDestination = sanitizeInput(destination)
+  const sanitizedActivityType = sanitizeInput(activityType)
+  const sanitizedTimeSlot = sanitizeInput(timeSlot)
+  const sanitizedInterests = sanitizeArray(interests)
+  const sanitizedBudget = sanitizeNumber(budget)
+  const sanitizedCurrency = sanitizeInput(currency)
+  
+  const systemPrompt = `You are a local travel expert specializing in ${sanitizedDestination}. Suggest authentic, high-quality activities.`
 
-  const userPrompt = `Suggest 3-5 ${activityType} activities in ${destination} for ${timeSlot}.
+  const userPrompt = `Suggest 3-5 ${sanitizedActivityType} activities in ${sanitizedDestination} for ${sanitizedTimeSlot}.
 
-Interests: ${interests.join(', ')}
-Budget per activity: ~${budget/3} ${currency}
+Interests: ${sanitizedInterests.join(', ')}
+Budget per activity: ~${sanitizedBudget/3} ${sanitizedCurrency}
 
 Return JSON:
 {
@@ -303,13 +381,16 @@ Return JSON:
 
 // Destination overview prompt
 export function createDestinationOverviewPrompt(destination: string): PromptTemplate {
+  // Sanitize input
+  const sanitizedDestination = sanitizeInput(destination)
+  
   const systemPrompt = `You are a destination expert. Provide comprehensive, practical information about travel destinations.`
 
-  const userPrompt = `Provide an overview of ${destination} for travelers.
+  const userPrompt = `Provide an overview of ${sanitizedDestination} for travelers.
 
 Return JSON:
 {
-  "destination": "${destination}",
+  "destination": "${sanitizedDestination}",
   "overview": {
     "description": "engaging destination description",
     "bestTimeToVisit": "seasonal recommendations",
@@ -321,7 +402,7 @@ Return JSON:
   "highlights": [
     {
       "name": "attraction name",
-      "type": "attraction|experience|area",
+      "type": "attraction OR experience OR area (exactly one of these)",
       "description": "why it's special",
       "averageVisitTime": "time needed"
     }
@@ -395,7 +476,7 @@ export interface ItineraryResponse {
         startTime: string
         endTime: string
         name: string
-        type: 'attraction' | 'restaurant' | 'experience' | 'transportation' | 'accommodation'
+        type: 'attraction' | 'restaurant' | 'experience' | 'transportation' | 'accommodation' | 'shopping'
         description: string
         location: {
           name: string

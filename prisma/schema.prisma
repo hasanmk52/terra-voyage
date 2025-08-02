@@ -144,6 +144,7 @@ model Trip {
   userId      String
   title       String
   destination String
+  destinationCoords Json?     // Store destination coordinates as JSON
   description String?
   startDate   DateTime
   endDate     DateTime
@@ -158,6 +159,8 @@ model Trip {
   // Relations
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   activities    Activity[]
+  days          Day[]           // Add relationship to days
+  itineraryData ItineraryData?  // Add relationship to generated itinerary
   collaborations Collaboration[]
   comments      Comment[]
   votes         Vote[]
@@ -171,22 +174,51 @@ model Trip {
   @@map("trips")
 }
 
+// Day model for organizing activities by day
+model Day {
+  id          String   @id @default(cuid())
+  tripId      String
+  dayNumber   Int      // 1, 2, 3, etc.
+  date        String   // YYYY-MM-DD format
+  theme       String?  // Day theme/title
+  dailyBudget Json?    // Store daily budget as JSON
+  transportation Json? // Store transportation info as JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  trip       Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  activities Activity[]
+
+  @@unique([tripId, dayNumber]) // Ensure unique day numbers per trip
+  @@index([tripId])
+  @@index([dayNumber])
+  @@map("days")
+}
+
 // Activity model for trip activities
 model Activity {
   id            String        @id @default(cuid())
   tripId        String
+  dayId         String?       // Optional relationship to specific day
   name          String
   description   String?
   location      String?
   address       String?
   coordinates   Json?         // Store lat/lng as JSON
-  startTime     DateTime?
-  endTime       DateTime?
+  startTime     String?       // Store as HH:MM string for flexibility
+  endTime       String?       // Store as HH:MM string for flexibility
+  timeSlot      String?       // morning, afternoon, evening
   type          ActivityType  @default(OTHER)
   price         Float?
   currency      String?       @default("USD")
+  priceType     String?       // per_person, per_group, free
+  duration      String?       // e.g., "120 minutes"
+  tips          Json?         // Store tips array as JSON
+  bookingRequired Boolean     @default(false)
   bookingStatus BookingStatus @default(NOT_BOOKED)
   bookingUrl    String?
+  accessibility Json?         // Store accessibility info as JSON
   notes         String?
   order         Int           @default(0)
   createdAt     DateTime      @default(now())
@@ -194,12 +226,14 @@ model Activity {
 
   // Relations
   trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  day      Day?      @relation(fields: [dayId], references: [id], onDelete: SetNull)
   comments Comment[]
   votes    Vote[]
 
   @@index([tripId])
+  @@index([dayId])
   @@index([type])
-  @@index([startTime])
+  @@index([timeSlot])
   @@map("activities")
 }
 
@@ -324,6 +358,26 @@ model Notification {
   @@index([read])
   @@index([createdAt])
   @@map("notifications")
+}
+
+// ItineraryData model to store complete AI-generated itinerary
+model ItineraryData {
+  id          String   @id @default(cuid())
+  tripId      String   @unique
+  rawData     Json     // Complete AI response JSON
+  metadata    Json?    // Generation metadata (performance, quality, etc.)
+  generalTips Json?    // Array of general tips
+  emergencyInfo Json?  // Emergency information
+  budgetBreakdown Json? // Budget breakdown by category
+  generatedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([generatedAt])
+  @@map("itinerary_data")
 }
 
 // SharedTrip model for public sharing

@@ -14,10 +14,21 @@ class ApiClientError extends Error {
   }
 }
 
+// Simple cache for GET requests
+const cache = new Map<string, { data: any; timestamp: number }>()
+const CACHE_DURATION = 60000 // 1 minute
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // Check cache for GET requests
+  if (!options.method || options.method === 'GET') {
+    const cached = cache.get(endpoint)
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data
+    }
+  }
   const response = await fetch(endpoint, {
     headers: {
       "Content-Type": "application/json",
@@ -38,7 +49,14 @@ async function apiRequest<T>(
     )
   }
 
-  return response.json()
+  const data = await response.json()
+  
+  // Cache GET requests
+  if (!options.method || options.method === 'GET') {
+    cache.set(endpoint, { data, timestamp: Date.now() })
+  }
+  
+  return data
 }
 
 export const apiClient = {

@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { calendarGenerator } from '@/lib/calendar-generator'
 import { z } from 'zod'
-import { useMocks, simulateDelay } from '@/lib/mock-data'
 
 const calendarExportSchema = z.object({
   tripId: z.string(),

@@ -7,7 +7,7 @@ import {
 } from './itinerary-validation'
 import { aiService } from './ai-service'
 import { cacheService, generateCacheKey } from './cache-service'
-import { fallbackService, isFallbackItinerary } from './fallback-data'
+// Fallback handling removed - no more mock data
 import { budgetCalculator } from './budget-calculator'
 import { 
   createItineraryPrompt, 
@@ -48,8 +48,8 @@ export interface ItineraryResult {
 }
 
 export class ItineraryService {
-  private readonly DEFAULT_TIMEOUT = 25000 // 25 seconds to allow buffer
-  private readonly QUICK_TIMEOUT = 15000 // 15 seconds for quick generation
+  private readonly DEFAULT_TIMEOUT = 180000 // 3 minutes for complex itinerary generation - no artificial limits
+  private readonly QUICK_TIMEOUT = 90000 // 1.5 minutes for quick generation
   private readonly CACHE_TTL = 86400 // 24 hours
 
   async generateItinerary(
@@ -100,26 +100,25 @@ export class ItineraryService {
 
       if (prioritizeSpeed) {
         // Use quick generation for speed
+        console.log('🚀 ItineraryService: Using quick generation for speed')
         optimizationsApplied.push('quick-generation')
         const result = await this.generateQuickItinerary(formData, maxTimeout / 2, model)
         itinerary = this.convertQuickToFullItinerary(result, formData)
         aiGenerationTime = Date.now() - startTime
+        console.log('✅ ItineraryService: Quick generation completed')
       } else {
         // Use full generation with timeout handling
         try {
+          console.log('📝 ItineraryService: Starting full AI generation')
           const aiStartTime = Date.now()
           itinerary = await this.generateFullItinerary(formData, maxTimeout, model)
           aiGenerationTime = Date.now() - aiStartTime
           optimizationsApplied.push('full-ai-generation')
+          console.log('✅ ItineraryService: AI generation completed successfully')
         } catch (error) {
-          if (fallbackOnTimeout && this.isTimeoutError(error)) {
-            // Fallback to curated data
-            optimizationsApplied.push('timeout-fallback')
-            fallbackUsed = true
-            itinerary = this.generateFallbackItinerary(formData)
-          } else {
-            throw error
-          }
+          console.error('❌ ItineraryService: AI generation failed:', error instanceof Error ? error.message : 'Unknown error')
+          // Don't use fallbacks - throw the error so we can fix the AI service properly
+          throw error
         }
       }
 
@@ -166,29 +165,8 @@ export class ItineraryService {
       }
 
     } catch (error) {
-      // Final fallback
-      if (fallbackOnTimeout) {
-        optimizationsApplied.push('error-fallback')
-        const fallbackItinerary = this.generateFallbackItinerary(formData)
-        
-        return {
-          itinerary: fallbackItinerary,
-          performance: {
-            totalTime: Date.now() - startTime,
-            cacheHit: false,
-            fallbackUsed: true,
-            optimizationsApplied
-          },
-          warnings: [`Generation failed, using curated data: ${error instanceof Error ? error.message : 'Unknown error'}`],
-          metadata: {
-            generatedAt: new Date(),
-            generationMethod: 'fallback',
-            quality: 'medium',
-            estimatedAccuracy: 70
-          }
-        }
-      }
-
+      // Don't use fallbacks - throw the error and fix the root cause
+      console.error('❌ ItineraryService: Failed to generate itinerary:', error)
       throw error
     }
   }
@@ -199,25 +177,35 @@ export class ItineraryService {
     timeout: number,
     model: string
   ): Promise<ItineraryResponse> {
-    const promptTemplate = createItineraryPrompt(formData)
-    const optimizedPrompt = optimizePromptForModel(promptTemplate, model)
+    try {
+      console.log('📝 ItineraryService: Creating prompt template')
+      const promptTemplate = createItineraryPrompt(formData)
+      console.log('📝 ItineraryService: Optimizing prompt for model')
+      const optimizedPrompt = optimizePromptForModel(promptTemplate, model)
 
-    const response = await aiService.generateCompletion(
-      `${optimizedPrompt.systemPrompt}\n\n${optimizedPrompt.userPrompt}`,
-      {
-        model,
-        maxTokens: optimizedPrompt.maxTokens,
-        temperature: optimizedPrompt.temperature,
-        timeout
+      console.log('📝 ItineraryService: Calling AI service generateCompletion')
+      const response = await aiService.generateCompletion(
+        `${optimizedPrompt.systemPrompt}\n\n${optimizedPrompt.userPrompt}`,
+        {
+          model,
+          maxTokens: optimizedPrompt.maxTokens,
+          temperature: optimizedPrompt.temperature,
+          timeout
+        }
+      )
+
+      console.log('📝 ItineraryService: Validating and parsing AI response')
+      const parseResult = validateAndParseItinerary(response)
+      if (!parseResult.success) {
+        throw new Error(`Itinerary validation failed: ${parseResult.errors?.join(', ')}`)
       }
-    )
 
-    const parseResult = validateAndParseItinerary(response)
-    if (!parseResult.success) {
-      throw new Error(`Itinerary validation failed: ${parseResult.errors?.join(', ')}`)
+      console.log('✅ ItineraryService: Full itinerary generation successful')
+      return parseResult.data!
+    } catch (error) {
+      console.error('❌ ItineraryService: Error in generateFullItinerary:', error)
+      throw error
     }
-
-    return parseResult.data!
   }
 
   // Generate quick itinerary using AI (simplified version)
@@ -226,6 +214,8 @@ export class ItineraryService {
     timeout: number,
     model: string
   ): Promise<QuickItinerary> {
+    console.log('🚀 ItineraryService: generateQuickItinerary called for', formData.destination.destination)
+    
     const duration = Math.ceil(
       (formData.dateRange.endDate.getTime() - formData.dateRange.startDate.getTime()) / 
       (1000 * 60 * 60 * 24)
@@ -239,6 +229,7 @@ export class ItineraryService {
       formData.budget.currency
     )
 
+    console.log('🚀 ItineraryService: Calling aiService.generateCompletion for quick itinerary')
     const response = await aiService.generateCompletion(
       `${promptTemplate.systemPrompt}\n\n${promptTemplate.userPrompt}`,
       {
@@ -339,22 +330,7 @@ export class ItineraryService {
     }
   }
 
-  // Generate fallback itinerary
-  private generateFallbackItinerary(formData: TripPlanningFormData): ItineraryResponse {
-    const duration = Math.ceil(
-      (formData.dateRange.endDate.getTime() - formData.dateRange.startDate.getTime()) / 
-      (1000 * 60 * 60 * 24)
-    )
-
-    return fallbackService.generateFallbackItinerary(
-      formData.destination.destination,
-      duration,
-      formData.interests,
-      formData.budget.amount,
-      formData.budget.currency,
-      formData.dateRange.startDate
-    )
-  }
+  // Removed fallback generation - we should fix AI service issues instead of masking them
 
   // Assess itinerary quality
   private assessItineraryQuality(
@@ -363,10 +339,7 @@ export class ItineraryService {
   ): { overall: 'high' | 'medium' | 'low'; accuracy: number } {
     let score = 100
 
-    // Check if it's a fallback itinerary
-    if (isFallbackItinerary(itinerary)) {
-      score -= 20
-    }
+    // All itineraries are now real AI-generated itineraries
 
     // Check coordinate validity
     const invalidCoordinates = itinerary.itinerary.days.some(day =>

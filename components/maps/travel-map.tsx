@@ -13,6 +13,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 
 interface TravelMapProps {
   days: Day[]
+  destinationCoords?: { lat: number; lng: number } // Add trip destination coordinates
   selectedDay?: number
   onActivitySelect?: (activity: Activity) => void
   onDaySelect?: (dayNumber: number) => void
@@ -29,6 +30,7 @@ interface TravelMapProps {
 
 export function TravelMap({
   days,
+  destinationCoords,
   selectedDay,
   onActivitySelect,
   onDaySelect,
@@ -85,11 +87,42 @@ export function TravelMap({
     
     mapboxgl.accessToken = MAPBOX_CONFIG.ACCESS_TOKEN
 
+    // Calculate initial center from activities, trip destination, or default
+    const getInitialCenter = (): [number, number] => {
+      // First try to use valid activity coordinates
+      if (days.length > 0) {
+        const allCoords = days.flatMap(day => 
+          day.activities
+            .filter(activity => {
+              const lat = activity.location.coordinates.lat
+              const lng = activity.location.coordinates.lng
+              return lat !== 0 || lng !== 0 // Filter out invalid coordinates
+            })
+            .map(activity => [activity.location.coordinates.lng, activity.location.coordinates.lat] as [number, number])
+        )
+        
+        if (allCoords.length > 0) {
+          console.log('🗺️ Map centering on activity coordinates:', allCoords[0])
+          return allCoords[0]
+        }
+      }
+
+      // If no valid activity coordinates, use trip destination coordinates
+      if (destinationCoords && destinationCoords.lat !== 0 && destinationCoords.lng !== 0) {
+        console.log('🗺️ Map centering on trip destination coordinates:', [destinationCoords.lng, destinationCoords.lat])
+        return [destinationCoords.lng, destinationCoords.lat]
+      }
+
+      // Last resort: use default center
+      console.log('🗺️ Map using default center (Paris) - no valid coordinates found')
+      return MAPBOX_CONFIG.DEFAULT_CENTER
+    }
+
     // Create map instance
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: MAPBOX_CONFIG.STYLES[mapStyle],
-      center: MAPBOX_CONFIG.DEFAULT_CENTER,
+      center: getInitialCenter(),
       zoom: MAPBOX_CONFIG.DEFAULT_ZOOM,
       attributionControl: false
     })

@@ -155,7 +155,7 @@ export class BudgetCalculator {
     // Apply regional multiplier and traveler adjustments
     const adjustedCosts = {
       accommodation: this.calculateAccommodationCost(baseCosts.accommodation, travelers, multiplier),
-      food: this.calculateFoodCost(baseCosts.food, travelers, multiplier, formData.preferences.dietaryRestrictions),
+      food: this.calculateFoodCost(baseCosts.food, travelers, multiplier, formData.preferences.dietaryRestrictions || []),
       activities: this.calculateActivityCost(baseCosts.activities, travelers, multiplier, formData.interests),
       transportation: this.calculateTransportationCost(baseCosts.transportation, travelers, multiplier, formData.preferences.transportation),
       other: this.calculateOtherCost(baseCosts.other, travelers, multiplier)
@@ -338,7 +338,7 @@ export class BudgetCalculator {
     let cost = baseCost * multiplier * travelers
     
     // Dietary restrictions can increase costs
-    if (dietaryRestrictions.length > 0) {
+    if (dietaryRestrictions && dietaryRestrictions.length > 0) {
       const restrictionMultiplier = 1 + (dietaryRestrictions.length * 0.1)
       cost *= restrictionMultiplier
     }

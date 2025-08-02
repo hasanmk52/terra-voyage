@@ -68,7 +68,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protect authenticated routes
-  const protectedPaths = ["/dashboard", "/trips", "/profile", "/settings"]
+  const protectedPaths = ["/dashboard", "/profile", "/settings"]
   const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path))
 
   if (isProtectedPath) {

@@ -1,36 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { affiliateSystem } from '@/lib/affiliate-system'
 import { headers } from 'next/headers'
-import { useMocks, simulateDelay } from '@/lib/mock-data'
 
 export async function GET(request: NextRequest) {
   try {
-    // Use mock redirect if enabled
-    if (useMocks) {
-      await simulateDelay('booking')
-      
-      const { searchParams } = new URL(request.url)
-      
-      // Extract basic parameters for mock tracking
-      const destination = searchParams.get('destination') || 'Paris'
-      const origin = searchParams.get('origin') || 'New York'
-      const departure = searchParams.get('departure') || '2024-06-15'
-      
-      // Mock affiliate tracking
-      const linkId = searchParams.get('link_id')
-      if (linkId) {
-        // Simulate click tracking
-        console.log(`Mock tracking: Flight search for ${origin} to ${destination} on ${departure}`)
-      }
-      
-      // Redirect to a demo booking page or flight search
-      const mockUrl = new URL('https://www.google.com/flights')
-      mockUrl.searchParams.set('f', '0') // One way
-      mockUrl.searchParams.set('source', 'terra-voyage-demo')
-      
-      return NextResponse.redirect(mockUrl.toString())
-    }
-    
     const { searchParams } = new URL(request.url)
     const headersList = headers()
     
@@ -53,11 +26,6 @@ export async function GET(request: NextRequest) {
         userAgent,
         referrer: referrer || undefined
       })
-    }
-
-    // Handle mock redirect for development
-    if (searchParams.get('mock') === 'true') {
-      return NextResponse.redirect('https://www.google.com/flights')
     }
 
     // Build the destination URL

@@ -206,7 +206,7 @@ export const circuitBreakers = {
   ai: new CircuitBreaker('AI Service', {
     failureThreshold: 3,
     resetTimeout: 60000,   // 1 minute
-    timeout: 30000,        // 30 seconds
+    timeout: 90000,        // 90 seconds to accommodate complex itinerary generation
   }),
   
   maps: new CircuitBreaker('Maps API', {

@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { useMockDatabase } from "@/lib/selective-mocks"
-import { simulateDelay } from "@/lib/mock-data"
 import { db } from "@/lib/db"
+import { itineraryService } from "@/lib/itinerary-service"
+
+// Helper function to map AI activity types to database enum
+function mapActivityType(aiType: string): string {
+  const typeMapping: Record<string, string> = {
+    'attraction': 'ATTRACTION',
+    'restaurant': 'RESTAURANT',
+    'experience': 'EXPERIENCE',
+    'transportation': 'TRANSPORTATION',
+    'accommodation': 'ACCOMMODATION',
+    'museum': 'ATTRACTION', // Museums are attractions
+    'shopping': 'SHOPPING',
+    'dining': 'RESTAURANT',
+    'sightseeing': 'ATTRACTION',
+    'leisure': 'EXPERIENCE',
+    'other': 'OTHER'
+  }
+  
+  return typeMapping[aiType.toLowerCase()] || 'OTHER'
+}
 
 const createTripSchema = z.object({
   title: z.string().min(1).max(200),
@@ -13,6 +31,9 @@ const createTripSchema = z.object({
   budget: z.number().positive().optional(),
   travelers: z.number().int().min(1).max(50).default(1),
   isPublic: z.boolean().default(false),
+  generateItinerary: z.boolean().default(true), // Add option to generate itinerary
+  interests: z.array(z.string()).optional(), // Add interests for itinerary generation
+  accommodationType: z.string().optional(), // Add accommodation preference
 })
 
 // GET /api/user/trips - Get user's trips
@@ -36,43 +57,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Use mock implementation when database is mocked
-    if (useMockDatabase) {
-      await simulateDelay("database")
-      
-      const mockTrips = [
-        {
-          id: "mock-trip-1",
-          title: "Paris Adventure",
-          destination: "Paris, France",
-          description: "Exploring the City of Light",
-          startDate: "2024-06-15T00:00:00.000Z",
-          endDate: "2024-06-20T00:00:00.000Z",
-          budget: 2000,
-          travelers: 2,
-          status: "PLANNED",
-          isPublic: false,
-          createdAt: "2024-01-15T00:00:00.000Z",
-          updatedAt: "2024-01-15T00:00:00.000Z",
-          _count: {
-            activities: 12,
-            collaborations: 1
-          }
-        }
-      ]
-
-      return NextResponse.json({
-        trips: mockTrips,
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: 1,
-          pages: 1,
-        }
-      })
-    }
-
-    // Use real database
+    // Use real database with optimized query
     // Security: Only return public trips or implement proper authentication
     // For demo purposes, only return public trips to prevent data exposure
     const [trips, total] = await Promise.all([
@@ -84,7 +69,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         orderBy: { createdAt: 'desc' },
         select: {
-          // Only select safe fields, exclude sensitive information
+          // Only select essential fields for listing performance
           id: true,
           title: true,
           destination: true,
@@ -96,13 +81,8 @@ export async function GET(request: NextRequest) {
           isPublic: true,
           createdAt: true,
           updatedAt: true,
-          _count: {
-            select: {
-              activities: true,
-              collaborations: true,
-            }
-          }
-          // Excluded: userId, budget, coverImage (sensitive data)
+          budget: true, // Include budget for display
+          // Remove _count to improve performance - can be calculated if needed
         }
       }),
       db.trip.count({
@@ -114,7 +94,7 @@ export async function GET(request: NextRequest) {
 
     const pages = Math.ceil(total / limit)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       trips,
       pagination: {
         page,
@@ -123,6 +103,11 @@ export async function GET(request: NextRequest) {
         pages,
       }
     })
+
+    // Add caching headers for better performance
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    
+    return response
   } catch (error) {
     console.error("Trips fetch error:", error)
     return NextResponse.json(
@@ -135,6 +120,7 @@ export async function GET(request: NextRequest) {
 // POST /api/user/trips - Create new trip
 export async function POST(request: NextRequest) {
   try {
+    
     const body = await request.json()
     const validatedData = createTripSchema.parse(body)
 
@@ -179,29 +165,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use mock implementation when database is mocked
-    if (useMockDatabase) {
-      await simulateDelay("database")
-      
-      // Simulate trip creation with mock response (only if database is actually mocked)
-      const mockTrip = {
-        id: `mock-trip-${Date.now()}`,
-        ...validatedData,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        status: "PLANNED",
-        userId: "guest-user",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        _count: {
-          activities: 0,
-          collaborations: 0,
-        }
-      }
-
-      return NextResponse.json({ trip: mockTrip }, { status: 201 })
-    }
-
     // Use real database
     // Security: For demo purposes without authentication, create public trips only
     // In production, this should require authentication and user validation
@@ -222,19 +185,222 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const trip = await db.trip.create({
-      data: {
-        ...validatedData,
-        startDate,
-        endDate,
-        userId: 'public-demo-user', // Use public demo user for security
-        isPublic: true, // Force public for demo security
-      },
+    // Get real destination coordinates from Mapbox API
+    const destinationCoords = await getDestinationCoordinatesFromAPI(validatedData.destination)
+    
+    // Generate itinerary SYNCHRONOUSLY before saving to database
+    let itineraryResult = null
+    
+    if (validatedData.generateItinerary) {
+      try {
+        console.log('Generating itinerary synchronously for:', validatedData.destination)
+        
+        // Create form data for itinerary service
+        const formData = {
+          destination: {
+            destination: validatedData.destination,
+            coordinates: destinationCoords
+          },
+          dateRange: {
+            startDate,
+            endDate
+          },
+          budget: {
+            amount: validatedData.budget || 2000,
+            currency: 'USD',
+            range: 'total' as const
+          },
+          interests: validatedData.interests || ['culture', 'food'],
+          preferences: {
+            accommodationType: validatedData.accommodationType || 'hotel',
+            transportation: 'public'
+          },
+          travelers: {
+            adults: validatedData.travelers,
+            children: 0,
+            infants: 0
+          }
+        }
+        
+        // Generate itinerary using AI service synchronously
+        itineraryResult = await itineraryService.generateItinerary(formData, {
+          prioritizeSpeed: false, // Generate high-quality itinerary
+          useCache: true,
+          fallbackOnTimeout: false, // Don't use fallbacks - let errors bubble up
+          maxTimeout: 240000 // 4 minutes - enough time for proper generation
+        })
+        
+        console.log('Itinerary generated successfully:', {
+          destination: validatedData.destination,
+          daysCount: itineraryResult.itinerary?.itinerary?.days?.length || 0,
+          method: itineraryResult.metadata.generationMethod
+        })
+      } catch (error) {
+        console.error('❌ Itinerary generation failed:', error)
+        
+        // Provide detailed error message to user
+        let errorMessage = 'Failed to generate itinerary'
+        if (error instanceof Error) {
+          if (error.message.includes('timeout')) {
+            errorMessage = 'Itinerary generation timed out. The AI service may be busy. Please try again.'
+          } else if (error.message.includes('quota') || error.message.includes('rate')) {
+            errorMessage = 'AI service is temporarily unavailable due to usage limits. Please try again later.'
+          } else if (error.message.includes('key') || error.message.includes('authentication')) {
+            errorMessage = 'AI service configuration error. Please contact support.'
+          } else if (error.message.includes('validation')) {
+            errorMessage = `Itinerary validation failed: ${error.message}`
+          } else if (error.message.includes('coordinates') || error.message.includes('location')) {
+            errorMessage = `Location error: ${error.message}`
+          } else {
+            errorMessage = `AI generation error: ${error.message}`
+          }
+        }
+        
+        // Return error instead of continuing without itinerary
+        return NextResponse.json(
+          { 
+            error: errorMessage,
+            details: error instanceof Error ? error.message : 'Unknown error',
+            destination: validatedData.destination
+          },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Create trip first, then save itinerary data separately to avoid transaction timeout
+    const trip = await db.$transaction(async (tx) => {
+      // Ensure demo user exists (upsert)
+      await tx.user.upsert({
+        where: { id: 'demo-user-001' },
+        update: {}, // Don't update if exists
+        create: {
+          id: 'demo-user-001',
+          email: 'demo@terravoyage.com',
+          name: 'Terra Voyage Demo User',
+          image: null,
+          emailVerified: new Date(),
+          onboardingCompleted: true,
+          onboardingCompletedAt: new Date(),
+        }
+      })
+      
+      // Create the trip
+      return await tx.trip.create({
+        data: {
+          title: validatedData.title,
+          destination: validatedData.destination,
+          description: validatedData.description,
+          startDate,
+          endDate,
+          budget: validatedData.budget,
+          travelers: validatedData.travelers,
+          isPublic: validatedData.isPublic || true, // Default to public for demo
+          destinationCoords,
+          userId: 'demo-user-001', // Default demo user for public trips
+        },
+        select: {
+          id: true,
+          title: true,
+          destination: true,
+          destinationCoords: true,
+          description: true,
+          startDate: true,
+          endDate: true,
+          travelers: true,
+          status: true,
+          isPublic: true,
+          createdAt: true,
+          updatedAt: true,
+        }
+      })
+    })
+
+    // Save itinerary data separately if generated
+    if (itineraryResult && itineraryResult.itinerary?.itinerary?.days) {
+      try {
+        await db.$transaction(async (tx) => {
+          // Save complete itinerary data
+          await tx.itineraryData.create({
+            data: {
+              tripId: trip.id,
+              rawData: itineraryResult.itinerary,
+              metadata: itineraryResult.metadata,
+              generalTips: itineraryResult.itinerary.itinerary.generalTips || [],
+              emergencyInfo: itineraryResult.itinerary.itinerary.emergencyInfo || {},
+              budgetBreakdown: itineraryResult.itinerary.itinerary.totalBudgetEstimate?.breakdown || {}
+            }
+          })
+          
+          // Save days and activities
+          for (const dayData of itineraryResult.itinerary.itinerary.days) {
+            try {
+              const day = await tx.day.create({
+                data: {
+                  tripId: trip.id,
+                  dayNumber: dayData.day || 1,
+                  date: dayData.date || new Date().toISOString().split('T')[0],
+                  theme: dayData.theme || 'Day activities',
+                  dailyBudget: dayData.dailyBudget || null,
+                  transportation: dayData.transportation || null
+                }
+              })
+              
+              // Save activities for this day
+              if (dayData.activities && Array.isArray(dayData.activities)) {
+                for (const [index, activityData] of dayData.activities.entries()) {
+                  try {
+                    await tx.activity.create({
+                      data: {
+                        tripId: trip.id,
+                        dayId: day.id,
+                        name: activityData.name || 'Unnamed Activity',
+                        description: activityData.description || '',
+                        location: activityData.location?.name || '',
+                        address: activityData.location?.address || '',
+                        coordinates: activityData.location?.coordinates || null,
+                        startTime: activityData.startTime || '',
+                        endTime: activityData.endTime || '',
+                        timeSlot: activityData.timeSlot || 'morning',
+                        type: mapActivityType(activityData.type || 'other') as any,
+                        price: activityData.pricing?.amount || null,
+                        currency: activityData.pricing?.currency || 'USD',
+                        priceType: activityData.pricing?.priceType || 'per_person',
+                        duration: activityData.duration || '',
+                        tips: Array.isArray(activityData.tips) ? activityData.tips : [],
+                        bookingRequired: Boolean(activityData.bookingRequired),
+                        accessibility: activityData.accessibility || {},
+                        order: index
+                      }
+                    })
+                  } catch (activityError) {
+                    console.error(`Error saving activity ${index} for day ${dayData.day}:`, activityError)
+                    // Continue with other activities even if one fails
+                  }
+                }
+              }
+            } catch (dayError) {
+              console.error(`Error saving day ${dayData.day}:`, dayError)
+              // Continue with other days even if one fails
+            }
+          }
+        })
+        
+        console.log('Itinerary data saved successfully for trip:', trip.id)
+      } catch (itineraryError) {
+        console.error('Error saving itinerary data:', itineraryError)
+        // Trip still exists without itinerary data
+      }
+    }
+
+    // Get final trip data with counts
+    const finalTrip = await db.trip.findUnique({
+      where: { id: trip.id },
       select: {
-        // Security: Only return safe fields
         id: true,
         title: true,
         destination: true,
+        destinationCoords: true,
         description: true,
         startDate: true,
         endDate: true,
@@ -246,14 +412,19 @@ export async function POST(request: NextRequest) {
         _count: {
           select: {
             activities: true,
+            days: true,
             collaborations: true,
           }
         }
-        // Excluded: userId (sensitive data)
       }
     })
 
-    return NextResponse.json({ trip }, { status: 201 })
+    return NextResponse.json({ 
+      trip: finalTrip,
+      message: itineraryResult 
+        ? `Trip created successfully with ${itineraryResult.itinerary?.itinerary?.days?.length || 0} days of itinerary!`
+        : 'Trip created successfully.'
+    }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -263,9 +434,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Trip creation error
+    console.error('Trip creation error:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    })
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
 }
+
+// Get real destination coordinates from Mapbox Geocoding API
+async function getDestinationCoordinatesFromAPI(destination: string): Promise<{ lat: number; lng: number }> {
+  try {
+    const { MapboxService } = await import('@/lib/mapbox-config')
+    const mapboxService = new MapboxService()
+    const geocodeResponse = await mapboxService.getLocations(destination)
+    
+    if (geocodeResponse.features && geocodeResponse.features.length > 0) {
+      const [lng, lat] = geocodeResponse.features[0].center
+      console.log(`✅ Got real coordinates for ${destination}:`, { lat, lng })
+      return { lat, lng }
+    } else {
+      throw new Error('No coordinates found for destination')
+    }
+  } catch (error) {
+    console.error('❌ Failed to get coordinates from Mapbox for', destination, ':', error)
+    // Don't use fallback - throw error to let user know the destination is invalid
+    throw new Error(`Unable to locate destination "${destination}". Please use a more specific location name.`)
+  }
+}
+

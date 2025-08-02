@@ -393,7 +393,7 @@
         "testStrategy": "Test map rendering performance, verify marker clustering, test routing between activities",
         "priority": "high",
         "dependencies": [12],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -401,7 +401,7 @@
             "description": "Create Mapbox account and obtain access token",
             "dependencies": [],
             "details": "Sign up for Mapbox account, create access token with appropriate scopes for maps and directions",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify token has correct permissions"
           },
           {
@@ -410,7 +410,7 @@
             "description": "Add Mapbox token to environment configuration",
             "dependencies": [1],
             "details": "Add MAPBOX_ACCESS_TOKEN to environment files, update mapbox-config.ts and selective-mocks.ts",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test token detection and map service switching"
           },
           {
@@ -419,7 +419,7 @@
             "description": "Integrate real Mapbox in travel map component",
             "dependencies": [2],
             "details": "Update components/maps/travel-map.tsx to use real Mapbox GL JS, implement clustering and routing",
-            "status": "pending", 
+            "status": "done", 
             "testStrategy": "Test map interactivity and performance"
           }
         ]
@@ -432,7 +432,7 @@
         "testStrategy": "Test database connections, verify migrations run successfully, test data persistence",
         "priority": "medium", 
         "dependencies": [12],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -440,7 +440,7 @@
             "description": "Create PostgreSQL database instance",
             "dependencies": [],
             "details": "Setup local PostgreSQL or cloud database (Neon, Supabase, etc.), create database with appropriate user permissions",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test database connection and basic operations"
           },
           {
@@ -449,7 +449,7 @@
             "description": "Add database URL to environment configuration", 
             "dependencies": [1],
             "details": "Add DATABASE_URL to environment files, update selective-mocks.ts to enable real database when URL is present",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test database URL configuration and connection"
           },
           {
@@ -458,7 +458,7 @@
             "description": "Execute Prisma migrations on real database",
             "dependencies": [2],
             "details": "Run 'npx prisma db push' or 'npx prisma migrate dev' to create tables, seed database with initial data",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify all tables created correctly and seed data loads"
           }
         ]
@@ -601,6 +601,54 @@
         "dependencies": [13, 14, 15],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 22,
+        "title": "Trip Status Management System",
+        "description": "Implement full trip status management with automatic transitions and UI controls",
+        "details": "Build comprehensive trip status flow management system with automatic status transitions (DRAFT → PLANNED after itinerary generation, PLANNED → ACTIVE on start date, ACTIVE → COMPLETED on end date), status transition UI controls in trip management interface, status-based permissions and features, status history tracking, and business logic validation. Include status badges with improved styling, user controls for manual status changes, and automatic background jobs for date-based transitions.",
+        "testStrategy": "Test automatic status transitions on itinerary generation, verify date-based transitions work correctly, test manual status change controls, validate status-based permissions, test status history tracking",
+        "priority": "medium",
+        "dependencies": [16],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Automatic Status Transitions",
+            "description": "Implement automatic status transitions based on events and dates",
+            "dependencies": [],
+            "details": "Add logic to automatically transition DRAFT → PLANNED after successful itinerary generation in trip creation API. Implement background job or check to transition PLANNED → ACTIVE on trip start date. Add transition ACTIVE → COMPLETED on trip end date. Include proper error handling and logging for all transitions.",
+            "status": "pending",
+            "testStrategy": "Test transitions trigger correctly on events and dates"
+          },
+          {
+            "id": 2,
+            "title": "Status Management UI Controls",
+            "description": "Add UI components for manual status management",
+            "dependencies": ["22.1"],
+            "details": "Create status change dropdown or buttons in trip management interface. Add confirmation dialogs for status changes. Implement status history display showing when status changed and why. Add status badges with improved colors and styling.",
+            "status": "pending",
+            "testStrategy": "Test manual status changes work correctly, verify UI feedback"
+          },
+          {
+            "id": 3,
+            "title": "Status-Based Business Logic",
+            "description": "Implement status-based permissions and feature access",
+            "dependencies": ["22.2"],
+            "details": "Add validation to prevent editing completed trips. Implement status-based UI differences (e.g., different actions available for DRAFT vs ACTIVE trips). Add status-based filtering in trip lists. Create status-specific notifications and reminders.",
+            "status": "pending",
+            "testStrategy": "Test status-based permissions work correctly, verify UI adapts to status"
+          },
+          {
+            "id": 4,
+            "title": "Status History and Audit Trail",
+            "description": "Track status changes with timestamps and reasons",
+            "dependencies": ["22.1"],
+            "details": "Create StatusHistory model in database to track all status changes. Store timestamp, old status, new status, reason (automatic/manual), and user ID if manual. Display status history in trip management interface. Add API endpoints for retrieving status history.",
+            "status": "pending",
+            "testStrategy": "Verify status history is recorded correctly for all changes"
+          }
+        ]
       }
     ],
     "metadata": {

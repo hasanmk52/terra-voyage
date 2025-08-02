@@ -34,7 +34,7 @@ const activitySchema = z.object({
   startTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/), // HH:MM format
   endTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/),
   name: z.string().min(1),
-  type: z.enum(["attraction", "restaurant", "experience", "transportation", "accommodation"]),
+  type: z.enum(["attraction", "restaurant", "experience", "transportation", "accommodation", "shopping"]),
   description: z.string().min(10),
   location: locationSchema,
   pricing: pricingSchema,
@@ -367,8 +367,31 @@ export function parseItineraryJSON(jsonString: string): {
   } catch (error) {
     // Try to fix common JSON issues
     try {
+      // Try multiple JSON repair strategies
+      let fixedJson = cleanedJson
+      
       // Fix trailing commas
-      const fixedJson = cleanedJson.replace(/,(\s*[}\]])/g, '$1')
+      fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1')
+      
+      // Fix missing commas between array elements
+      fixedJson = fixedJson.replace(/}\s*{/g, '},{')
+      
+      // Fix missing commas between object properties
+      fixedJson = fixedJson.replace(/"\s*\n\s*"/g, '",\n"')
+      
+      // Try to balance brackets/braces if JSON is truncated
+      const openBraces = (fixedJson.match(/{/g) || []).length
+      const closeBraces = (fixedJson.match(/}/g) || []).length
+      const openBrackets = (fixedJson.match(/\[/g) || []).length
+      const closeBrackets = (fixedJson.match(/\]/g) || []).length
+      
+      if (openBraces > closeBraces) {
+        fixedJson += '}'.repeat(openBraces - closeBraces)
+      }
+      if (openBrackets > closeBrackets) {
+        fixedJson += ']'.repeat(openBrackets - closeBrackets)
+      }
+      
       const parsed = JSON.parse(fixedJson)
       return {
         success: true,

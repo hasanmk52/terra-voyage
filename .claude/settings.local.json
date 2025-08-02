@@ -24,7 +24,16 @@
       "Bash(npm run db:test)",
       "Bash(dotenv -e .env.local -- npx prisma db push:*)",
       "Bash(npm run test:env:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_lFb2NtqMr8eB@ep-cool-band-a88o995k-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require\" npx prisma generate)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_lFb2NtqMr8eB@ep-shiny-wind-a8a8nfj2-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require\" npx prisma db push --force-reset --accept-data-loss)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_lFb2NtqMr8eB@ep-shiny-wind-a8a8nfj2-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require\" npx prisma migrate dev --name init --create-only)",
+      "Bash(kill:*)",
+      "Bash(npm run dev:*)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_lFb2NtqMr8eB@ep-shiny-wind-a8a8nfj2-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require\" node check-db.js)"
     ],
     "deny": []
   }

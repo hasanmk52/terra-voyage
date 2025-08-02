@@ -1,4 +1,3 @@
-import { useMocks } from './mock-data'
 
 // Simple in-memory cache implementation
 class InMemoryCache {
@@ -119,7 +118,52 @@ class InMemoryCache {
   }
 }
 
+// Enhanced cache service with itinerary-specific methods
+class EnhancedCache extends InMemoryCache {
+  async getItinerary(key: string) {
+    return this.get(`itinerary:${key}`)
+  }
+  
+  async setItinerary(key: string, data: any) {
+    return this.set(`itinerary:${key}`, data, 86400) // 24 hours
+  }
+  
+  async warmCache(destinations: string[]) {
+    // Mock implementation for cache warming
+    console.log('Cache warming for destinations:', destinations)
+  }
+  
+  async healthCheck() {
+    return {
+      status: 'healthy' as const,
+      isConnected: true
+    }
+  }
+}
+
+// Generate cache key for itinerary requests
+export function generateCacheKey(formData: any): string {
+  const key = JSON.stringify({
+    destination: formData.destination?.destination,
+    startDate: formData.dateRange?.startDate?.toISOString(),
+    endDate: formData.dateRange?.endDate?.toISOString(),
+    budget: formData.budget?.amount,
+    interests: formData.interests?.sort(),
+    travelers: formData.travelers?.adults
+  })
+  
+  // Create a hash of the key for shorter cache keys
+  let hash = 0
+  for (let i = 0; i < key.length; i++) {
+    const char = key.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32-bit integer
+  }
+  
+  return `trip_${Math.abs(hash)}`
+}
+
 // Export singleton instance
-export const cacheService = new InMemoryCache();
+export const cacheService = new EnhancedCache();
 // Start cleanup every minute
 cacheService.startCleanup();

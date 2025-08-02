@@ -1,4 +1,3 @@
-import { useMocks, mockHotels, simulateDelay } from "./mock-data";
 
 export class BookingClient {
   private apiKey: string;
@@ -13,24 +12,12 @@ export class BookingClient {
     checkOut: string;
     guests: number;
   }) {
-    if (useMocks) {
-      await simulateDelay("hotels");
-      return {
-        data: mockHotels.map((hotel) => ({
-          ...hotel,
-          price: {
-            ...hotel.price,
-            // Adjust price based on number of nights
-            total:
-              hotel.price.perNight *
-              this.calculateNights(params.checkIn, params.checkOut),
-          },
-        })),
-      };
+    if (!this.apiKey) {
+      throw new Error('Booking API key not configured. Please set BOOKING_API_KEY environment variable.');
     }
 
-    // Real API implementation here
     const response = await fetch("https://api.booking.com/v1/hotels/search", {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
@@ -38,17 +25,18 @@ export class BookingClient {
       body: JSON.stringify(params),
     });
 
+    if (!response.ok) {
+      throw new Error(`Booking API error: ${response.status} ${response.statusText}`);
+    }
+
     return response.json();
   }
 
   async getHotelDetails(hotelId: string) {
-    if (useMocks) {
-      await simulateDelay("hotels");
-      const hotel = mockHotels.find((h) => h.id === hotelId);
-      return hotel ? { data: hotel } : { error: "Hotel not found" };
+    if (!this.apiKey) {
+      throw new Error('Booking API key not configured. Please set BOOKING_API_KEY environment variable.');
     }
 
-    // Real API implementation here
     const response = await fetch(
       `https://api.booking.com/v1/hotels/${hotelId}`,
       {
@@ -57,6 +45,10 @@ export class BookingClient {
         },
       }
     );
+
+    if (!response.ok) {
+      throw new Error(`Booking API error: ${response.status} ${response.statusText}`);
+    }
 
     return response.json();
   }
