@@ -264,42 +264,43 @@ export function ActivityCard({
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 z-[9999] shadow-xl border-0 bg-white/95 backdrop-blur-sm">
-                    <DropdownMenuItem onClick={() => onSelect(activity)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShowDetails(!showDetails)}>
-                      <Info className="h-4 w-4 mr-2" />
-                      {showDetails ? 'Hide' : 'Show'} Info
-                    </DropdownMenuItem>
-                    {onToggleFavorite && (
-                      <DropdownMenuItem onClick={() => onToggleFavorite(activity)}>
-                        <Heart className={`h-4 w-4 mr-2 ${activity.isFavorite ? 'fill-current text-pink-500' : ''}`} />
-                        {activity.isFavorite ? 'Remove from' : 'Add to'} Favorites
+                    <DropdownMenuContent align="end" className="w-52 z-[9999]">
+                      <DropdownMenuItem onClick={() => onSelect(activity)} className="group">
+                        <Eye className="h-4 w-4 mr-3 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                        <span className="font-medium">View Details</span>
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onEdit(activity)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Activity
-                    </DropdownMenuItem>
-                    {activity.bookingUrl && (
+                      <DropdownMenuItem onClick={() => setShowDetails(!showDetails)} className="group">
+                        <Info className="h-4 w-4 mr-3 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                        <span className="font-medium">{showDetails ? 'Hide' : 'Show'} Info</span>
+                      </DropdownMenuItem>
+                      {onToggleFavorite && (
+                        <DropdownMenuItem onClick={() => onToggleFavorite(activity)} className="group">
+                          <Heart className={`h-4 w-4 mr-3 transition-colors ${activity.isFavorite ? 'fill-current text-pink-500' : 'text-gray-600 group-hover:text-pink-500'}`} />
+                          <span className="font-medium">{activity.isFavorite ? 'Remove from' : 'Add to'} Favorites</span>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onEdit(activity)} className="group">
+                        <Edit className="h-4 w-4 mr-3 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                        <span className="font-medium">Edit Activity</span>
+                      </DropdownMenuItem>
+                      {activity.bookingUrl && (
+                        <DropdownMenuItem 
+                          onClick={() => window.open(activity.bookingUrl, '_blank')}
+                          className="group"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-3 text-gray-600 group-hover:text-green-600 transition-colors" />
+                          <span className="font-medium">Book Now</span>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem 
-                        onClick={() => window.open(activity.bookingUrl, '_blank')}
+                        onClick={() => onRemove(activity)}
+                        className="group text-red-600 hover:text-red-700 hover:bg-red-50 focus:text-red-700 focus:bg-red-50"
                       >
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Book Now
+                        <Trash2 className="h-4 w-4 mr-3 text-red-500 group-hover:text-red-600 transition-colors" />
+                        <span className="font-medium">Remove</span>
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => onRemove(activity)}
-                      className="text-red-600 focus:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Remove
-                    </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
