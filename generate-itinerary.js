@@ -1,8 +1,20 @@
 const { PrismaClient } = require('@prisma/client');
 
-// Set environment variables
-process.env.DATABASE_URL = "postgresql://neondb_owner:npg_lFb2NtqMr8eB@ep-shiny-wind-a8a8nfj2-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require";
-process.env.GEMINI_API_KEY = "AIzaSyBDoMGgJ-1I0pjOJSzQnagYQCvTw91AvAY";
+// Load environment variables from .env.local
+require('dotenv').config({ path: '.env.local' });
+
+// Verify required environment variables
+if (!process.env.DATABASE_URL) {
+  console.error('❌ DATABASE_URL is required in .env.local');
+  process.exit(1);
+}
+
+if (!process.env.GEMINI_API_KEY) {
+  console.error('❌ GEMINI_API_KEY is required in .env.local');
+  process.exit(1);
+}
+
+// Set USE_MOCKS to false for this script
 process.env.USE_MOCKS = "false";
 
 const prisma = new PrismaClient();

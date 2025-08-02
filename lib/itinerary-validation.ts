@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-// Location coordinate schema
+// Location coordinate schema - allow 0,0 as valid coordinates
 const coordinatesSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
@@ -90,14 +90,23 @@ const emergencyInfoSchema = z.object({
   hospitals: z.array(z.string()),
 })
 
-// Main itinerary schema
+// Main itinerary schema with fallbacks for optional AI-generated fields
 const itinerarySchema = z.object({
   destination: z.string().min(1),
   duration: z.number().int().min(1).max(365),
   totalBudgetEstimate: totalBudgetEstimateSchema,
   days: z.array(daySchema).min(1),
-  generalTips: z.array(z.string()).max(10),
-  emergencyInfo: emergencyInfoSchema,
+  generalTips: z.array(z.string()).max(10).default([
+    "Keep local emergency numbers handy",
+    "Respect local customs and dress codes", 
+    "Keep copies of important documents",
+    "Stay hydrated and carry local currency"
+  ]),
+  emergencyInfo: emergencyInfoSchema.default({
+    emergencyNumber: "911",
+    embassy: "Contact your embassy for assistance",
+    hospitals: ["Local Hospital", "Emergency Services"]
+  }),
 })
 
 // Complete itinerary response schema
@@ -305,12 +314,33 @@ function validateBusinessRules(itinerary: Itinerary): string[] {
     errors.push("Budget breakdown does not match total budget estimate")
   }
 
-  // Validate coordinates are reasonable (not 0,0 unless it's really there)
+  // Validate coordinates are reasonable (not 0,0 unless it's accommodation-related or similar)
   itinerary.days.forEach(day => {
     day.activities.forEach(activity => {
       const { lat, lng } = activity.location.coordinates
       if (lat === 0 && lng === 0) {
-        errors.push(`Day ${day.day}: Activity "${activity.name}" has invalid coordinates (0,0)`)
+        // Allow (0,0) coordinates for accommodation-related activities, meals at hotels, or generic activities
+        const isAccommodationRelated = 
+          activity.type === "accommodation" ||
+          activity.name.toLowerCase().includes("hotel") ||
+          activity.name.toLowerCase().includes("breakfast") ||
+          activity.name.toLowerCase().includes("lunch") ||
+          activity.name.toLowerCase().includes("dinner") ||
+          activity.name.toLowerCase().includes("check-in") ||
+          activity.name.toLowerCase().includes("check-out") ||
+          activity.name.toLowerCase().includes("resort") ||
+          activity.name.toLowerCase().includes("hostel") ||
+          activity.name.toLowerCase().includes("guesthouse") ||
+          activity.location.name.toLowerCase().includes("hotel") ||
+          activity.location.name.toLowerCase().includes("resort") ||
+          activity.location.address.toLowerCase().includes("hotel") ||
+          activity.location.address.toLowerCase().includes("resort") ||
+          activity.description.toLowerCase().includes("hotel") ||
+          activity.description.toLowerCase().includes("accommodation")
+        
+        if (!isAccommodationRelated) {
+          errors.push(`Day ${day.day}: Activity "${activity.name}" has invalid coordinates (0,0)`)
+        }
       }
     })
   })
@@ -331,7 +361,7 @@ export function parseItineraryJSON(jsonString: string): {
   // Remove markdown code blocks if present
   cleanedJson = cleanedJson.replace(/```json\s?/g, '').replace(/```\s?/g, '')
   
-  // Remove any text before the first { or [
+  // Remove any leading/trailing text that's not JSON
   const firstBraceIndex = cleanedJson.indexOf('{')
   const firstBracketIndex = cleanedJson.indexOf('[')
   
@@ -344,18 +374,52 @@ export function parseItineraryJSON(jsonString: string): {
   }
   
   const startIndex = firstBraceIndex !== -1 
-    ? (firstBracketIndex !== -1 ? Math.min(firstBraceIndex, firstBracketIndex) : firstBraceIndex)
+    ? (firstBracketIndex !== -1 ? Math.min(firstBracketIndex, firstBraceIndex) : firstBraceIndex)
     : firstBracketIndex
   
   cleanedJson = cleanedJson.substring(startIndex)
   
-  // Remove any text after the last } or ]
-  const lastBraceIndex = cleanedJson.lastIndexOf('}')
-  const lastBracketIndex = cleanedJson.lastIndexOf(']')
+  // Find the proper end of JSON by balancing brackets
+  let braceCount = 0
+  let bracketCount = 0
+  let inString = false
+  let escaped = false
+  let endIndex = -1
   
-  const endIndex = Math.max(lastBraceIndex, lastBracketIndex)
+  for (let i = 0; i < cleanedJson.length; i++) {
+    const char = cleanedJson[i]
+    
+    if (escaped) {
+      escaped = false
+      continue
+    }
+    
+    if (char === '\\' && inString) {
+      escaped = true
+      continue
+    }
+    
+    if (char === '"') {
+      inString = !inString
+      continue
+    }
+    
+    if (!inString) {
+      if (char === '{') braceCount++
+      else if (char === '}') braceCount--
+      else if (char === '[') bracketCount++
+      else if (char === ']') bracketCount--
+      
+      // If we've balanced all brackets and braces, we found the end
+      if (braceCount === 0 && bracketCount === 0 && (char === '}' || char === ']')) {
+        endIndex = i + 1
+        break
+      }
+    }
+  }
+  
   if (endIndex !== -1) {
-    cleanedJson = cleanedJson.substring(0, endIndex + 1)
+    cleanedJson = cleanedJson.substring(0, endIndex)
   }
   
   try {
@@ -365,31 +429,52 @@ export function parseItineraryJSON(jsonString: string): {
       data: parsed,
     }
   } catch (error) {
-    // Try to fix common JSON issues
+    // Enhanced JSON repair strategies
     try {
-      // Try multiple JSON repair strategies
       let fixedJson = cleanedJson
       
-      // Fix trailing commas
+      // 1. Fix trailing commas in objects and arrays
       fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1')
       
-      // Fix missing commas between array elements
-      fixedJson = fixedJson.replace(/}\s*{/g, '},{')
+      // 2. Fix missing commas between array elements (objects)
+      fixedJson = fixedJson.replace(/}(\s*){/g, '}, {')
       
-      // Fix missing commas between object properties
-      fixedJson = fixedJson.replace(/"\s*\n\s*"/g, '",\n"')
+      // 3. Fix missing commas between array elements (primitives)
+      fixedJson = fixedJson.replace(/](\s*)\[/g, '], [')
       
-      // Try to balance brackets/braces if JSON is truncated
+      // 4. Fix missing commas between object properties
+      fixedJson = fixedJson.replace(/"(\s*)\n(\s*)"/g, '",\n$2"')
+      
+      // 5. Fix missing commas after closing braces before new properties
+      fixedJson = fixedJson.replace(/}(\s*)"[^"]*":/g, '},$1"')
+      
+      // 6. Balance brackets and braces if truncated
       const openBraces = (fixedJson.match(/{/g) || []).length
       const closeBraces = (fixedJson.match(/}/g) || []).length
       const openBrackets = (fixedJson.match(/\[/g) || []).length
       const closeBrackets = (fixedJson.match(/\]/g) || []).length
       
+      // Add missing closing brackets/braces
       if (openBraces > closeBraces) {
         fixedJson += '}'.repeat(openBraces - closeBraces)
       }
       if (openBrackets > closeBrackets) {
         fixedJson += ']'.repeat(openBrackets - closeBrackets)
+      }
+      
+      // 7. Try to fix incomplete array elements by removing the last incomplete element
+      if (fixedJson.includes('},{') && !fixedJson.trim().endsWith('}')) {
+        const lastCompleteObject = fixedJson.lastIndexOf('},{')
+        if (lastCompleteObject !== -1) {
+          const beforeLastObject = fixedJson.substring(0, lastCompleteObject + 1)
+          // Check if we can close the array properly
+          const openArrays = (beforeLastObject.match(/\[/g) || []).length
+          const closeArrays = (beforeLastObject.match(/\]/g) || []).length
+          
+          if (openArrays > closeArrays) {
+            fixedJson = beforeLastObject + ']'.repeat(openArrays - closeArrays)
+          }
+        }
       }
       
       const parsed = JSON.parse(fixedJson)
@@ -398,13 +483,73 @@ export function parseItineraryJSON(jsonString: string): {
         data: parsed,
       }
     } catch (secondError) {
-      return {
-        success: false,
-        errors: [
-          `JSON parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          `Attempted fixes failed: ${secondError instanceof Error ? secondError.message : 'Unknown error'}`
-        ],
-        originalResponse: jsonString,
+      // Last resort: Try to extract valid JSON segments
+      try {
+        // Look for complete JSON objects within the string
+        const jsonObjects = []
+        let currentObject = ''
+        let braceLevel = 0
+        let inString = false
+        let escaped = false
+        
+        for (let i = 0; i < cleanedJson.length; i++) {
+          const char = cleanedJson[i]
+          
+          if (escaped) {
+            escaped = false
+            currentObject += char
+            continue
+          }
+          
+          if (char === '\\' && inString) {
+            escaped = true
+            currentObject += char
+            continue
+          }
+          
+          if (char === '"') {
+            inString = !inString
+          }
+          
+          currentObject += char
+          
+          if (!inString) {
+            if (char === '{') {
+              braceLevel++
+            } else if (char === '}') {
+              braceLevel--
+              if (braceLevel === 0 && currentObject.trim()) {
+                try {
+                  const obj = JSON.parse(currentObject.trim())
+                  jsonObjects.push(obj)
+                  currentObject = ''
+                } catch {
+                  // Continue trying
+                }
+              }
+            }
+          }
+        }
+        
+        if (jsonObjects.length > 0) {
+          // Return the first valid object found
+          return {
+            success: true,
+            data: jsonObjects[0],
+          }
+        }
+        
+        throw new Error('No valid JSON objects found')
+      } catch (thirdError) {
+        return {
+          success: false,
+          errors: [
+            `JSON parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            `Attempted fixes failed: ${secondError instanceof Error ? secondError.message : 'Unknown error'}`,
+            `Final recovery attempt failed: ${thirdError instanceof Error ? thirdError.message : 'Unknown error'}`
+          ],
+          originalResponse: jsonString,
+        }
       }
     }
   }
@@ -426,8 +571,31 @@ export function validateAndParseItinerary(response: string): {
     }
   }
 
+  // Add missing fields with defaults if they're not present
+  const processedData = parseResult.data
+  if (processedData && processedData.itinerary) {
+    // Add generalTips if missing
+    if (!processedData.itinerary.generalTips) {
+      processedData.itinerary.generalTips = [
+        "Keep local emergency numbers handy",
+        "Respect local customs and dress codes",
+        "Keep copies of important documents",
+        "Stay hydrated and carry local currency"
+      ]
+    }
+
+    // Add emergencyInfo if missing
+    if (!processedData.itinerary.emergencyInfo) {
+      processedData.itinerary.emergencyInfo = {
+        emergencyNumber: "911",
+        embassy: "Contact your embassy for assistance",
+        hospitals: ["Local Hospital", "Emergency Services"]
+      }
+    }
+  }
+
   // Then validate the structure
-  const validationResult = validateItinerary(parseResult.data)
+  const validationResult = validateItinerary(processedData)
   if (!validationResult.success) {
     return {
       success: false,

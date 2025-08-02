@@ -43,7 +43,7 @@ export function ItineraryDisplay({
   })
   const [timelineConfig, setTimelineConfig] = useState<TimelineConfig>({
     showAllDays: true,
-    expandedDays: new Set(days.map(d => d.day)),
+    expandedDays: new Set(days.map(d => d.day as number)),
     viewMode: 'cards',
     sortBy: 'time',
     filterBy: {}
@@ -71,7 +71,7 @@ export function ItineraryDisplay({
     if (timelineConfig.showAllDays) {
       setTimelineConfig(prev => ({
         ...prev,
-        expandedDays: new Set(days.map(d => d.day))
+        expandedDays: new Set(days.map(d => d.day as number))
       }))
     }
   }, [days, timelineConfig.showAllDays])

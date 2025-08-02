@@ -212,8 +212,12 @@ export async function POST(request: NextRequest) {
           },
           interests: validatedData.interests || ['culture', 'food'],
           preferences: {
-            accommodationType: validatedData.accommodationType || 'hotel',
-            transportation: 'public'
+            pace: 'moderate' as const,
+            accommodationType: (validatedData.accommodationType || 'mid-range') as 'budget' | 'mid-range' | 'luxury' | 'mixed',
+            transportation: 'public' as const,
+            accessibility: false,
+            dietaryRestrictions: [],
+            specialRequests: ''
           },
           travelers: {
             adults: validatedData.travelers,
@@ -332,58 +336,65 @@ export async function POST(request: NextRequest) {
             }
           })
           
-          // Save days and activities
-          for (const dayData of itineraryResult.itinerary.itinerary.days) {
-            try {
-              const day = await tx.day.create({
-                data: {
+          // Prepare batch data for days and activities
+          const daysData = itineraryResult.itinerary.itinerary.days.map((dayData) => ({
+            tripId: trip.id,
+            dayNumber: dayData.day || 1,
+            date: dayData.date || new Date().toISOString().split('T')[0],
+            theme: dayData.theme || 'Day activities',
+            dailyBudget: dayData.dailyBudget || null,
+            transportation: dayData.transportation || null
+          }))
+
+          // Create days in batch
+          const createdDays = await Promise.all(
+            daysData.map(dayData => tx.day.create({ data: dayData }))
+          )
+
+          // Prepare activities data with dayId mapping
+          const activitiesData = []
+          for (let dayIndex = 0; dayIndex < itineraryResult.itinerary.itinerary.days.length; dayIndex++) {
+            const dayData = itineraryResult.itinerary.itinerary.days[dayIndex]
+            const createdDay = createdDays[dayIndex]
+            
+            if (dayData.activities && Array.isArray(dayData.activities)) {
+              dayData.activities.forEach((activityData, activityIndex) => {
+                activitiesData.push({
                   tripId: trip.id,
-                  dayNumber: dayData.day || 1,
-                  date: dayData.date || new Date().toISOString().split('T')[0],
-                  theme: dayData.theme || 'Day activities',
-                  dailyBudget: dayData.dailyBudget || null,
-                  transportation: dayData.transportation || null
-                }
+                  dayId: createdDay.id,
+                  name: activityData.name || 'Unnamed Activity',
+                  description: activityData.description || '',
+                  location: activityData.location?.name || '',
+                  address: activityData.location?.address || '',
+                  coordinates: activityData.location?.coordinates || null,
+                  startTime: activityData.startTime || '',
+                  endTime: activityData.endTime || '',
+                  timeSlot: activityData.timeSlot || 'morning',
+                  type: mapActivityType(activityData.type || 'other') as any,
+                  price: activityData.pricing?.amount || null,
+                  currency: activityData.pricing?.currency || 'USD',
+                  priceType: activityData.pricing?.priceType || 'per_person',
+                  duration: activityData.duration || '',
+                  tips: Array.isArray(activityData.tips) ? activityData.tips : [],
+                  bookingRequired: Boolean(activityData.bookingRequired),
+                  accessibility: activityData.accessibility || {},
+                  order: activityIndex
+                })
               })
-              
-              // Save activities for this day
-              if (dayData.activities && Array.isArray(dayData.activities)) {
-                for (const [index, activityData] of dayData.activities.entries()) {
-                  try {
-                    await tx.activity.create({
-                      data: {
-                        tripId: trip.id,
-                        dayId: day.id,
-                        name: activityData.name || 'Unnamed Activity',
-                        description: activityData.description || '',
-                        location: activityData.location?.name || '',
-                        address: activityData.location?.address || '',
-                        coordinates: activityData.location?.coordinates || null,
-                        startTime: activityData.startTime || '',
-                        endTime: activityData.endTime || '',
-                        timeSlot: activityData.timeSlot || 'morning',
-                        type: mapActivityType(activityData.type || 'other') as any,
-                        price: activityData.pricing?.amount || null,
-                        currency: activityData.pricing?.currency || 'USD',
-                        priceType: activityData.pricing?.priceType || 'per_person',
-                        duration: activityData.duration || '',
-                        tips: Array.isArray(activityData.tips) ? activityData.tips : [],
-                        bookingRequired: Boolean(activityData.bookingRequired),
-                        accessibility: activityData.accessibility || {},
-                        order: index
-                      }
-                    })
-                  } catch (activityError) {
-                    console.error(`Error saving activity ${index} for day ${dayData.day}:`, activityError)
-                    // Continue with other activities even if one fails
-                  }
-                }
-              }
-            } catch (dayError) {
-              console.error(`Error saving day ${dayData.day}:`, dayError)
-              // Continue with other days even if one fails
             }
           }
+
+          // Create activities in batches to avoid overwhelming the transaction
+          const batchSize = 10
+          for (let i = 0; i < activitiesData.length; i += batchSize) {
+            const batch = activitiesData.slice(i, i + batchSize)
+            await Promise.all(
+              batch.map(activityData => tx.activity.create({ data: activityData }))
+            )
+          }
+        }, {
+          timeout: 60000, // 60 second timeout
+          maxWait: 5000,  // 5 second max wait for transaction to start
         })
         
         console.log('Itinerary data saved successfully for trip:', trip.id)

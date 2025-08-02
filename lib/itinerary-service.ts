@@ -96,7 +96,7 @@ export class ItineraryService {
       let itinerary: ItineraryResponse
       let aiGenerationTime = 0
       let validationTime = 0
-      let fallbackUsed = false
+      const fallbackUsed = false
 
       if (prioritizeSpeed) {
         // Use quick generation for speed
@@ -195,8 +195,19 @@ export class ItineraryService {
       )
 
       console.log('📝 ItineraryService: Validating and parsing AI response')
+      console.log('📝 ItineraryService: Response length:', response.length, 'characters')
+      
+      // Log first and last 200 characters to help debug parsing issues
+      if (response.length > 400) {
+        console.log('📝 ItineraryService: Response preview (first 200 chars):', response.substring(0, 200))
+        console.log('📝 ItineraryService: Response preview (last 200 chars):', response.substring(response.length - 200))
+      } else {
+        console.log('📝 ItineraryService: Full response:', response)
+      }
+      
       const parseResult = validateAndParseItinerary(response)
       if (!parseResult.success) {
+        console.error('❌ ItineraryService: Validation failed with errors:', parseResult.errors)
         throw new Error(`Itinerary validation failed: ${parseResult.errors?.join(', ')}`)
       }
 

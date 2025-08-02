@@ -82,8 +82,12 @@ export async function POST(
       },
       interests: validatedData.interests || ['culture', 'food'],
       preferences: {
-        accommodationType: validatedData.accommodationType || 'hotel',
-        transportation: 'public'
+        pace: 'moderate' as const,
+        accommodationType: (validatedData.accommodationType || 'mid-range') as 'budget' | 'mid-range' | 'luxury' | 'mixed',
+        transportation: 'public' as const,
+        accessibility: false,
+        dietaryRestrictions: [],
+        specialRequests: ''
       },
       travelers: {
         adults: validatedData.travelers,

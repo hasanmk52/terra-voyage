@@ -18,6 +18,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
+import { useConfirmationModal } from '@/components/ui/confirmation-modal'
 
 interface Trip {
   id: string
@@ -61,16 +62,18 @@ export default function TripsPage() {
     total: 0,
     pages: 1
   })
+  
+  const { showConfirmation, ConfirmationModal } = useConfirmationModal()
 
   const loadTrips = async (pageNum: number = 1) => {
     setIsLoading(true)
     setError(null)
     
     try {
-      const response: TripsResponse = await apiClient.getTrips({ 
+      const response = await apiClient.getTrips({ 
         page: pageNum, 
         limit: 12 
-      })
+      }) as TripsResponse
       
       setTrips(response.trips)
       setPagination(response.pagination)
@@ -108,39 +111,47 @@ export default function TripsPage() {
     router.push('/plan')
   }
 
-  const handleDeleteTrip = async (tripId: string, tripTitle: string) => {
-    if (!confirm(`Are you sure you want to delete "${tripTitle}"? This action cannot be undone.`)) {
-      return
-    }
-
-    setDeletingTripId(tripId)
-    
-    try {
-      await apiClient.deleteTrip(tripId)
-      
-      // Remove trip from local state
-      setTrips(prevTrips => prevTrips.filter(trip => trip.id !== tripId))
-      
-      // Update pagination if needed
-      const newTotal = pagination.total - 1
-      const newPages = Math.ceil(newTotal / pagination.limit)
-      setPagination(prev => ({
-        ...prev,
-        total: newTotal,
-        pages: newPages
-      }))
-      
-      // If current page becomes empty and not the first page, go to previous page
-      if (trips.length === 1 && page > 1) {
-        setPage(page - 1)
+  const handleDeleteTrip = (tripId: string, tripTitle: string) => {
+    showConfirmation(
+      'Delete Trip',
+      `Are you sure you want to delete "${tripTitle}"? This action cannot be undone and will permanently remove all trip data including itinerary, activities, and collaborations.`,
+      async () => {
+        setDeletingTripId(tripId)
+        
+        try {
+          await apiClient.deleteTrip(tripId)
+          
+          // Remove trip from local state
+          setTrips(prevTrips => prevTrips.filter(trip => trip.id !== tripId))
+          
+          // Update pagination if needed
+          const newTotal = pagination.total - 1
+          const newPages = Math.ceil(newTotal / pagination.limit)
+          setPagination(prev => ({
+            ...prev,
+            total: newTotal,
+            pages: newPages
+          }))
+          
+          // If current page becomes empty and not the first page, go to previous page
+          if (trips.length === 1 && page > 1) {
+            setPage(page - 1)
+          }
+          
+        } catch (error) {
+          console.error('Failed to delete trip:', error)
+          // The error will be handled by the modal's error handling
+          throw error
+        } finally {
+          setDeletingTripId(null)
+        }
+      },
+      {
+        confirmText: 'Delete Trip',
+        cancelText: 'Keep Trip',
+        variant: 'destructive'
       }
-      
-    } catch (error) {
-      console.error('Failed to delete trip:', error)
-      alert('Failed to delete trip. Please try again.')
-    } finally {
-      setDeletingTripId(null)
-    }
+    )
   }
 
   const formatDateRange = (startDate: string, endDate: string) => {
@@ -184,7 +195,12 @@ export default function TripsPage() {
             <Button onClick={() => loadTrips(page)} className="mr-4">
               Try Again
             </Button>
-            <Button variant="outline" onClick={handleCreateTrip}>
+            <Button 
+              onClick={handleCreateTrip}
+              size="lg"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold px-6 py-3 rounded-xl"
+            >
+              <Plus className="w-5 h-5 mr-2" />
               Create New Trip
             </Button>
           </div>
@@ -204,8 +220,12 @@ export default function TripsPage() {
               Manage and view all your travel plans
             </p>
           </div>
-          <Button onClick={handleCreateTrip} className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
+          <Button 
+            onClick={handleCreateTrip} 
+            size="lg"
+            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold px-6 py-3 rounded-xl"
+          >
+            <Plus className="w-5 h-5" />
             Create New Trip
           </Button>
         </div>
@@ -264,8 +284,12 @@ export default function TripsPage() {
             <p className="text-gray-600 mb-6">
               Start planning your next adventure by creating your first trip.
             </p>
-            <Button onClick={handleCreateTrip} className="flex items-center gap-2 mx-auto">
-              <Plus className="w-4 h-4" />
+            <Button 
+              onClick={handleCreateTrip} 
+              size="lg"
+              className="flex items-center gap-2 mx-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold px-8 py-4 rounded-xl"
+            >
+              <Plus className="w-5 h-5" />
               Create Your First Trip
             </Button>
           </div>
@@ -306,7 +330,14 @@ export default function TripsPage() {
                         {trip.budget && (
                           <div className="flex items-center">
                             <DollarSign className="w-4 h-4 mr-1 text-emerald-500" />
-                            <span className="font-semibold text-gray-700">${trip.budget.toLocaleString()}</span>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-gray-700">${trip.budget.toLocaleString()}</span>
+                              {trip.travelers > 1 && (
+                                <span className="text-xs text-gray-500">
+                                  ~${Math.round(trip.budget / trip.travelers).toLocaleString()}/person
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -391,6 +422,9 @@ export default function TripsPage() {
           </>
         )}
       </div>
+      
+      {/* Confirmation Modal */}
+      <ConfirmationModal />
     </div>
   )
 }

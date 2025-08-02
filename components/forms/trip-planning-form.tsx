@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight, Check, MapPin, Calendar, Sparkles, Plane } from "lucide-react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
+// import { useForm } from "react-hook-form"
+// import { zodResolver } from "@hookform/resolvers/zod"
 
 import { DestinationAutocomplete } from "./destination-autocomplete"
 import { DateRangePicker } from "./date-range-picker"
@@ -14,14 +14,20 @@ import { InterestSelector } from "./interest-selector"
 import { TravelPreferences } from "./travel-preferences"
 
 import {
-  tripPlanningFormSchema,
+  // tripPlanningFormSchema,
   validateStep,
   type TripPlanningFormData,
   type DestinationData,
-  type DateRangeData,
+  // type DateRangeData,
   type InterestCategories,
   type TravelPreferences as TravelPreferencesType,
 } from "@/lib/trip-validation"
+
+// Form state types with optional dates for initialization
+interface FormDateRangeData {
+  startDate: Date | undefined
+  endDate: Date | undefined
+}
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 
@@ -51,7 +57,7 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
     destination: "",
     placeId: undefined,
   })
-  const [dateRange, setDateRange] = useState<DateRangeData>({
+  const [dateRange, setDateRange] = useState<FormDateRangeData>({
     startDate: undefined,
     endDate: undefined,
   })
@@ -122,7 +128,13 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
       case 0:
         return validateStep("destination", { destination })
       case 1:
-        return validateStep("dates", { dateRange })
+        // Convert to the required format for validation
+        const dateRangeForValidation = dateRange.startDate && dateRange.endDate 
+          ? { startDate: dateRange.startDate, endDate: dateRange.endDate }
+          : null
+        return dateRangeForValidation 
+          ? validateStep("dates", { dateRange: dateRangeForValidation })
+          : { success: false, errors: null }
       case 2:
         return validateStep("travelers", { travelers })
       case 3:
@@ -219,7 +231,7 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
         <div className="space-y-6">
           <div>
             <label className="text-lg font-medium text-gray-900 block mb-4">
-              What's your budget for this trip?
+              What&apos;s your budget for this trip?
             </label>
             <BudgetSelector
               value={budget}
@@ -308,14 +320,27 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
 
     try {
       // Validate complete form
+      if (!dateRange.startDate || !dateRange.endDate) {
+        throw new Error("Start and end dates are required")
+      }
+
       const formData: TripPlanningFormData = {
         destination,
-        dateRange,
+        dateRange: {
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+        },
         travelers,
         budget,
         interests,
         preferences,
       }
+
+      // Calculate total budget based on range type
+      const totalTravelers = travelers.adults + travelers.children + travelers.infants
+      const totalBudget = budget.range === "per-person" 
+        ? budget.amount * totalTravelers 
+        : budget.amount
 
       // Create trip via API
       const response = await apiClient.createTrip({
@@ -323,12 +348,12 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
         destination: destination.destination,
         startDate: dateRange.startDate!.toISOString(),
         endDate: dateRange.endDate!.toISOString(),
-        budget: budget.amount,
-        travelers: travelers.adults + travelers.children + travelers.infants,
+        budget: totalBudget,
+        travelers: totalTravelers,
         generateItinerary: true, // Enable itinerary generation
         interests,
         accommodationType: preferences.accommodationType
-      })
+      }) as { trip: { id: string } }
 
       clearInterval(progressInterval)
 

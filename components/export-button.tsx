@@ -8,7 +8,7 @@ interface ExportButtonProps {
   tripId: string
   tripTitle: string
   variant?: 'default' | 'outline' | 'ghost'
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'default' | 'sm' | 'lg' | 'icon'
   className?: string
 }
 
@@ -16,7 +16,7 @@ export function ExportButton({
   tripId, 
   tripTitle, 
   variant = 'outline',
-  size = 'md',
+  size = 'default',
   className = ''
 }: ExportButtonProps) {
   return (

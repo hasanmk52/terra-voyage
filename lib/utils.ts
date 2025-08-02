@@ -49,6 +49,25 @@ export function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
+export function formatBudgetDisplay(amount: number, currency: string = "USD", travelers: number = 1): {
+  total: string
+  perPerson?: string
+  showPerPerson: boolean
+} {
+  // Amount is always the total trip budget
+  const total = `${formatCurrency(amount, currency)} total`
+  const showPerPerson = travelers > 1
+  const perPerson = showPerPerson 
+    ? `~${formatCurrency(Math.round(amount / travelers), currency)}/person`
+    : undefined
+
+  return {
+    total,
+    perPerson,
+    showPerPerson
+  }
+}
+
 export function generateId(): string {
   return Math.random().toString(36).substr(2, 9)
 }

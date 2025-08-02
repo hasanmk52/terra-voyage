@@ -527,7 +527,14 @@ export default function TripDetailsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
-                    <span>{trip.budget.amount} {trip.budget.currency}</span>
+                    <div className="flex flex-col">
+                      <span className="font-semibold">{trip.budget.amount} {trip.budget.currency} total</span>
+                      {totalTravelers > 1 && (
+                        <span className="text-xs text-gray-500">
+                          ~{Math.round(trip.budget.amount / totalTravelers)} {trip.budget.currency}/person
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

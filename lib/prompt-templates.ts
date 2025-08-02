@@ -174,7 +174,9 @@ Response format requirements:
 - Use the exact structure specified in the user prompt
 - Include realistic pricing in the specified currency
 - Provide practical tips and cultural insights for each activity
-- NEVER use values outside the specified enums`
+- NEVER use values outside the specified enums
+- ALWAYS include generalTips and emergencyInfo arrays - these are REQUIRED
+- Ensure the JSON is complete and properly closed with all brackets and braces`
 
   const userPrompt = `Create a ${duration}-day itinerary for ${travelerInfo} visiting ${sanitizedDestination}.
 
@@ -275,7 +277,9 @@ CRITICAL VALIDATION REQUIREMENTS:
 - Every "timeSlot" field must be exactly one of: "morning", "afternoon", "evening"  
 - Every "primaryMethod" field must be exactly one of: "walking", "public", "taxi", "rental_car"
 - Every "priceType" field must be exactly one of: "per_person", "per_group", "free"
-- Use ONLY these exact strings - no variations, typos, or alternatives`
+- Use ONLY these exact strings - no variations, typos, or alternatives
+- MANDATORY: Include both "generalTips" array (3-5 practical travel tips) and complete "emergencyInfo" object
+- The JSON must be complete and properly formatted with all closing brackets and braces`
 
   return {
     systemPrompt,
