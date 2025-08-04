@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
 import { PrismaClient } from '@prisma/client'
-import { serviceConfig } from '../lib/selective-mocks'
 
 const prisma = new PrismaClient()
 
 async function testDatabaseConnection() {
   console.log('🔍 Testing database connection...')
-  console.log('📊 Service Config:', {
-    useRealDatabase: serviceConfig.useRealDatabase,
-    databaseConfigured: !!process.env.DATABASE_URL
+  console.log('📊 Database Config:', {
+    databaseConfigured: !!process.env.DATABASE_URL,
+    databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
   })
 
   try {

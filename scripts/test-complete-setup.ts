@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-import { serviceConfig } from '../lib/selective-mocks'
-
 console.log('🧪 Testing Complete Environment Setup')
 console.log('=====================================')
 
@@ -15,11 +13,9 @@ console.log('  WEATHER_API_KEY:', !!process.env.WEATHER_API_KEY ? '✅ Loaded' :
 
 // Test 2: Service Configuration
 console.log('\n2. Service Configuration:')
-console.log('  Database:', serviceConfig.useRealDatabase ? '✅ REAL' : '⚠️  MOCK')
-console.log('  AI:', serviceConfig.useRealAI ? '✅ REAL' : '⚠️  MOCK')
-console.log('  Maps:', serviceConfig.useRealMaps ? '✅ REAL' : '⚠️  MOCK')
-console.log('  Mapbox:', serviceConfig.useRealMapbox ? '✅ REAL' : '⚠️  MOCK')
-console.log('  Weather:', serviceConfig.useRealWeather ? '✅ REAL' : '⚠️  MOCK')
+const useRealServices = !process.env.USE_MOCKS || process.env.USE_MOCKS === 'false'
+console.log('  Services:', useRealServices ? '✅ REAL' : '⚠️  MOCK')
+console.log('  Mock Mode:', process.env.USE_MOCKS || 'false')
 
 // Test 3: Security Check
 console.log('\n3. Security Status:')

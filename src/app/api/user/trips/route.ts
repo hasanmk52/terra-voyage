@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { itineraryService } from "@/lib/itinerary-service"
+import { TripOverlapService } from "@/lib/trip-overlap-service"
 
 // Helper function to map AI activity types to database enum
 function mapActivityType(aiType: string): string {
@@ -187,6 +188,54 @@ export async function POST(request: NextRequest) {
 
     // Get real destination coordinates from Mapbox API
     const destinationCoords = await getDestinationCoordinatesFromAPI(validatedData.destination)
+    
+    // BUSINESS VALIDATION: Check for date overlaps with existing trips
+    // For demo purposes, we use a default demo user. In production, get from authentication
+    const userId = 'demo-user-001'
+    
+    try {
+      const validationResult = await TripOverlapService.validateNewTrip({
+        title: validatedData.title,
+        destination: validatedData.destination,
+        startDate,
+        endDate,
+        userId
+      })
+      
+      if (!validationResult.isValid) {
+        // Return detailed error with suggestions
+        const response = {
+          error: "Trip date validation failed",
+          details: validationResult.errors,
+          hasOverlap: validationResult.overlapResult?.hasOverlap || false,
+          ...(validationResult.overlapResult && {
+            overlappingTrips: validationResult.overlapResult.overlappingTrips.map(trip => ({
+              id: trip.id,
+              title: trip.title,
+              destination: trip.destination,
+              startDate: trip.startDate,
+              endDate: trip.endDate
+            })),
+            overlapDetails: validationResult.overlapResult.overlapDetails
+          }),
+          ...(validationResult.suggestions && {
+            suggestedDates: validationResult.suggestions.map(suggestion => ({
+              startDate: suggestion.startDate,
+              endDate: suggestion.endDate,
+              duration: Math.ceil((suggestion.endDate.getTime() - suggestion.startDate.getTime()) / (1000 * 60 * 60 * 24))
+            }))
+          })
+        }
+        
+        return NextResponse.json(response, { status: 409 }) // 409 Conflict
+      }
+    } catch (validationError) {
+      console.error('Date overlap validation error:', validationError)
+      return NextResponse.json({
+        error: "Unable to validate trip dates",
+        details: ["Please try again or contact support if the problem persists"]
+      }, { status: 500 })
+    }
     
     // Generate itinerary SYNCHRONOUSLY before saving to database
     let itineraryResult = null

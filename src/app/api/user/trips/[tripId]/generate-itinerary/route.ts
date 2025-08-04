@@ -22,7 +22,7 @@ function mapActivityType(aiType: string): string {
 }
 
 interface RouteParams {
-  params: { tripId: string }
+  params: Promise<{ tripId: string }>
 }
 
 // POST /api/user/trips/[tripId]/generate-itinerary - Manually trigger itinerary generation
@@ -31,7 +31,7 @@ export async function POST(
   { params }: RouteParams
 ) {
   try {
-    const tripId = params.tripId
+    const { tripId } = await params
 
     console.log('Starting manual itinerary generation for trip:', tripId)
 

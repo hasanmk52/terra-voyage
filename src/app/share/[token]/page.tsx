@@ -4,22 +4,25 @@ import { format } from 'date-fns'
 import { MapPin, Calendar, Users, DollarSign, Clock } from 'lucide-react'
 
 interface SharedTripPageProps {
-  params: {
+  params: Promise<{
     token: string
-  }
-  searchParams: {
+  }>
+  searchParams: Promise<{
     password?: string
-  }
+  }>
 }
 
 export default async function SharedTripPage({ 
   params, 
   searchParams 
 }: SharedTripPageProps) {
+  const resolvedParams = await params
+  const resolvedSearchParams = await searchParams
+  
   try {
     const trip = await shareGenerator.getSharedTrip(
-      params.token,
-      searchParams.password
+      resolvedParams.token,
+      resolvedSearchParams.password
     )
 
     if (!trip) {
@@ -304,8 +307,10 @@ export default async function SharedTripPage({
 }
 
 export async function generateMetadata({ params }: SharedTripPageProps) {
+  const resolvedParams = await params
+  
   try {
-    const trip = await shareGenerator.getSharedTrip(params.token)
+    const trip = await shareGenerator.getSharedTrip(resolvedParams.token)
     
     if (!trip) {
       return {

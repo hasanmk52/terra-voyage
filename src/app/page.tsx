@@ -1,37 +1,21 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { HeroSection } from "@/components/landing/hero-section"
-import { SampleItineraries } from "@/components/landing/sample-itineraries"
-import { HowItWorks } from "@/components/landing/how-it-works"
-import { Testimonials } from "@/components/landing/testimonials"
-import { Footer } from "@/components/landing/footer"
-import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
-import { OnboardingData } from "@/lib/onboarding-validation"
+import { HeroSection } from "@/components/landing/hero-section";
+import { SampleItineraries } from "@/components/landing/sample-itineraries";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { Testimonials } from "@/components/landing/testimonials";
+import { Footer } from "@/components/landing/footer";
 
 export default function Home() {
-  const router = useRouter()
-  const [showOnboarding, setShowOnboarding] = useState(false)
+  const router = useRouter();
 
   const handleStartPlanning = () => {
-    // Check if user wants onboarding or go directly to plan
-    const hasCompletedOnboarding = localStorage.getItem('onboarding_completed') === 'true'
-
-    if (!hasCompletedOnboarding) {
-      setShowOnboarding(true)
-    } else {
-      router.push("/plan")
-    }
-  }
-
-  const handleOnboardingComplete = (data: OnboardingData) => {
-    console.log("Onboarding completed:", data)
-    localStorage.setItem('onboarding_completed', 'true')
-    setShowOnboarding(false)
-    router.push("/plan")
-  }
+    // Go directly to trip creation page
+    router.push("/plan");
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
@@ -49,13 +33,6 @@ export default function Home() {
 
       {/* Footer */}
       <Footer />
-
-      {/* Onboarding Modal */}
-      <OnboardingModal
-        isOpen={showOnboarding}
-        onClose={() => setShowOnboarding(false)}
-        onComplete={handleOnboardingComplete}
-      />
     </div>
-  )
+  );
 }

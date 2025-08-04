@@ -1,29 +1,37 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Clock, MapPin, Users, DollarSign, ChevronRight, Star, Calendar } from "lucide-react"
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Clock,
+  MapPin,
+  Users,
+  DollarSign,
+  ChevronRight,
+  Star,
+  Calendar,
+} from "lucide-react";
 
 interface SampleItinerary {
-  id: string
-  destination: string
-  country: string
-  duration: number
-  budget: string
-  travelers: number
-  style: string
-  rating: number
-  image: string
-  highlights: string[]
+  id: string;
+  destination: string;
+  country: string;
+  duration: number;
+  budget: string;
+  travelers: number;
+  style: string;
+  rating: number;
+  image: string;
+  highlights: string[];
   preview: {
-    day: number
+    day: number;
     activities: {
-      time: string
-      name: string
-      type: "attraction" | "restaurant" | "experience"
-      description: string
-    }[]
-  }
+      time: string;
+      name: string;
+      type: "attraction" | "restaurant" | "experience";
+      description: string;
+    }[];
+  };
 }
 
 const sampleItineraries: SampleItinerary[] = [
@@ -36,8 +44,14 @@ const sampleItineraries: SampleItinerary[] = [
     travelers: 2,
     style: "Romantic",
     rating: 4.9,
-    image: "https://images.unsplash.com/photo-1502602898536-47ad22581b52?w=800&h=600&fit=crop",
-    highlights: ["Eiffel Tower at sunset", "Seine river cruise", "Louvre Museum", "Montmartre district"],
+    image:
+      "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=800&h=600&fit=crop&crop=center",
+    highlights: [
+      "Eiffel Tower at sunset",
+      "Seine river cruise",
+      "Louvre Museum",
+      "Montmartre district",
+    ],
     preview: {
       day: 1,
       activities: [
@@ -45,22 +59,23 @@ const sampleItineraries: SampleItinerary[] = [
           time: "9:00 AM",
           name: "Eiffel Tower Visit",
           type: "attraction",
-          description: "Start your romantic getaway with sunrise views from the iconic tower"
+          description:
+            "Start your romantic getaway with sunrise views from the iconic tower",
         },
         {
-          time: "12:30 PM", 
+          time: "12:30 PM",
           name: "Café de Flore",
           type: "restaurant",
-          description: "Classic Parisian lunch at this historic literary café"
+          description: "Classic Parisian lunch at this historic literary café",
         },
         {
           time: "3:00 PM",
           name: "Seine River Cruise",
           type: "experience",
-          description: "Romantic boat cruise with champagne and city views"
-        }
-      ]
-    }
+          description: "Romantic boat cruise with champagne and city views",
+        },
+      ],
+    },
   },
   {
     id: "tokyo-adventure",
@@ -71,8 +86,14 @@ const sampleItineraries: SampleItinerary[] = [
     travelers: 1,
     style: "Adventure",
     rating: 4.8,
-    image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=600&fit=crop",
-    highlights: ["Shibuya crossing", "Traditional temples", "Robot restaurant", "Mount Fuji day trip"],
+    image:
+      "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=600&fit=crop&crop=center",
+    highlights: [
+      "Shibuya crossing",
+      "Traditional temples",
+      "Robot restaurant",
+      "Mount Fuji day trip",
+    ],
     preview: {
       day: 2,
       activities: [
@@ -80,34 +101,41 @@ const sampleItineraries: SampleItinerary[] = [
           time: "8:00 AM",
           name: "Tsukiji Outer Market",
           type: "experience",
-          description: "Fresh sushi breakfast and market exploration"
+          description: "Fresh sushi breakfast and market exploration",
         },
         {
           time: "11:00 AM",
           name: "Senso-ji Temple",
-          type: "attraction", 
-          description: "Ancient Buddhist temple in traditional Asakusa district"
+          type: "attraction",
+          description:
+            "Ancient Buddhist temple in traditional Asakusa district",
         },
         {
           time: "2:00 PM",
           name: "Harajuku Street Food Tour",
           type: "restaurant",
-          description: "Quirky neighborhood food adventure with local guide"
-        }
-      ]
-    }
+          description: "Quirky neighborhood food adventure with local guide",
+        },
+      ],
+    },
   },
   {
     id: "bali-family",
     destination: "Bali",
-    country: "Indonesia", 
+    country: "Indonesia",
     duration: 10,
     budget: "$2,500",
     travelers: 4,
     style: "Family",
     rating: 4.7,
-    image: "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?w=800&h=600&fit=crop",
-    highlights: ["Rice terrace hikes", "Beach resorts", "Cultural workshops", "Wildlife sanctuary"],
+    image:
+      "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?w=800&h=600&fit=crop&crop=center",
+    highlights: [
+      "Rice terrace hikes",
+      "Beach resorts",
+      "Cultural workshops",
+      "Wildlife sanctuary",
+    ],
     preview: {
       day: 3,
       activities: [
@@ -115,28 +143,32 @@ const sampleItineraries: SampleItinerary[] = [
           time: "7:00 AM",
           name: "Tegallalang Rice Terraces",
           type: "attraction",
-          description: "Family-friendly hike through stunning terraced landscapes"
+          description:
+            "Family-friendly hike through stunning terraced landscapes",
         },
         {
           time: "12:00 PM",
           name: "Local Warung Lunch",
           type: "restaurant",
-          description: "Authentic Indonesian family meal with kids menu"
+          description: "Authentic Indonesian family meal with kids menu",
         },
         {
           time: "3:30 PM",
           name: "Monkey Forest Sanctuary",
           type: "experience",
-          description: "Interactive wildlife experience perfect for children"
-        }
-      ]
-    }
-  }
-]
+          description: "Interactive wildlife experience perfect for children",
+        },
+      ],
+    },
+  },
+];
 
 export function SampleItineraries() {
-  const [selectedItinerary, setSelectedItinerary] = useState<string | null>(null)
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
+  const [selectedItinerary, setSelectedItinerary] = useState<string | null>(
+    null
+  );
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
   return (
     <section className="py-20 bg-white dark:bg-gray-900">
@@ -153,7 +185,8 @@ export function SampleItineraries() {
             Inspiration from Real Itineraries
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            See how our AI creates personalized travel experiences for different styles, budgets, and group sizes
+            See how our AI creates personalized travel experiences for different
+            styles, budgets, and group sizes
           </p>
         </motion.div>
 
@@ -169,25 +202,66 @@ export function SampleItineraries() {
               onHoverStart={() => setHoveredCard(itinerary.id)}
               onHoverEnd={() => setHoveredCard(null)}
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
-              onClick={() => setSelectedItinerary(selectedItinerary === itinerary.id ? null : itinerary.id)}
+              onClick={() =>
+                setSelectedItinerary(
+                  selectedItinerary === itinerary.id ? null : itinerary.id
+                )
+              }
             >
               {/* Image */}
               <div className="relative h-48 overflow-hidden">
-                <motion.img
-                  src={itinerary.image}
-                  alt={itinerary.destination}
-                  className="w-full h-full object-cover"
-                  animate={{ scale: hoveredCard === itinerary.id ? 1.1 : 1 }}
-                  transition={{ duration: 0.3 }}
-                />
+                {!imageErrors.has(itinerary.id) ? (
+                  <motion.img
+                    src={itinerary.image}
+                    alt={itinerary.destination}
+                    className="w-full h-full object-cover"
+                    animate={{ scale: hoveredCard === itinerary.id ? 1.1 : 1 }}
+                    transition={{ duration: 0.3 }}
+                    onError={(e) => {
+                      // Fallback to a gradient background if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      setImageErrors((prev) => new Set(prev).add(itinerary.id));
+                      target.style.display = "none";
+                      target.parentElement!.style.background =
+                        "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    }}
+                  >
+                    <div className="text-white text-center">
+                      <div className="text-3xl mb-2">
+                        {itinerary.destination === "Paris"
+                          ? "🗼"
+                          : itinerary.destination === "Tokyo"
+                          ? "🗾"
+                          : itinerary.destination === "Bali"
+                          ? "🌴"
+                          : "🏛️"}
+                      </div>
+                      <div className="text-sm font-medium">
+                        {itinerary.destination}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 <div className="absolute bottom-4 left-4 text-white">
-                  <h3 className="text-2xl font-bold">{itinerary.destination}</h3>
+                  <h3 className="text-2xl font-bold">
+                    {itinerary.destination}
+                  </h3>
                   <p className="text-sm opacity-90">{itinerary.country}</p>
                 </div>
                 <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center">
                   <Star className="w-4 h-4 text-yellow-500 fill-current mr-1" />
-                  <span className="text-sm font-semibold">{itinerary.rating}</span>
+                  <span className="text-sm font-semibold">
+                    {itinerary.rating}
+                  </span>
                 </div>
               </div>
 
@@ -201,7 +275,8 @@ export function SampleItineraries() {
                   </div>
                   <div className="flex items-center">
                     <Users className="w-4 h-4 mr-1" />
-                    {itinerary.travelers} traveler{itinerary.travelers > 1 ? 's' : ''}
+                    {itinerary.travelers} traveler
+                    {itinerary.travelers > 1 ? "s" : ""}
                   </div>
                   <div className="flex items-center">
                     <DollarSign className="w-4 h-4 mr-1" />
@@ -216,10 +291,15 @@ export function SampleItineraries() {
 
                 {/* Highlights */}
                 <div className="mb-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Highlights:</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                    Highlights:
+                  </h4>
                   <div className="flex flex-wrap gap-2">
                     {itinerary.highlights.slice(0, 2).map((highlight, i) => (
-                      <span key={i} className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                      <span
+                        key={i}
+                        className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"
+                      >
                         {highlight}
                       </span>
                     ))}
@@ -236,7 +316,8 @@ export function SampleItineraries() {
                   whileHover={{ x: 4 }}
                   className="flex items-center text-blue-600 dark:text-blue-400 font-semibold hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                 >
-                  {selectedItinerary === itinerary.id ? 'Hide' : 'View'} Day-by-Day Plan
+                  {selectedItinerary === itinerary.id ? "Hide" : "View"}{" "}
+                  Day-by-Day Plan
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </motion.button>
               </div>
@@ -249,14 +330,16 @@ export function SampleItineraries() {
           {selectedItinerary && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
+              animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3 }}
               className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-8 overflow-hidden"
             >
               {(() => {
-                const itinerary = sampleItineraries.find(i => i.id === selectedItinerary)
-                if (!itinerary) return null
+                const itinerary = sampleItineraries.find(
+                  (i) => i.id === selectedItinerary
+                );
+                if (!itinerary) return null;
 
                 return (
                   <div>
@@ -288,7 +371,8 @@ export function SampleItineraries() {
                           </div>
                           <div className="flex-shrink-0">
                             <div className="w-3 h-3 bg-blue-600 rounded-full mt-2" />
-                            {index < itinerary.preview.activities.length - 1 && (
+                            {index <
+                              itinerary.preview.activities.length - 1 && (
                               <div className="w-0.5 h-16 bg-blue-200 dark:bg-blue-800 ml-1 mt-1" />
                             )}
                           </div>
@@ -297,13 +381,15 @@ export function SampleItineraries() {
                               <h4 className="font-semibold text-gray-900 dark:text-white mr-3">
                                 {activity.name}
                               </h4>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                activity.type === 'attraction' 
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200'
-                                  : activity.type === 'restaurant'
-                                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200'
-                                  : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200'
-                              }`}>
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  activity.type === "attraction"
+                                    ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200"
+                                    : activity.type === "restaurant"
+                                    ? "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200"
+                                    : "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200"
+                                }`}
+                              >
                                 {activity.type}
                               </span>
                             </div>
@@ -317,12 +403,13 @@ export function SampleItineraries() {
 
                     <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-600">
                       <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                        This is just a preview - our AI creates complete day-by-day itineraries with maps, 
-                        bookings, and personalized recommendations.
+                        This is just a preview - our AI creates complete
+                        day-by-day itineraries with maps, bookings, and
+                        personalized recommendations.
                       </p>
                     </div>
                   </div>
-                )
+                );
               })()}
             </motion.div>
           )}
@@ -349,7 +436,7 @@ export function SampleItineraries() {
         </motion.div>
       </div>
     </section>
-  )
+  );
 }
 
-export default SampleItineraries
+export default SampleItineraries;

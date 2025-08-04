@@ -471,7 +471,7 @@
         "testStrategy": "Test Redis connection, verify caching performance improvements, test cache invalidation",
         "priority": "medium",
         "dependencies": [13, 14],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -479,7 +479,7 @@
             "description": "Create Redis database instance",
             "dependencies": [],
             "details": "Setup local Redis server or cloud Redis instance (Upstash, Railway, etc.), configure connection parameters",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test Redis connection and basic operations"
           },
           {
@@ -488,7 +488,7 @@
             "description": "Add Redis URL to environment configuration",
             "dependencies": [1],
             "details": "Add REDIS_URL to environment files, update cache-service.ts to use Redis when available",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test Redis URL configuration and connection switching"
           },
           {
@@ -497,7 +497,7 @@
             "description": "Modify cache service to use Redis instead of in-memory cache",
             "dependencies": [2],
             "details": "Update lib/cache-service.ts to use Redis client, implement proper serialization/deserialization",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test cache operations with Redis backend"
           }
         ]
@@ -647,6 +647,90 @@
             "details": "Create StatusHistory model in database to track all status changes. Store timestamp, old status, new status, reason (automatic/manual), and user ID if manual. Display status history in trip management interface. Add API endpoints for retrieving status history.",
             "status": "pending",
             "testStrategy": "Verify status history is recorded correctly for all changes"
+          }
+        ]
+      },
+      {
+        "id": 23,
+        "title": "Booking.com Partner API Integration - Complex",
+        "description": "Implement official Booking.com Partner API for real hotel search, pricing, and booking functionality",
+        "details": "Integrate Booking.com Partner Hub API for real hotel data including search, availability, pricing, and booking redirects. Replace current mock hotel redirect with official Partner API endpoints. Implement proper authentication, rate limiting, error handling, and caching strategies. Add comprehensive hotel search filters (price range, star rating, amenities, guest reviews), real-time availability checking, and affiliate commission tracking.",
+        "testStrategy": "Test hotel search with real API data, verify pricing accuracy, test booking redirect flow with affiliate tracking, validate error handling and fallbacks, test rate limiting and caching",
+        "priority": "high",
+        "dependencies": [17],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Booking.com Partner Hub Account Setup",
+            "description": "Register for Booking.com Partner Hub and obtain API credentials",
+            "dependencies": [],
+            "details": "Apply for Booking.com Partner Hub account at partner.booking.com, complete verification process, obtain API credentials (client ID, client secret), configure sandbox environment for testing, understand commission structure and payment terms.",
+            "status": "pending",
+            "testStrategy": "Verify API credentials work with sandbox endpoints"
+          },
+          {
+            "id": 2,
+            "title": "OAuth 2.0 Authentication Implementation",
+            "description": "Implement OAuth 2.0 flow for Booking.com Partner API authentication",
+            "dependencies": ["23.1"],
+            "details": "Implement OAuth 2.0 client credentials flow for server-to-server authentication, handle access token refresh, add proper error handling for authentication failures, implement token caching with Redis, add environment variable configuration for API credentials.",
+            "status": "pending",
+            "testStrategy": "Test OAuth token acquisition, refresh, and error scenarios"
+          },
+          {
+            "id": 3,
+            "title": "Hotel Search API Integration",
+            "description": "Implement comprehensive hotel search using Booking.com Partner API",
+            "dependencies": ["23.2"],
+            "details": "Replace mock hotel search in lib/booking-client.ts with real Partner API calls, implement search filters (location, dates, guests, price range, star rating, amenities), add sorting options (price, rating, distance), implement pagination for large result sets, add proper error handling and fallbacks to mock data.",
+            "status": "pending",
+            "testStrategy": "Test search functionality with various parameters and edge cases"
+          },
+          {
+            "id": 4,
+            "title": "Real-time Availability and Pricing",
+            "description": "Implement real-time hotel availability and pricing checks",
+            "dependencies": ["23.3"],
+            "details": "Add real-time availability checking before displaying hotels, implement dynamic pricing with rate changes, add inventory tracking, implement price alerts for users, add caching strategy for frequently requested data with appropriate TTL.",
+            "status": "pending",
+            "testStrategy": "Test availability accuracy and pricing updates"
+          },
+          {
+            "id": 5,
+            "title": "Enhanced Booking Redirect with Partner Links",
+            "description": "Update hotel redirect to use official Partner API booking links",
+            "dependencies": ["23.4"],
+            "details": "Replace current booking redirect in src/app/api/booking/hotel-redirect/route.ts with official Partner API booking URLs, implement proper affiliate tracking with commission attribution, add conversion tracking, implement deep linking to specific room types and rates.",
+            "status": "pending",
+            "testStrategy": "Test booking redirects and affiliate tracking accuracy"
+          },
+          {
+            "id": 6,
+            "title": "Rate Limiting and Caching Strategy",
+            "description": "Implement comprehensive rate limiting and caching for Partner API",
+            "dependencies": ["23.2"],
+            "details": "Implement rate limiting to stay within API quotas, add intelligent caching for search results (15-minute TTL), availability data (5-minute TTL), and static hotel data (24-hour TTL), implement cache invalidation strategies, add monitoring and alerting for API usage.",
+            "status": "pending",
+            "testStrategy": "Test rate limiting enforcement and cache performance"
+          },
+          {
+            "id": 7,
+            "title": "Environment Configuration and Documentation",
+            "description": "Add Booking.com API configuration to environment setup",
+            "dependencies": ["23.1"],
+            "details": "Add BOOKING_CLIENT_ID, BOOKING_CLIENT_SECRET, and BOOKING_SANDBOX_MODE to .env.example, update environment configuration documentation, add setup instructions for Partner Hub account, create troubleshooting guide for common API issues.",
+            "status": "pending",
+            "testStrategy": "Verify environment configuration works correctly"
+          },
+          {
+            "id": 8,
+            "title": "Error Handling and Fallback System",
+            "description": "Implement robust error handling and fallbacks for Partner API",
+            "dependencies": ["23.3"],
+            "details": "Add comprehensive error handling for API failures, implement graceful fallback to mock data when Partner API is unavailable, add retry logic with exponential backoff, implement circuit breaker pattern for repeated failures, add error logging and monitoring.",
+            "status": "pending",
+            "testStrategy": "Test error scenarios and fallback mechanisms"
           }
         ]
       }
