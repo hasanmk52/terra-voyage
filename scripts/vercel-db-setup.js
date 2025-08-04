@@ -43,16 +43,8 @@ async function setupVercelDatabase() {
       } catch (pushError) {
         console.log("⚠️  Database push also failed, but continuing with build");
         console.log("   Database features may not work correctly");
+        console.log("   Error:", pushError.message);
       }
-    }
-
-    // Verify database connection
-    console.log("🔍 Verifying database connection...");
-    try {
-      execSync("npx prisma db pull", { stdio: "inherit" });
-      console.log("✅ Database connection verified");
-    } catch (pullError) {
-      console.log("⚠️  Database pull failed, but setup was successful");
     }
 
     console.log(
