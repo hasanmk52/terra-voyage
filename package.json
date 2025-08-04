@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "node scripts/vercel-db-setup.js && prisma generate && next build",
+    "build": "prisma generate && next build",
     "build:vercel": "prisma generate && prisma migrate deploy && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "node -r ./scripts/load-env.js node_modules/.bin/prisma generate",
@@ -59,7 +60,7 @@
     "next": "15.4.3",
     "next-auth": "^4.24.11",
     "node-cron": "^4.2.1",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "^6.9.7",
     "prisma": "^6.12.0",
     "puppeteer": "^24.15.0",
     "react": "19.1.0",
@@ -85,6 +86,6 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.20.3",
-    "typescript": "^5"
+    "typescript": "^5.8.3"
   }
 }
