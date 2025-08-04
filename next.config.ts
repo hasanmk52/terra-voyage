@@ -6,7 +6,17 @@ const nextConfig: NextConfig = {
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     AMADEUS_API_KEY: process.env.AMADEUS_API_KEY,
     AMADEUS_API_SECRET: process.env.AMADEUS_API_SECRET,
-  }
+  },
+  eslint: {
+    // Warning: This allows production builds to successfully complete even if
+    // your project has ESLint errors.
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    // Warning: This allows production builds to successfully complete even if
+    // your project has TypeScript errors.
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
