@@ -141,7 +141,7 @@ export function ActivityPopup({ activity, position, onClose }: ActivityPopupProp
                   <Badge className={`text-xs ${getActivityTypeColor(activity.type)}`}>
                     {getActivityTypeLabel(activity.type)}
                   </Badge>
-                  {activity.rating && (
+                  {activity.rating !== undefined && (
                     <div className="flex items-center gap-1 text-xs text-gray-600">
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                       <span>{activity.rating}</span>
@@ -194,12 +194,12 @@ export function ActivityPopup({ activity, position, onClose }: ActivityPopupProp
               </div>
 
               {/* Price */}
-              {activity.estimatedPrice && activity.estimatedPrice > 0 && (
+              {activity.estimatedPrice !== undefined && activity.estimatedPrice > 0 && (
                 <div className="flex items-center gap-2 text-sm">
                   <DollarSign className="h-4 w-4 text-gray-400" />
                   <span className="text-gray-600">
                     {formatPrice(activity.estimatedPrice)}
-                    {activity.priceCategory && (
+                    {activity.priceCategory !== undefined && (
                       <span className="text-gray-400 ml-1">
                         ({activity.priceCategory})
                       </span>

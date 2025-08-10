@@ -8,7 +8,14 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <SessionProvider>
+    <SessionProvider
+      // Refetch session every 5 minutes
+      refetchInterval={5 * 60}
+      // Refetch session when window gains focus
+      refetchOnWindowFocus={true}
+      // Custom base path if needed
+      basePath="/api/auth"
+    >
       {children}
     </SessionProvider>
   )

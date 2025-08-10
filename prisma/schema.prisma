@@ -72,6 +72,14 @@ model User {
   emailVerified DateTime?
   preferences   Json?    // Store user preferences as JSON
   
+  // Profile fields
+  bio           String?
+  location      String?
+  phone         String?
+  dateOfBirth   DateTime?
+  profilePicture Bytes?   // Store profile picture as blob
+  profilePictureType String? // MIME type (image/jpeg, image/png, etc.)
+  
   // Onboarding fields
   onboardingCompleted Boolean @default(false)
   onboardingCompletedAt DateTime?
@@ -92,6 +100,7 @@ model User {
   invitations   Invitation[]
   sentInvitations Invitation[] @relation("InvitationSender")
   notifications Notification[]
+  statusHistory StatusHistory[]
 
   @@map("users")
 }
@@ -167,6 +176,7 @@ model Trip {
   invitations   Invitation[]
   notifications Notification[]
   sharedTrip    SharedTrip?
+  statusHistory StatusHistory[]
 
   @@index([userId])
   @@index([status])
@@ -402,4 +412,29 @@ model SharedTrip {
   @@index([isPublic])
   @@index([expiresAt])
   @@map("shared_trips")
+}
+
+// StatusHistory model for tracking trip status changes
+model StatusHistory {
+  id        String     @id @default(cuid())
+  tripId    String
+  oldStatus TripStatus?
+  newStatus TripStatus
+  reason    String     // "manual" | "automatic" | "system" | "itinerary_generated" | "date_based"
+  userId    String?    // null for automatic changes
+  metadata  Json?      // Additional context data
+  timestamp DateTime   @default(now())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  trip Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+  @@index([userId])
+  @@index([newStatus])
+  @@index([timestamp])
+  @@index([tripId, timestamp]) // Composite index for trip status history queries
+  @@map("status_history")
 }

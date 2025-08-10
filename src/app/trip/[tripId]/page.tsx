@@ -5,11 +5,12 @@ import { useParams } from 'next/navigation'
 import { ItineraryDisplay } from '@/components/itinerary/itinerary-display'
 import { WeatherSidebar } from '@/components/weather/weather-sidebar'
 import { TravelMap } from '@/components/maps/travel-map'
-// import { ExportButton } from '@/components/export-button'
 import { Day } from '@/lib/itinerary-types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { StatusManager } from '@/components/trip/status-manager'
+import { StatusHistory } from '@/components/trip/status-history'
 import { 
   MapPin, 
   Calendar, 
@@ -20,6 +21,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import Link from 'next/link'
+import { TripStatus } from '@prisma/client'
 
 // Helper function to transform API days data to UI format
 function transformApiDaysToUiFormat(apiDays: any[]): Day[] {
@@ -101,9 +103,10 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
           endTime: "12:00",
           duration: "180 minutes",
           type: i === 0 ? "accommodation" : "attraction",
-          price: {
+          pricing: {
             amount: 0,
-            currency: "USD"
+            currency: "USD",
+            priceType: "free" as const
           },
           isBooked: false,
           notes: `Generated activity for ${destination}`,
@@ -135,9 +138,10 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
           endTime: "14:30",
           duration: "90 minutes",
           type: "restaurant",
-          price: {
+          pricing: {
             amount: 35,
-            currency: "USD"
+            currency: "USD",
+            priceType: "per_person" as const
           },
           isBooked: false,
           notes: "Local cuisine experience",
@@ -187,7 +191,7 @@ interface TripData {
 
 export default function TripDetailsPage() {
   const params = useParams()
-  const tripId = params.tripId as string
+  const tripId = params?.tripId as string
   
   const [trip, setTrip] = useState<TripData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -240,7 +244,7 @@ export default function TripDetailsPage() {
             return
           }
         } catch (apiError) {
-          console.log("API fetch failed, using mock data:", apiError)
+          // API fetch failed, falling back to mock data
         }
         
         // Fallback to mock data
@@ -269,6 +273,9 @@ export default function TripDetailsPage() {
             {
               day: 1,
               date: "2025-08-15",
+              theme: "Arrival and city exploration",
+              dailyBudget: { amount: 150, currency: "USD", breakdown: {} },
+              transportation: { type: "walking", details: "City walking tour" },
               activities: [
                 {
                   id: "activity-1",
@@ -347,6 +354,9 @@ export default function TripDetailsPage() {
             {
               day: 2,
               date: "2025-08-16",
+              theme: "Museums and culture",
+              dailyBudget: { amount: 120, currency: "USD", breakdown: {} },
+              transportation: { type: "metro", details: "Metro day pass" },
               activities: [
                 {
                   id: "activity-4",
@@ -445,7 +455,7 @@ export default function TripDetailsPage() {
 
   const handleSaveTrip = async () => {
     // Mock save functionality
-    console.log('Saving trip...', trip)
+    // TODO: Implement actual save functionality
   }
 
   if (isLoading) {
@@ -539,13 +549,29 @@ export default function TripDetailsPage() {
                 </div>
               </div>
               
-              <div className="text-right">
-                <Badge variant="secondary" className="mb-2">
+              <div className="text-right flex flex-col items-end gap-3">
+                <Badge variant="secondary" className="mb-1">
                   {tripDuration} day{tripDuration > 1 ? 's' : ''}
                 </Badge>
-                <div className="text-sm text-gray-500">
-                  Status: <span className="capitalize font-medium">{trip.status}</span>
+                
+                {/* Status Management Section */}
+                <div className="flex items-center gap-3">
+                  <StatusManager
+                    tripId={trip.id}
+                    currentStatus={trip.status as TripStatus}
+                    onStatusChange={(newStatus) => {
+                      // Update the trip status in state
+                      setTrip(prev => prev ? { ...prev, status: newStatus } : null)
+                    }}
+                    showLabel={false}
+                  />
                 </div>
+                
+                {/* Status History Button */}
+                <StatusHistory 
+                  tripId={trip.id}
+                  className="text-xs"
+                />
               </div>
             </div>
           </div>

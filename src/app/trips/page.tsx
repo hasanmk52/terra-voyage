@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TripStatus } from "@prisma/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   MapPin,
@@ -20,6 +22,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useConfirmationModal } from "@/components/ui/confirmation-modal";
+import { StatusBadge, getStatusPriority } from "@/components/trip/status-badge";
 
 interface Trip {
   id: string;
@@ -30,7 +33,7 @@ interface Trip {
   endDate: string;
   budget?: number;
   travelers: number;
-  status: string;
+  status: TripStatus;
   isPublic: boolean;
   createdAt: string;
   updatedAt: string;
@@ -50,8 +53,9 @@ interface TripsResponse {
   };
 }
 
-export default function TripsPage() {
+function TripsPageContent() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -202,20 +206,18 @@ export default function TripsPage() {
     return `${startFormatted} - ${endFormatted}`;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "planned":
-        return "bg-blue-100 text-blue-800";
-      case "active":
-        return "bg-green-100 text-green-800";
-      case "completed":
-        return "bg-gray-100 text-gray-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+  // Sort trips by status priority and then by creation date
+  const sortedTrips = [...trips].sort((a, b) => {
+    const priorityA = getStatusPriority(a.status);
+    const priorityB = getStatusPriority(b.status);
+    
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
     }
-  };
+    
+    // If same priority, sort by creation date (newest first)
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   if (error) {
     return (
@@ -245,12 +247,14 @@ export default function TripsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-12 tooltip-container">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 tooltip-container">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Your Trips</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {session?.user?.name ? `${session.user.name}'s Trips` : 'Your Trips'}
+            </h1>
             <p className="text-gray-600 mt-2">
               Manage and view all your travel plans
             </p>
@@ -265,14 +269,17 @@ export default function TripsPage() {
               <RefreshCw className="w-4 h-4" />
               Refresh
             </Button>
-            <Button
-              onClick={handleCreateTrip}
-              size="default"
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold h-11 px-6"
-            >
-              <Plus className="w-4 h-4" />
-              Create New Trip
-            </Button>
+            {/* Only show Create New Trip button if there are existing trips */}
+            {trips.length > 0 && (
+              <Button
+                onClick={handleCreateTrip}
+                size="default"
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold h-11 px-6"
+              >
+                <Plus className="w-4 h-4" />
+                Create New Trip
+              </Button>
+            )}
           </div>
         </div>
 
@@ -346,24 +353,24 @@ export default function TripsPage() {
         {/* Trips Grid */}
         {!isLoading && trips.length > 0 && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {trips.map((trip) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 tooltip-container">
+              {sortedTrips.map((trip) => (
                 <Card
                   key={trip.id}
-                  className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-200 hover:border-blue-200 bg-white"
+                  className="card-with-tooltip hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-200 hover:border-blue-200 bg-white"
                 >
                   <CardHeader className="pb-4">
                     <div className="flex justify-between items-start mb-3">
                       <CardTitle className="text-lg font-semibold line-clamp-1 group-hover:text-blue-600 transition-colors">
                         {trip.title}
                       </CardTitle>
-                      <Badge
-                        className={`${getStatusColor(
-                          trip.status
-                        )} px-2 py-1 rounded-full text-xs font-medium`}
-                      >
-                        {trip.status}
-                      </Badge>
+                      <div className="relative z-10">
+                        <StatusBadge 
+                          status={trip.status} 
+                          size="sm"
+                          showTooltip
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center text-gray-600 text-sm">
                       <MapPin className="w-4 h-4 mr-2 text-gray-400" />
@@ -500,4 +507,8 @@ export default function TripsPage() {
       <ConfirmationModal />
     </div>
   );
+}
+
+export default function TripsPage() {
+  return <TripsPageContent />;
 }

@@ -30,54 +30,91 @@ export async function middleware(request: NextRequest) {
       response.headers.set(key, value)
     })
 
-    // Apply rate limiting to API routes
-    let rateLimitResult
-    
-    if (pathname.startsWith("/api/auth/")) {
-      // Stricter rate limiting for auth endpoints
-      rateLimitResult = await authRateLimit(request)
-    } else {
-      // General API rate limiting
-      rateLimitResult = await apiRateLimit(request)
-    }
+    // Skip rate limiting for critical NextAuth internal routes to prevent CLIENT_FETCH_ERROR
+    const isNextAuthRoute = pathname.startsWith("/api/auth/")
+    const isCriticalAuthRoute = pathname === "/api/auth/session" || 
+                               pathname === "/api/auth/csrf" || 
+                               pathname.startsWith("/api/auth/callback/") ||
+                               pathname.startsWith("/api/auth/providers")
 
-    if (!rateLimitResult.success) {
-      return new NextResponse(
-        JSON.stringify({
-          error: "Too many requests",
-          retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000),
-        }),
-        {
-          status: 429,
-          headers: {
-            "Content-Type": "application/json",
-            "Retry-After": Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString(),
-            "X-RateLimit-Limit": rateLimitResult.limit.toString(),
-            "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
-            "X-RateLimit-Reset": rateLimitResult.resetTime.toString(),
-            ...corsHeaders,
-          },
-        }
-      )
-    }
+    if (isNextAuthRoute && !isCriticalAuthRoute) {
+      // Apply lenient rate limiting to non-critical auth endpoints only
+      const rateLimitResult = await authRateLimit(request)
+      
+      if (rateLimitResult && !rateLimitResult.success) {
+        return new NextResponse(
+          JSON.stringify({
+            error: "Too many requests",
+            retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000),
+          }),
+          {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              "Retry-After": Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString(),
+              "X-RateLimit-Limit": rateLimitResult.limit.toString(),
+              "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
+              "X-RateLimit-Reset": rateLimitResult.resetTime.toString(),
+              ...corsHeaders,
+            },
+          }
+        )
+      }
+      
+      // Add rate limit headers to successful responses
+      response.headers.set("X-RateLimit-Limit", rateLimitResult.limit.toString())
+      response.headers.set("X-RateLimit-Remaining", rateLimitResult.remaining.toString())
+      response.headers.set("X-RateLimit-Reset", rateLimitResult.resetTime.toString())
+    } else if (!isNextAuthRoute) {
+      // Apply general rate limiting to non-auth routes
+      const rateLimitResult = await apiRateLimit(request)
 
-    // Add rate limit headers to successful responses
-    response.headers.set("X-RateLimit-Limit", rateLimitResult.limit.toString())
-    response.headers.set("X-RateLimit-Remaining", rateLimitResult.remaining.toString())
-    response.headers.set("X-RateLimit-Reset", rateLimitResult.resetTime.toString())
+      if (rateLimitResult && !rateLimitResult.success) {
+        return new NextResponse(
+          JSON.stringify({
+            error: "Too many requests",
+            retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000),
+          }),
+          {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              "Retry-After": Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString(),
+              "X-RateLimit-Limit": rateLimitResult.limit.toString(),
+              "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
+              "X-RateLimit-Reset": rateLimitResult.resetTime.toString(),
+              ...corsHeaders,
+            },
+          }
+        )
+      }
+
+      // Add rate limit headers to successful responses
+      if (rateLimitResult) {
+        response.headers.set("X-RateLimit-Limit", rateLimitResult.limit.toString())
+        response.headers.set("X-RateLimit-Remaining", rateLimitResult.remaining.toString())
+        response.headers.set("X-RateLimit-Reset", rateLimitResult.resetTime.toString())
+      }
+    }
   }
 
   // Protect authenticated routes
-  const protectedPaths = ["/dashboard", "/profile", "/settings"]
+  const protectedPaths = ["/trips", "/profile", "/settings", "/create-trip", "/plan"]
   const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path))
 
   if (isProtectedPath) {
-    const token = await getToken({ req: request })
+    const token = await getToken({ 
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET 
+    })
     
     if (!token) {
+      console.log(`🚫 Middleware: Redirecting unauthenticated user from ${pathname} to sign-in`)
       const signInUrl = new URL("/auth/signin", request.url)
       signInUrl.searchParams.set("callbackUrl", request.url)
       return NextResponse.redirect(signInUrl)
+    } else {
+      console.log(`✅ Middleware: Authenticated user accessing ${pathname}`)
     }
   }
 
@@ -86,11 +123,15 @@ export async function middleware(request: NextRequest) {
   const isAuthPath = authPaths.includes(pathname)
 
   if (isAuthPath) {
-    const token = await getToken({ req: request })
+    const token = await getToken({ 
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET 
+    })
     
     if (token) {
+      console.log(`🔄 Middleware: Redirecting authenticated user away from ${pathname}`)
       const callbackUrl = request.nextUrl.searchParams.get("callbackUrl")
-      const redirectUrl = callbackUrl || "/dashboard"
+      const redirectUrl = callbackUrl || "/trips" // Redirect to trips instead of dashboard
       return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
   }

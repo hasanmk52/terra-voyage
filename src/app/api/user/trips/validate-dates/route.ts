@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: "Invalid input",
-          details: error.errors.map(e => e.message)
+          details: error.errors.map((e: any) => e.message)
         },
         { status: 400 }
       )

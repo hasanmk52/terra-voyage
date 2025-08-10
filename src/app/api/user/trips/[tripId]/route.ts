@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
+import { getTripPermissions, getPermissionMessages } from "@/lib/trip-permissions"
 
 const updateTripSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -72,7 +73,16 @@ export async function GET(
         )
       }
 
-      return NextResponse.json({ trip })
+      // Calculate permissions for the trip
+      const userId = 'demo-user-001' // TODO: Get from authentication
+      const permissions = getTripPermissions(trip, userId)
+      const permissionMessages = getPermissionMessages(trip, userId)
+
+      return NextResponse.json({ 
+        trip,
+        permissions,
+        permissionMessages
+      })
     } catch (dbError) {
       console.error("Database error:", dbError)
       return NextResponse.json(
@@ -112,6 +122,42 @@ export async function PUT(
     }
 
     const { tripId } = await params
+
+    // Check current trip and permissions
+    const currentTrip = await db.trip.findUnique({
+      where: { id: tripId },
+      select: { 
+        id: true, 
+        status: true, 
+        startDate: true, 
+        endDate: true, 
+        userId: true,
+        isPublic: true 
+      }
+    })
+
+    if (!currentTrip || !currentTrip.isPublic) {
+      return NextResponse.json(
+        { error: "Trip not found or not accessible" },
+        { status: 404 }
+      )
+    }
+
+    // Check permissions
+    const userId = 'demo-user-001' // TODO: Get from authentication
+    const permissions = getTripPermissions(currentTrip, userId)
+
+    if (!permissions.canEdit) {
+      const messages = getPermissionMessages(currentTrip, userId)
+      return NextResponse.json(
+        { 
+          error: "Permission denied",
+          message: messages.cannotEdit,
+          permissions
+        },
+        { status: 403 }
+      )
+    }
 
     // Update trip in database
     const updatedTrip = await db.trip.update({
@@ -166,6 +212,42 @@ export async function DELETE(
       return NextResponse.json(
         { error: "Invalid trip ID" },
         { status: 400 }
+      )
+    }
+
+    // Check current trip and permissions
+    const currentTrip = await db.trip.findUnique({
+      where: { id: tripId },
+      select: { 
+        id: true, 
+        status: true, 
+        startDate: true, 
+        endDate: true, 
+        userId: true,
+        isPublic: true 
+      }
+    })
+
+    if (!currentTrip || !currentTrip.isPublic) {
+      return NextResponse.json(
+        { error: "Trip not found or not accessible" },
+        { status: 404 }
+      )
+    }
+
+    // Check permissions
+    const userId = 'demo-user-001' // TODO: Get from authentication
+    const permissions = getTripPermissions(currentTrip, userId)
+
+    if (!permissions.canDelete) {
+      const messages = getPermissionMessages(currentTrip, userId)
+      return NextResponse.json(
+        { 
+          error: "Permission denied",
+          message: messages.cannotDelete,
+          permissions
+        },
+        { status: 403 }
       )
     }
 

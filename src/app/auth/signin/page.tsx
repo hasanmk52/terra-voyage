@@ -1,6 +1,6 @@
 "use client"
 
-import { signIn, getSession } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState, Suspense } from "react"
 
@@ -8,18 +8,16 @@ function SignInContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
-  const callbackUrl = searchParams.get("callbackUrl") || "/"
+  const { data: session, status } = useSession()
+  const callbackUrl = searchParams?.get("callbackUrl") || "/trips"
 
-  // Check if user is already signed in
+  // Check if user is already signed in and redirect
   useEffect(() => {
-    const checkSession = async () => {
-      const session = await getSession()
-      if (session) {
-        router.push(callbackUrl)
-      }
+    if (status === "authenticated" && session) {
+      console.log("🔄 User is authenticated, redirecting to:", callbackUrl)
+      router.push(callbackUrl)
     }
-    checkSession()
-  }, [router, callbackUrl])
+  }, [session, status, router, callbackUrl])
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
@@ -30,6 +28,30 @@ function SignInContent() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show loading while checking authentication status
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication status...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If authenticated, show loading while redirecting
+  if (status === "authenticated") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -12,7 +12,12 @@ const createShareSchema = z.object({
     showContactInfo: z.boolean().optional().default(false),
     showBudget: z.boolean().optional().default(false),
     password: z.string().optional()
-  }).optional().default({})
+  }).default({
+    expiresInDays: 30,
+    allowComments: false,
+    showContactInfo: false,
+    showBudget: false
+  })
 })
 
 const revokeShareSchema = z.object({

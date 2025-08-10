@@ -1,6 +1,6 @@
 # TerraVoyage: AI-Powered Travel Planner
 
-**Live Demo**: [https://terra-voyage-bmsk31d9e-hasan-kagalwalas-projects.vercel.app/](https://terra-voyage-bmsk31d9e-hasan-kagalwalas-projects.vercel.app/)
+**Live Demo**: [https://terra-voyage-nhoh2ra9r-hasan-kagalwalas-projects.vercel.app/](https://terra-voyage-nhoh2ra9r-hasan-kagalwalas-projects.vercel.app/)
 
 TerraVoyage is a modern, AI-powered travel planning application that creates personalized multi-day travel itineraries with intelligent recommendations and beautiful design. Built with Next.js 15, it features a hybrid architecture that seamlessly switches between mock and real services based on API key availability.
 
@@ -9,27 +9,32 @@ TerraVoyage is a modern, AI-powered travel planning application that creates per
 ## ✨ Current Features
 
 ### 🤖 AI-Powered Planning
+
 - **Google Gemini API**: Intelligent itinerary generation
 - **Personalized Recommendations**: Tailored to user preferences and travel style
 - **Multi-Day Planning**: Complete trip itineraries with activities, dining, and attractions
 
 ### 🗺️ Interactive Maps & Navigation
+
 - **Real Mapbox Integration**: Interactive maps with custom markers
 - **Google Places Autocomplete**: Smart destination search
 - **Route Planning**: Optimized paths between activities
 - **Activity Clustering**: Clean map display for dense areas
 
 ### 🌤️ Weather-Aware Planning
+
 - **OpenWeatherMap Integration**: Real-time weather data
 - **Smart Recommendations**: Weather-appropriate activities
 - **10-Day Forecasts**: Plan with confidence
 
 ### 💾 Flexible Data Storage
+
 - **PostgreSQL Database**: Production-ready with Neon cloud hosting
 - **Smart Fallbacks**: Automatic mock data when database unavailable
 - **Secure Environment**: Single `.env.local` configuration
 
 ### 🎨 Modern User Experience
+
 - **No Authentication Required**: Start planning immediately
 - **Responsive Design**: Mobile-first, works on all devices
 - **TailwindCSS + Shadcn UI**: Beautiful, accessible components
@@ -40,6 +45,7 @@ TerraVoyage is a modern, AI-powered travel planning application that creates per
 ## 🛠️ Tech Stack
 
 ### Frontend
+
 - **Next.js 15** with App Router
 - **React 19** with Server Components
 - **TypeScript** for type safety
@@ -47,6 +53,7 @@ TerraVoyage is a modern, AI-powered travel planning application that creates per
 - **Shadcn UI** for components
 
 ### Backend & APIs
+
 - **PostgreSQL** (Neon cloud hosting)
 - **Prisma ORM** for database management
 - **Google Gemini API** for AI generation
@@ -55,6 +62,7 @@ TerraVoyage is a modern, AI-powered travel planning application that creates per
 - **OpenWeatherMap API** for weather data
 
 ### Architecture
+
 - **Hybrid Mock/Real Services**: Automatic switching based on API availability
 - **Secure Environment Management**: Single `.env.local` file approach
 - **Type-Safe API Routes**: Full-stack TypeScript
@@ -65,6 +73,7 @@ TerraVoyage is a modern, AI-powered travel planning application that creates per
 ## 🚀 Quick Start
 
 ### 1. Clone and Install
+
 ```bash
 git clone <repo-url>
 cd terra-voyage
@@ -72,6 +81,7 @@ npm install
 ```
 
 ### 2. Environment Setup
+
 ```bash
 # Copy template to local environment file
 cp .env.example .env.local
@@ -81,6 +91,7 @@ nano .env.local
 ```
 
 ### 3. Database Setup (Optional)
+
 ```bash
 # Test your environment setup
 npm run test:env
@@ -91,6 +102,7 @@ npm run db:seed
 ```
 
 ### 4. Development
+
 ```bash
 # Start development server
 npm run dev
@@ -104,15 +116,16 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 TerraVoyage works with minimal setup but gets better with more APIs configured:
 
-| Service | Status | Variable | Required | Get From |
-|---------|--------|----------|----------|----------|
-| **AI Generation** | ✅ Real | `GEMINI_API_KEY` | Recommended | [Google AI Studio](https://makersuite.google.com/app/apikey) |
-| **Database** | ✅ Real | `DATABASE_URL` | Optional | [Neon](https://neon.tech) (free tier) |
-| **Maps** | ✅ Real | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Recommended | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
-| **Interactive Maps** | ✅ Real | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` | Recommended | [Mapbox](https://account.mapbox.com/access-tokens/) |
-| **Weather** | ✅ Real | `WEATHER_API_KEY` | Optional | [OpenWeatherMap](https://openweathermap.org/api) |
+| Service              | Status  | Variable                          | Required    | Get From                                                                  |
+| -------------------- | ------- | --------------------------------- | ----------- | ------------------------------------------------------------------------- |
+| **AI Generation**    | ✅ Real | `GEMINI_API_KEY`                  | Recommended | [Google AI Studio](https://makersuite.google.com/app/apikey)              |
+| **Database**         | ✅ Real | `DATABASE_URL`                    | Optional    | [Neon](https://neon.tech) (free tier)                                     |
+| **Maps**             | ✅ Real | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Recommended | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
+| **Interactive Maps** | ✅ Real | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` | Recommended | [Mapbox](https://account.mapbox.com/access-tokens/)                       |
+| **Weather**          | ✅ Real | `WEATHER_API_KEY`                 | Optional    | [OpenWeatherMap](https://openweathermap.org/api)                          |
 
 ### Service Behavior
+
 - **With APIs configured**: Full functionality with real data
 - **Without APIs**: Automatic fallback to mock data
 - **Mixed setup**: Real services where configured, mocks elsewhere
@@ -172,6 +185,7 @@ src/
 3. Deploy automatically on every push
 
 ### Environment Variables for Production
+
 ```bash
 # Required for AI features
 GEMINI_API_KEY=your_gemini_api_key
@@ -201,6 +215,7 @@ WEATHER_API_KEY=your_weather_api_key
 ## 🛣️ Roadmap
 
 ### Current Status (v1.0)
+
 - ✅ AI-powered itinerary generation
 - ✅ Interactive maps and weather
 - ✅ Real database integration
@@ -208,6 +223,7 @@ WEATHER_API_KEY=your_weather_api_key
 - ✅ Security hardening
 
 ### Future Enhancements
+
 - 🔮 **Authentication System**: NextAuth.js integration for user accounts
 - 🔮 **Real-time Collaboration**: Share and edit trips with friends
 - 🔮 **Advanced Booking**: Direct booking integration with travel APIs

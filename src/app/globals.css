@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tooltip utilities */
+@layer utilities {
+  .tooltip-container {
+    overflow: visible !important;
+  }
+  
+  .tooltip-content {
+    z-index: 9999;
+    pointer-events: none;
+    word-wrap: break-word;
+    max-width: 250px;
+    white-space: normal;
+  }
+  
+  /* Ensure tooltips don't get clipped by card containers */
+  .card-with-tooltip {
+    overflow: visible !important;
+    position: relative;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

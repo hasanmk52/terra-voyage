@@ -3,6 +3,8 @@ import { z } from "zod"
 import { db } from "@/lib/db"
 import { itineraryService } from "@/lib/itinerary-service"
 import { TripOverlapService } from "@/lib/trip-overlap-service"
+import { TripStatusService } from "@/lib/trip-status-service"
+import { validateSession } from "@/lib/auth-utils"
 
 // Helper function to map AI activity types to database enum
 function mapActivityType(aiType: string): string {
@@ -40,10 +42,22 @@ const createTripSchema = z.object({
 // GET /api/user/trips - Get user's trips
 export async function GET(request: NextRequest) {
   try {
+    // Validate user authentication
+    const authResult = await validateSession(request)
+    if (!authResult.success) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      )
+    }
+
+    const userId = authResult.userId!
+
     // Input validation and sanitization
     const url = new URL(request.url)
     const pageParam = url.searchParams.get('page')
     const limitParam = url.searchParams.get('limit')
+    const statusParam = url.searchParams.get('status')
     
     // Validate and sanitize pagination parameters
     const page = Math.max(1, Math.min(1000, parseInt(pageParam || '1') || 1))
@@ -58,19 +72,24 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Use real database with optimized query
-    // Security: Only return public trips or implement proper authentication
-    // For demo purposes, only return public trips to prevent data exposure
+    // Build where clause for user's trips only
+    const whereClause: any = {
+      userId: userId // Only return trips belonging to authenticated user
+    }
+
+    // Add status filter if provided
+    if (statusParam && ['DRAFT', 'PLANNED', 'ACTIVE', 'COMPLETED', 'CANCELLED'].includes(statusParam)) {
+      whereClause.status = statusParam
+    }
+
+    // Fetch user's trips with activity count for better UX
     const [trips, total] = await Promise.all([
       db.trip.findMany({
-        where: {
-          isPublic: true // Only return public trips for security
-        },
+        where: whereClause,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { updatedAt: 'desc' }, // Show recently updated trips first
         select: {
-          // Only select essential fields for listing performance
           id: true,
           title: true,
           destination: true,
@@ -82,14 +101,18 @@ export async function GET(request: NextRequest) {
           isPublic: true,
           createdAt: true,
           updatedAt: true,
-          budget: true, // Include budget for display
-          // Remove _count to improve performance - can be calculated if needed
+          budget: true,
+          _count: {
+            select: {
+              activities: true,
+              days: true,
+              collaborations: true
+            }
+          }
         }
       }),
       db.trip.count({
-        where: {
-          isPublic: true
-        }
+        where: whereClause
       })
     ])
 
@@ -102,11 +125,15 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         pages,
+      },
+      user: {
+        id: userId,
+        tripsCount: total
       }
     })
 
-    // Add caching headers for better performance
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    // Add caching headers for better performance (shorter cache for user-specific data)
+    response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
     
     return response
   } catch (error) {
@@ -121,6 +148,16 @@ export async function GET(request: NextRequest) {
 // POST /api/user/trips - Create new trip
 export async function POST(request: NextRequest) {
   try {
+    // Validate user authentication
+    const authResult = await validateSession(request)
+    if (!authResult.success) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      )
+    }
+
+    const userId = authResult.userId!
     
     const body = await request.json()
     const validatedData = createTripSchema.parse(body)
@@ -170,18 +207,19 @@ export async function POST(request: NextRequest) {
     // Security: For demo purposes without authentication, create public trips only
     // In production, this should require authentication and user validation
     
-    // Security: Limit trip creation frequency (basic rate limiting)
+    // Security: Limit trip creation frequency per user (rate limiting)
     const recentTripsCount = await db.trip.count({
       where: {
+        userId: userId,
         createdAt: {
           gte: new Date(Date.now() - 5 * 60 * 1000) // 5 minutes
         }
       }
     })
     
-    if (recentTripsCount > 10) {
+    if (recentTripsCount > 3) {
       return NextResponse.json(
-        { error: "Too many trips created recently. Please try again later." },
+        { error: "Too many trips created recently. Please try again in a few minutes." },
         { status: 429 }
       )
     }
@@ -190,8 +228,6 @@ export async function POST(request: NextRequest) {
     const destinationCoords = await getDestinationCoordinatesFromAPI(validatedData.destination)
     
     // BUSINESS VALIDATION: Check for date overlaps with existing trips
-    // For demo purposes, we use a default demo user. In production, get from authentication
-    const userId = 'demo-user-001'
     
     try {
       const validationResult = await TripOverlapService.validateNewTrip({
@@ -321,25 +357,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create trip first, then save itinerary data separately to avoid transaction timeout
+    // Create trip for authenticated user
     const trip = await db.$transaction(async (tx) => {
-      // Ensure demo user exists (upsert)
-      await tx.user.upsert({
-        where: { id: 'demo-user-001' },
-        update: {}, // Don't update if exists
-        create: {
-          id: 'demo-user-001',
-          email: 'demo@terravoyage.com',
-          name: 'Terra Voyage Demo User',
-          image: null,
-          emailVerified: new Date(),
-          onboardingCompleted: true,
-          onboardingCompletedAt: new Date(),
-        }
-      })
-      
-      // Create the trip
-      return await tx.trip.create({
+      // Create the trip for the authenticated user
+      const createdTrip = await tx.trip.create({
         data: {
           title: validatedData.title,
           destination: validatedData.destination,
@@ -348,9 +369,9 @@ export async function POST(request: NextRequest) {
           endDate,
           budget: validatedData.budget,
           travelers: validatedData.travelers,
-          isPublic: validatedData.isPublic || true, // Default to public for demo
+          isPublic: validatedData.isPublic || false, // Default to private
           destinationCoords,
-          userId: 'demo-user-001', // Default demo user for public trips
+          userId: userId, // Use authenticated user ID
         },
         select: {
           id: true,
@@ -367,6 +388,27 @@ export async function POST(request: NextRequest) {
           updatedAt: true,
         }
       })
+      
+      // Create initial status history entry
+      await tx.statusHistory.create({
+        data: {
+          tripId: createdTrip.id,
+          oldStatus: null,
+          newStatus: createdTrip.status, // Default is DRAFT
+          reason: 'trip_created',
+          userId: userId,
+          metadata: {
+            tripTitle: createdTrip.title,
+            destination: createdTrip.destination,
+            createdAt: createdTrip.createdAt.toISOString(),
+            initialBudget: validatedData.budget,
+            travelers: validatedData.travelers
+          },
+          timestamp: new Date()
+        }
+      })
+      
+      return createdTrip
     })
 
     // Save itinerary data separately if generated
@@ -401,7 +443,7 @@ export async function POST(request: NextRequest) {
           )
 
           // Prepare activities data with dayId mapping
-          const activitiesData = []
+          const activitiesData: any[] = []
           for (let dayIndex = 0; dayIndex < itineraryResult.itinerary.itinerary.days.length; dayIndex++) {
             const dayData = itineraryResult.itinerary.itinerary.days[dayIndex]
             const createdDay = createdDays[dayIndex]
@@ -447,6 +489,32 @@ export async function POST(request: NextRequest) {
         })
         
         console.log('Itinerary data saved successfully for trip:', trip.id)
+
+        // Automatically transition status from DRAFT to PLANNED after successful itinerary generation
+        try {
+          const statusTransition = await TripStatusService.autoTransitionStatus(
+            trip.id, 
+            'itinerary_generated',
+            {
+              daysGenerated: itineraryResult.itinerary?.itinerary?.days?.length || 0,
+              activitiesGenerated: itineraryResult.itinerary?.itinerary?.days?.reduce((total, day) => 
+                total + (day.activities?.length || 0), 0
+              ) || 0,
+              generationMethod: itineraryResult.metadata.generationMethod,
+              generatedAt: new Date().toISOString()
+            }
+          )
+
+          if (statusTransition.success) {
+            console.log(`Status successfully transitioned from ${statusTransition.oldStatus} to ${statusTransition.newStatus} for trip ${trip.id}`)
+          } else {
+            console.warn(`Status transition failed for trip ${trip.id}:`, statusTransition.error)
+          }
+        } catch (statusError) {
+          console.error('Error transitioning trip status:', statusError)
+          // Don't fail the entire operation if status transition fails
+        }
+
       } catch (itineraryError) {
         console.error('Error saving itinerary data:', itineraryError)
         // Trip still exists without itinerary data

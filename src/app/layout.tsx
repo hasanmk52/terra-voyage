@@ -2,6 +2,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { metadata, viewport } from "./metadata";
 import { Navbar } from "../../components/ui/navbar";
+import { Providers } from "../../components/providers/session-provider";
 import { ApiStatusDebug } from "../../components/debug/api-status";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -18,9 +19,11 @@ export default function RootLayout({
       <body
         className={`${inter.className} min-h-screen bg-[hsl(var(--background))] font-sans antialiased`}
       >
-        <Navbar />
-        {children}
-        <ApiStatusDebug />
+        <Providers>
+          <Navbar />
+          {children}
+          <ApiStatusDebug />
+        </Providers>
       </body>
     </html>
   );

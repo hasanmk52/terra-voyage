@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { itineraryService } from '@/lib/itinerary-service'
+import { TripStatusService } from '@/lib/trip-status-service'
 
 // Helper function to map AI activity types to database enum
 function mapActivityType(aiType: string): string {
@@ -207,6 +208,30 @@ export async function POST(
     })
 
     console.log('✅ Itinerary generated and saved successfully!')
+
+    // Automatically transition status from DRAFT to PLANNED after successful itinerary generation
+    try {
+      const statusTransition = await TripStatusService.autoTransitionStatus(
+        tripId,
+        'itinerary_generated',
+        {
+          daysGenerated: itineraryResult.itinerary?.itinerary?.days?.length || 0,
+          activitiesGenerated: itineraryResult.itinerary?.itinerary?.days?.reduce((total, day) => 
+            total + (day.activities?.length || 0), 0
+          ) || 0,
+          generationMethod: itineraryResult.metadata?.generationMethod,
+          regeneratedAt: new Date().toISOString(),
+          manual: true // This was manually triggered
+        }
+      )
+
+      if (statusTransition.success && statusTransition.oldStatus !== statusTransition.newStatus) {
+        console.log(`Status successfully transitioned from ${statusTransition.oldStatus} to ${statusTransition.newStatus} for trip ${tripId}`)
+      }
+    } catch (statusError) {
+      console.error('Error transitioning trip status:', statusError)
+      // Don't fail the entire operation if status transition fails
+    }
 
     return NextResponse.json({
       success: true,

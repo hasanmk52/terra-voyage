@@ -32,7 +32,7 @@ export default function InvitationPage() {
     message: string
   } | null>(null)
 
-  const token = params.token as string
+  const token = params?.token as string
 
   useEffect(() => {
     fetchInvitation()

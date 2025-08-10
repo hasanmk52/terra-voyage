@@ -111,8 +111,8 @@ export function DateRangePicker({
   }
 
   // Handle clear
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleClear = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     setSelectedRange(undefined)
     onChange(undefined, undefined)
   }
@@ -192,7 +192,7 @@ export function DateRangePicker({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  handleClear(e as React.MouseEvent<HTMLDivElement>)
+                  handleClear()
                 }
               }}
             >

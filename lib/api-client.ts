@@ -129,6 +129,26 @@ export const apiClient = {
       return response;
     }),
 
+  // Trip Status Management
+  updateTripStatus: (tripId: string, status: string) =>
+    apiRequest(`/api/user/trips/${tripId}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }).then((response) => {
+      // Invalidate trips cache after status change
+      invalidateCache("/api/user/trips");
+      return response;
+    }),
+
+  getTripStatusHistory: (tripId: string, params?: { page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    
+    const query = searchParams.toString();
+    return apiRequest(`/api/user/trips/${tripId}/status-history${query ? `?${query}` : ''}`);
+  },
+
   // Cache management
   clearCache: (pattern?: string) => {
     if (pattern) {

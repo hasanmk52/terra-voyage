@@ -23,6 +23,8 @@ export interface TripCollaboration {
     canInvite: boolean
     canDelete: boolean
     canManageMembers: boolean
+    canVote: boolean
+    canComment: boolean
   }
 }
 

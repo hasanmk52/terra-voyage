@@ -4,14 +4,70 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { z } from "zod"
 
+// Sanitization function to prevent XSS
+function sanitizeString(input: string): string {
+  return input
+    .replace(/[<>\"']/g, '') // Remove potential HTML/script characters
+    .replace(/javascript:/gi, '') // Remove javascript: protocols
+    .replace(/data:/gi, '') // Remove data: protocols
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocols
+    .trim();
+}
+
 const updateProfileSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().min(1).max(100).trim().refine(
+    (name) => /^[a-zA-Z\s\-'\.]+$/.test(name),
+    { message: "Name can only contain letters, spaces, hyphens, apostrophes, and periods" }
+  ).optional(),
+  bio: z.string().max(500).trim().refine(
+    (bio) => !/<script|javascript:|data:|vbscript:/i.test(bio),
+    { message: "Bio contains unsafe content" }
+  ).optional(),
+  location: z.string().max(100).trim().refine(
+    (location) => /^[a-zA-Z0-9\s\-,\.]+$/.test(location),
+    { message: "Location can only contain letters, numbers, spaces, hyphens, commas, and periods" }
+  ).optional(),
+  phone: z.string().max(20).trim().refine(
+    (phone) => /^[\+]?[\d\s\-\(\)]+$/.test(phone),
+    { message: "Phone number format is invalid" }
+  ).optional(),
+  dateOfBirth: z.string().refine(
+    (date) => {
+      if (!date) return true;
+      const birthDate = new Date(date);
+      const today = new Date();
+      const minDate = new Date();
+      minDate.setFullYear(today.getFullYear() - 120); // Max age 120 years
+      const maxDate = new Date();
+      maxDate.setFullYear(today.getFullYear() - 13); // Min age 13 years
+      
+      return birthDate >= minDate && birthDate <= maxDate;
+    },
+    { message: "Date of birth must be between 13 and 120 years ago" }
+  ).optional(),
   preferences: z.object({
-    budget: z.enum(["low", "medium", "high"]).optional(),
-    interests: z.array(z.string()).optional(),
-    accessibility: z.boolean().optional(),
-    language: z.string().optional(),
-    currency: z.string().optional(),
+    theme: z.enum(["light", "dark", "system"]).optional(),
+    currency: z.string().length(3).regex(/^[A-Z]{3}$/).optional(), // ISO currency codes
+    measurementUnit: z.enum(["metric", "imperial"]).optional(),
+    language: z.string().length(2).regex(/^[a-z]{2}$/).optional(), // ISO language codes
+    notifications: z.object({
+      email: z.boolean(),
+      push: z.boolean(),
+      marketing: z.boolean(),
+      tripReminders: z.boolean(),
+      activityUpdates: z.boolean(),
+    }).optional(),
+    privacy: z.object({
+      profilePublic: z.boolean(),
+      tripsPublic: z.boolean(),
+      shareAnalytics: z.boolean(),
+    }).optional(),
+    travel: z.object({
+      preferredTransport: z.array(z.enum(["flight", "train", "bus", "car", "ferry", "walking"])).optional(),
+      accommodationType: z.array(z.enum(["hotel", "airbnb", "hostel", "resort", "apartment", "camping"])).optional(),
+      dietaryRestrictions: z.array(z.enum(["vegetarian", "vegan", "gluten-free", "kosher", "halal", "lactose-free", "nut-free"])).optional(),
+      mobility: z.enum(["full", "limited", "wheelchair", "assistance"]).optional(),
+    }).optional(),
   }).optional(),
 })
 
@@ -31,8 +87,16 @@ export async function GET() {
         email: true,
         name: true,
         image: true,
+        bio: true,
+        location: true,
+        phone: true,
+        dateOfBirth: true,
+        profilePicture: true,
+        profilePictureType: true,
+        onboardingCompleted: true,
         preferences: true,
         createdAt: true,
+        updatedAt: true,
         _count: {
           select: {
             trips: true,
@@ -46,7 +110,19 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    return NextResponse.json({ user })
+    // Convert profile picture blob to base64 if exists
+    let profilePicture = null;
+    if (user.profilePicture && user.profilePictureType) {
+      const base64 = Buffer.from(user.profilePicture).toString('base64');
+      profilePicture = `data:${user.profilePictureType};base64,${base64}`;
+    }
+
+    const userData = {
+      ...user,
+      profilePicture
+    };
+
+    return NextResponse.json({ success: true, data: userData })
   } catch (error) {
     console.error("Profile fetch error:", error)
     return NextResponse.json(
@@ -68,20 +144,46 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const validatedData = updateProfileSchema.parse(body)
 
+    // Prepare update data, converting empty strings to null
+    const updateData: any = {};
+    
+    if (validatedData.name !== undefined) {
+      updateData.name = validatedData.name ? sanitizeString(validatedData.name) || null : null;
+    }
+    if (validatedData.bio !== undefined) {
+      updateData.bio = validatedData.bio ? sanitizeString(validatedData.bio) || null : null;
+    }
+    if (validatedData.location !== undefined) {
+      updateData.location = validatedData.location ? sanitizeString(validatedData.location) || null : null;
+    }
+    if (validatedData.phone !== undefined) {
+      updateData.phone = validatedData.phone ? sanitizeString(validatedData.phone) || null : null;
+    }
+    if (validatedData.dateOfBirth !== undefined) {
+      updateData.dateOfBirth = validatedData.dateOfBirth ? new Date(validatedData.dateOfBirth) : null;
+    }
+    if (validatedData.preferences !== undefined) {
+      updateData.preferences = validatedData.preferences;
+    }
+
     const updatedUser = await db.user.update({
       where: { id: session.user.id },
-      data: validatedData,
+      data: updateData,
       select: {
         id: true,
         email: true,
         name: true,
         image: true,
+        bio: true,
+        location: true,
+        phone: true,
+        dateOfBirth: true,
         preferences: true,
         updatedAt: true,
       },
     })
 
-    return NextResponse.json({ user: updatedUser })
+    return NextResponse.json({ success: true, data: updatedUser })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
