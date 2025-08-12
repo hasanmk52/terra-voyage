@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,9 +20,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { TripCollaboration, CollaboratorInfo, getRoleDisplayName } from '@/lib/collaboration-types'
-import { CollaborationRole } from '@prisma/client'
+} from "@/components/ui/alert-dialog";
+import {
+  TripCollaboration,
+  CollaboratorInfo,
+  getRoleDisplayName,
+} from "@/lib/collaboration-types";
+import { CollaborationRole } from "@prisma/client";
 import {
   MoreVertical,
   Crown,
@@ -31,16 +35,16 @@ import {
   Eye,
   UserMinus,
   Mail,
-  Clock
-} from 'lucide-react'
-import { motion } from 'framer-motion'
+  Clock,
+} from "lucide-react";
+import { motion } from "framer-motion";
 
 interface MembersListProps {
-  tripId: string
-  collaboration: TripCollaboration
-  canManageMembers: boolean
-  onMemberUpdate?: () => void
-  className?: string
+  tripId: string;
+  collaboration: TripCollaboration;
+  canManageMembers: boolean;
+  onMemberUpdate?: () => void;
+  className?: string;
 }
 
 export function MembersList({
@@ -48,96 +52,101 @@ export function MembersList({
   collaboration,
   canManageMembers,
   onMemberUpdate,
-  className = ''
+  className = "",
 }: MembersListProps) {
-  const [memberToRemove, setMemberToRemove] = useState<CollaboratorInfo | null>(null)
-  const [isUpdating, setIsUpdating] = useState<string | null>(null)
+  const [memberToRemove, setMemberToRemove] = useState<CollaboratorInfo | null>(
+    null
+  );
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
-  const handleRoleChange = async (memberId: string, newRole: CollaborationRole) => {
-    setIsUpdating(memberId)
+  const handleRoleChange = async (
+    memberId: string,
+    newRole: CollaborationRole
+  ) => {
+    setIsUpdating(memberId);
     try {
-      const response = await fetch('/api/collaboration/members', {
-        method: 'PUT',
+      const response = await fetch("/api/collaboration/members", {
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           tripId,
           userId: memberId,
           role: newRole,
         }),
-      })
+      });
 
       if (response.ok) {
-        onMemberUpdate?.()
+        onMemberUpdate?.();
       } else {
-        const error = await response.json()
-        console.error('Failed to update role:', error)
+        const error = await response.json();
+        console.error("Failed to update role:", error);
       }
     } catch (error) {
-      console.error('Network error updating role:', error)
+      console.error("Network error updating role:", error);
     } finally {
-      setIsUpdating(null)
+      setIsUpdating(null);
     }
-  }
+  };
 
   const handleRemoveMember = async (member: CollaboratorInfo) => {
-    setIsUpdating(member.userId)
+    setIsUpdating(member.userId);
     try {
       const response = await fetch(
         `/api/collaboration/members?tripId=${tripId}&userId=${member.userId}`,
         {
-          method: 'DELETE',
+          method: "DELETE",
         }
-      )
+      );
 
       if (response.ok) {
-        onMemberUpdate?.()
-        setMemberToRemove(null)
+        onMemberUpdate?.();
+        setMemberToRemove(null);
       } else {
-        const error = await response.json()
-        console.error('Failed to remove member:', error)
+        const error = await response.json();
+        console.error("Failed to remove member:", error);
       }
     } catch (error) {
-      console.error('Network error removing member:', error)
+      console.error("Network error removing member:", error);
     } finally {
-      setIsUpdating(null)
+      setIsUpdating(null);
     }
-  }
+  };
 
   const getRoleIcon = (role: CollaborationRole) => {
     switch (role) {
       case CollaborationRole.OWNER:
-        return <Crown className="h-4 w-4 text-yellow-600" />
+        return <Crown className="h-4 w-4 text-yellow-600" />;
       case CollaborationRole.ADMIN:
-        return <Shield className="h-4 w-4 text-purple-600" />
+        return <Shield className="h-4 w-4 text-purple-600" />;
       case CollaborationRole.EDITOR:
-        return <Edit className="h-4 w-4 text-blue-600" />
+        return <Edit className="h-4 w-4 text-blue-600" />;
       case CollaborationRole.VIEWER:
-        return <Eye className="h-4 w-4 text-gray-600" />
+        return <Eye className="h-4 w-4 text-gray-600" />;
     }
-  }
+  };
 
   const getRoleBadgeColor = (role: CollaborationRole) => {
     switch (role) {
       case CollaborationRole.OWNER:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case CollaborationRole.ADMIN:
-        return 'bg-purple-100 text-purple-800 border-purple-200'
+        return "bg-purple-100 text-purple-800 border-purple-200";
       case CollaborationRole.EDITOR:
-        return 'bg-blue-100 text-blue-800 border-blue-200'
+        return "bg-blue-100 text-blue-800 border-blue-200";
       case CollaborationRole.VIEWER:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
-  }
+  };
 
   const canChangeRole = (member: CollaboratorInfo) => {
-    return canManageMembers && member.role !== CollaborationRole.OWNER
-  }
+    return canManageMembers && member.role !== CollaborationRole.OWNER;
+  };
 
   const canRemoveMember = (member: CollaboratorInfo) => {
-    return canManageMembers && member.role !== CollaborationRole.OWNER
-  }
+    return canManageMembers && member.role !== CollaborationRole.OWNER;
+  };
 
   return (
     <div className={`space-y-3 ${className}`}>
@@ -152,7 +161,10 @@ export function MembersList({
           <div className="flex items-center gap-3">
             <div className="relative">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={member.image || undefined} alt={member.name || 'User'} />
+                <AvatarImage
+                  src={member.image || undefined}
+                  alt={member.name || "User"}
+                />
                 <AvatarFallback>
                   {(member.name || member.email)?.charAt(0).toUpperCase()}
                 </AvatarFallback>
@@ -163,7 +175,7 @@ export function MembersList({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="font-medium text-gray-900 truncate">
-                  {member.name || 'Unknown User'}
+                  {member.name || "Unknown User"}
                 </p>
                 {member.role === CollaborationRole.OWNER && (
                   <Crown className="h-4 w-4 text-yellow-600" />
@@ -208,21 +220,33 @@ export function MembersList({
                 {canChangeRole(member) && (
                   <>
                     <DropdownMenuItem
-                      onClick={() => handleRoleChange(member.userId, CollaborationRole.ADMIN)}
+                      onClick={() =>
+                        handleRoleChange(member.userId, CollaborationRole.ADMIN)
+                      }
                       disabled={member.role === CollaborationRole.ADMIN}
                     >
                       <Shield className="h-4 w-4 mr-2" />
                       Make Admin
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => handleRoleChange(member.userId, CollaborationRole.EDITOR)}
+                      onClick={() =>
+                        handleRoleChange(
+                          member.userId,
+                          CollaborationRole.EDITOR
+                        )
+                      }
                       disabled={member.role === CollaborationRole.EDITOR}
                     >
                       <Edit className="h-4 w-4 mr-2" />
                       Make Editor
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => handleRoleChange(member.userId, CollaborationRole.VIEWER)}
+                      onClick={() =>
+                        handleRoleChange(
+                          member.userId,
+                          CollaborationRole.VIEWER
+                        )
+                      }
                       disabled={member.role === CollaborationRole.VIEWER}
                     >
                       <Eye className="h-4 w-4 mr-2" />
@@ -230,7 +254,7 @@ export function MembersList({
                     </DropdownMenuItem>
                   </>
                 )}
-                
+
                 {canRemoveMember(member) && (
                   <>
                     {canChangeRole(member) && <DropdownMenuSeparator />}
@@ -258,24 +282,27 @@ export function MembersList({
       )}
 
       {/* Remove Member Confirmation */}
-      <AlertDialog 
-        open={!!memberToRemove} 
+      <AlertDialog
+        open={!!memberToRemove}
         onOpenChange={() => setMemberToRemove(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Member</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove{' '}
-              <strong>{memberToRemove?.name || memberToRemove?.email}</strong> from this trip?
-              They will lose access to all trip information and won't be able to make changes.
+              Are you sure you want to remove{" "}
+              <strong>{memberToRemove?.name || memberToRemove?.email}</strong>{" "}
+              from this trip? They will lose access to all trip information and
+              won't be able to make changes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => memberToRemove && handleRemoveMember(memberToRemove)}
-              className="bg-red-600 hover:bg-red-700"
+              onClick={() =>
+                memberToRemove && handleRemoveMember(memberToRemove)
+              }
+              className="bg-red-600 hover:bg-red-700 text-white"
               disabled={isUpdating === memberToRemove?.userId}
             >
               {isUpdating === memberToRemove?.userId ? (
@@ -284,14 +311,14 @@ export function MembersList({
                   Removing...
                 </div>
               ) : (
-                'Remove Member'
+                "Remove Member"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }
 
-export default MembersList
+export default MembersList;

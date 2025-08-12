@@ -9,7 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useRef } from "react";
-import { User, Camera, MapPin, Phone, Calendar, Mail, Edit, Save, X, Upload } from "lucide-react";
+import {
+  User,
+  Camera,
+  MapPin,
+  Phone,
+  Calendar,
+  Mail,
+  Edit,
+  Save,
+  X,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 
 interface UserProfile {
@@ -47,76 +58,84 @@ function ProfileContent() {
   });
 
   useEffect(() => {
-    const loadUserProfile = async () => {
-      if (session?.user?.id) {
-        try {
-          const response = await fetch(`/api/user/profile`);
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.data) {
-              const profileData = {
-                id: result.data.id,
-                name: result.data.name || null,
-                email: result.data.email || null,
-                image: result.data.image || null,
-                bio: result.data.bio || null,
-                location: result.data.location || null,
-                phone: result.data.phone || null,
-                dateOfBirth: result.data.dateOfBirth ? new Date(result.data.dateOfBirth).toISOString().split('T')[0] : null,
-                profilePicture: result.data.profilePicture || null,
-                onboardingCompleted: result.data.onboardingCompleted || false,
-                createdAt: new Date(result.data.createdAt),
-                _count: result.data._count,
-              };
-              setProfile(profileData);
-              setFormData({
-                name: profileData.name || "",
-                bio: profileData.bio || "",
-                location: profileData.location || "",
-                phone: profileData.phone || "",
-                dateOfBirth: profileData.dateOfBirth || "",
-              });
-            }
-          } else {
-            // Fallback to session data
-            const fallbackProfile = {
-              id: session.user.id,
-              name: session.user.name || null,
-              email: session.user.email || null,
-              image: session.user.image || null,
-              bio: null,
-              location: null,
-              phone: null,
-              dateOfBirth: null,
-              profilePicture: null,
-              onboardingCompleted: session.user.onboardingCompleted || false,
-              createdAt: new Date(),
-              _count: { trips: 0 },
+    if (!session?.user?.id) return;
+
+    // 1) Instant optimistic render from session to avoid blocking UI
+    const sUser = session.user as any;
+    const optimistic: UserProfile = {
+      id: sUser.id,
+      name: sUser.name || null,
+      email: sUser.email || null,
+      image: sUser.image || null,
+      bio: null,
+      location: null,
+      phone: null,
+      dateOfBirth: null,
+      profilePicture: null,
+      onboardingCompleted: !!sUser.onboardingCompleted,
+      createdAt: new Date(),
+      _count: { trips: 0 },
+    };
+    setProfile((prev) => prev ?? optimistic);
+    setFormData((prev) => ({
+      name: sUser.name || prev.name || "",
+      bio: prev.bio || "",
+      location: prev.location || "",
+      phone: prev.phone || "",
+      dateOfBirth: prev.dateOfBirth || "",
+    }));
+    setIsLoading(false);
+
+    // 2) Background hydrate from API for freshest data
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const response = await fetch(`/api/user/profile`, {
+          signal: controller.signal,
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            const profileData: UserProfile = {
+              id: result.data.id,
+              name: result.data.name || null,
+              email: result.data.email || null,
+              image: result.data.image || null,
+              bio: result.data.bio || null,
+              location: result.data.location || null,
+              phone: result.data.phone || null,
+              dateOfBirth: result.data.dateOfBirth
+                ? new Date(result.data.dateOfBirth).toISOString().split("T")[0]
+                : null,
+              profilePicture: result.data.profilePicture || null,
+              onboardingCompleted: result.data.onboardingCompleted || false,
+              createdAt: new Date(result.data.createdAt),
+              _count: result.data._count,
             };
-            setProfile(fallbackProfile);
+            setProfile(profileData);
             setFormData({
-              name: fallbackProfile.name || "",
-              bio: "",
-              location: "",
-              phone: "",
-              dateOfBirth: "",
+              name: profileData.name || "",
+              bio: profileData.bio || "",
+              location: profileData.location || "",
+              phone: profileData.phone || "",
+              dateOfBirth: profileData.dateOfBirth || "",
             });
           }
-        } catch (error) {
+        }
+      } catch (error) {
+        if ((error as any)?.name !== "AbortError") {
           console.error("Failed to load user profile:", error);
-        } finally {
-          setIsLoading(false);
         }
       }
-    };
+    })();
 
-    loadUserProfile();
-  }, [session]);
+    return () => controller.abort();
+  }, [session?.user?.id]);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -131,18 +150,22 @@ function ProfileContent() {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          setProfile(prev => prev ? { 
-            ...prev, 
-            ...formData,
-            dateOfBirth: formData.dateOfBirth || null
-          } : null);
+          setProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  ...formData,
+                  dateOfBirth: formData.dateOfBirth || null,
+                }
+              : null
+          );
           setIsEditing(false);
-          
+
           // Update session with new name
           await update({
             name: formData.name,
           });
-          
+
           console.log("✅ Profile updated successfully");
         }
       } else {
@@ -155,19 +178,21 @@ function ProfileContent() {
     }
   };
 
-  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePictureUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file");
       return;
     }
 
     // Validate file size (max 2MB for security)
     if (file.size > 2 * 1024 * 1024) {
-      alert('Image size must be less than 2MB');
+      alert("Image size must be less than 2MB");
       return;
     }
 
@@ -175,10 +200,10 @@ function ProfileContent() {
 
     try {
       const formData = new FormData();
-      formData.append('profilePicture', file);
+      formData.append("profilePicture", file);
 
-      const response = await fetch('/api/user/profile/picture', {
-        method: 'POST',
+      const response = await fetch("/api/user/profile/picture", {
+        method: "POST",
         body: formData,
       });
 
@@ -187,11 +212,15 @@ function ProfileContent() {
         if (result.success) {
           // Create a blob URL for immediate display
           const imageUrl = URL.createObjectURL(file);
-          setProfile(prev => prev ? { 
-            ...prev, 
-            profilePicture: imageUrl 
-          } : null);
-          
+          setProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  profilePicture: imageUrl,
+                }
+              : null
+          );
+
           console.log("✅ Profile picture updated successfully");
         }
       } else {
@@ -251,7 +280,9 @@ function ProfileContent() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900">My Profile</h1>
-          <p className="text-gray-600 mt-2 text-lg">Manage your personal information</p>
+          <p className="text-gray-600 mt-2 text-lg">
+            Manage your personal information
+          </p>
         </div>
 
         {/* Main Profile Card */}
@@ -263,13 +294,16 @@ function ProfileContent() {
                 Personal Information
               </CardTitle>
               {!isEditing ? (
-                <Button onClick={() => setIsEditing(true)} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                <Button onClick={() => setIsEditing(true)} className="gap-2">
                   <Edit className="w-4 h-4" />
                   Edit Profile
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button onClick={handleSaveProfile} className="gap-2 bg-green-600 hover:bg-green-700">
+                  <Button
+                    onClick={handleSaveProfile}
+                    className="gap-2 bg-green-600 hover:bg-green-700"
+                  >
                     <Save className="w-4 h-4" />
                     Save Changes
                   </Button>
@@ -299,29 +333,42 @@ function ProfileContent() {
             <div className="flex flex-col md:flex-row items-start gap-8">
               {/* Profile Picture */}
               <div className="flex flex-col items-center space-y-4">
-                <div className="relative group">
-                  <Avatar className="w-32 h-32 ring-4 ring-blue-200 shadow-lg">
-                    <AvatarImage 
-                      src={profile.profilePicture || profile.image || ""} 
-                      alt={profile.name || profile.email || "User"} 
+                <div
+                  className="relative group cursor-pointer outline-none"
+                  onClick={triggerFileInput}
+                  role="button"
+                  aria-label="Change profile picture"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      triggerFileInput();
+                    }
+                  }}
+                >
+                  <Avatar className="w-32 h-32 ring-4 ring-blue-200 shadow-lg transition-transform duration-200 group-hover:scale-[1.02]">
+                    <AvatarImage
+                      src={profile.profilePicture || profile.image || ""}
+                      alt={profile.name || profile.email || "User"}
                       className="object-cover"
                     />
                     <AvatarFallback className="text-3xl bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
-                      {profile.name?.charAt(0) || profile.email?.charAt(0) || "U"}
+                      {profile.name?.charAt(0) ||
+                        profile.email?.charAt(0) ||
+                        "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
-                       onClick={triggerFileInput}>
+                  <div className="pointer-events-none absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center bg-black/40">
                     <Camera className="w-8 h-8 text-white" />
                   </div>
                 </div>
-                
+
                 <Button
                   onClick={triggerFileInput}
                   disabled={isUploadingPicture}
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 rounded-full border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-700 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 >
                   {isUploadingPicture ? (
                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -330,7 +377,7 @@ function ProfileContent() {
                   )}
                   {isUploadingPicture ? "Uploading..." : "Change Picture"}
                 </Button>
-                
+
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -345,7 +392,10 @@ function ProfileContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Name */}
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Label
+                      htmlFor="name"
+                      className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                    >
                       <User className="w-4 h-4" />
                       Full Name
                     </Label>
@@ -353,7 +403,9 @@ function ProfileContent() {
                       <Input
                         id="name"
                         value={formData.name}
-                        onChange={(e) => handleInputChange("name", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("name", e.target.value)
+                        }
                         placeholder="Enter your full name"
                         className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                       />
@@ -377,7 +429,10 @@ function ProfileContent() {
 
                   {/* Location */}
                   <div className="space-y-2">
-                    <Label htmlFor="location" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Label
+                      htmlFor="location"
+                      className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                    >
                       <MapPin className="w-4 h-4" />
                       Location
                     </Label>
@@ -385,7 +440,9 @@ function ProfileContent() {
                       <Input
                         id="location"
                         value={formData.location}
-                        onChange={(e) => handleInputChange("location", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("location", e.target.value)
+                        }
                         placeholder="City, Country"
                         className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                       />
@@ -398,7 +455,10 @@ function ProfileContent() {
 
                   {/* Phone */}
                   <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Label
+                      htmlFor="phone"
+                      className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                    >
                       <Phone className="w-4 h-4" />
                       Phone Number
                     </Label>
@@ -406,7 +466,9 @@ function ProfileContent() {
                       <Input
                         id="phone"
                         value={formData.phone}
-                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("phone", e.target.value)
+                        }
                         placeholder="+1 (555) 123-4567"
                         className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                       />
@@ -419,7 +481,10 @@ function ProfileContent() {
 
                   {/* Date of Birth */}
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="dateOfBirth" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Label
+                      htmlFor="dateOfBirth"
+                      className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                    >
                       <Calendar className="w-4 h-4" />
                       Date of Birth
                     </Label>
@@ -428,16 +493,23 @@ function ProfileContent() {
                         id="dateOfBirth"
                         type="date"
                         value={formData.dateOfBirth}
-                        onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("dateOfBirth", e.target.value)
+                        }
                         className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                       />
                     ) : (
                       <p className="text-gray-900 font-medium py-2 px-3 bg-gray-50 rounded-lg">
-                        {profile.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
-                        }) : "Not set"}
+                        {profile.dateOfBirth
+                          ? new Date(profile.dateOfBirth).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              }
+                            )
+                          : "Not set"}
                       </p>
                     )}
                   </div>
@@ -445,7 +517,10 @@ function ProfileContent() {
 
                 {/* Bio */}
                 <div className="space-y-2">
-                  <Label htmlFor="bio" className="text-sm font-semibold text-gray-700">
+                  <Label
+                    htmlFor="bio"
+                    className="text-sm font-semibold text-gray-700"
+                  >
                     About Me
                   </Label>
                   {isEditing ? (
@@ -464,22 +539,35 @@ function ProfileContent() {
                   )}
                 </div>
 
-                {/* Status Badges */}
-                <div className="flex flex-wrap gap-3">
-                  <Badge 
-                    variant={profile.onboardingCompleted ? "default" : "secondary"}
-                    className="px-3 py-1"
+                {/* Status Chips */}
+                <div className="flex flex-wrap gap-2">
+                  <Badge
+                    variant="outline"
+                    className={`rounded-full px-3 py-1.5 border ${
+                      profile.onboardingCompleted
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                        : "border-amber-300 bg-amber-50 text-amber-700"
+                    }`}
                   >
-                    {profile.onboardingCompleted ? "Setup Complete" : "Setup Pending"}
+                    {profile.onboardingCompleted
+                      ? "Setup Complete"
+                      : "Setup Pending"}
                   </Badge>
-                  <Badge variant="outline" className="px-3 py-1">
+                  <Badge
+                    variant="outline"
+                    className="rounded-full px-3 py-1.5 border border-gray-300 bg-white text-gray-700"
+                  >
                     Member since {new Date(profile.createdAt).getFullYear()}
                   </Badge>
                   {!profile.onboardingCompleted && (
                     <Link href="/onboarding">
-                      <Badge variant="outline" className="cursor-pointer hover:bg-blue-50 px-3 py-1">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="rounded-full px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700"
+                      >
                         Complete Travel Setup
-                      </Badge>
+                      </Button>
                     </Link>
                   )}
                 </div>
@@ -501,19 +589,20 @@ function ProfileContent() {
               <p className="text-gray-600 font-medium">Trips Created</p>
             </CardContent>
           </Card>
-          
+
           <Card className="text-center shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl mx-auto mb-4 shadow-lg">
                 <Calendar className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                {new Date().getFullYear() - new Date(profile.createdAt).getFullYear() || "<1"}
+                {new Date().getFullYear() -
+                  new Date(profile.createdAt).getFullYear() || "<1"}
               </h3>
               <p className="text-gray-600 font-medium">Years Active</p>
             </CardContent>
           </Card>
-          
+
           <Card className="text-center shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl mx-auto mb-4 shadow-lg">

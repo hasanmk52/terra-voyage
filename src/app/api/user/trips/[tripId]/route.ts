@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTripPermissions, getPermissionMessages } from "@/lib/trip-permissions"
 
@@ -36,12 +38,19 @@ export async function GET(
     }
 
 
+    // Get authenticated user
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id || 'demo-user-001' // Fallback to demo user
+
     // Use real database
     try {
       const trip = await db.trip.findFirst({
         where: {
           id: tripId,
-          isPublic: true // Only return public trips for security
+          OR: [
+            { userId: userId }, // User can access their own trips
+            { isPublic: true }  // Anyone can access public trips
+          ]
         },
         include: {
           days: {
@@ -73,8 +82,7 @@ export async function GET(
         )
       }
 
-      // Calculate permissions for the trip
-      const userId = 'demo-user-001' // TODO: Get from authentication
+      // Calculate permissions for the trip  
       const permissions = getTripPermissions(trip, userId)
       const permissionMessages = getPermissionMessages(trip, userId)
 
@@ -136,15 +144,18 @@ export async function PUT(
       }
     })
 
-    if (!currentTrip || !currentTrip.isPublic) {
+    if (!currentTrip) {
       return NextResponse.json(
         { error: "Trip not found or not accessible" },
         { status: 404 }
       )
     }
 
+    // Get authenticated user
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id || 'demo-user-001' // Fallback to demo user
+
     // Check permissions
-    const userId = 'demo-user-001' // TODO: Get from authentication
     const permissions = getTripPermissions(currentTrip, userId)
 
     if (!permissions.canEdit) {
@@ -163,7 +174,7 @@ export async function PUT(
     const updatedTrip = await db.trip.update({
       where: { 
         id: tripId,
-        isPublic: true // Only allow updating public trips for security
+        userId: userId // Only allow updating your own trips
       },
       data: validatedData,
       include: {
@@ -228,15 +239,18 @@ export async function DELETE(
       }
     })
 
-    if (!currentTrip || !currentTrip.isPublic) {
+    if (!currentTrip) {
       return NextResponse.json(
         { error: "Trip not found or not accessible" },
         { status: 404 }
       )
     }
 
+    // Get authenticated user
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id || 'demo-user-001' // Fallback to demo user
+
     // Check permissions
-    const userId = 'demo-user-001' // TODO: Get from authentication
     const permissions = getTripPermissions(currentTrip, userId)
 
     if (!permissions.canDelete) {
@@ -255,7 +269,7 @@ export async function DELETE(
     const deletedTrip = await db.trip.delete({
       where: { 
         id: tripId,
-        isPublic: true // Only allow deleting public trips for security
+        userId: userId // Only allow deleting your own trips
       }
     })
 

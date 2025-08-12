@@ -108,15 +108,9 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
             currency: "USD",
             priceType: "free" as const
           },
-          isBooked: false,
           notes: `Generated activity for ${destination}`,
           bookingUrl: undefined,
           timeSlot: "morning",
-          pricing: {
-            amount: 0,
-            currency: "USD",
-            priceType: "free"
-          },
           tips: [],
           bookingRequired: false,
           accessibility: {
@@ -143,15 +137,9 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
             currency: "USD",
             priceType: "per_person" as const
           },
-          isBooked: false,
           notes: "Local cuisine experience",
           bookingUrl: undefined,
           timeSlot: "afternoon",
-          pricing: {
-            amount: 35,
-            currency: "USD",
-            priceType: "per_person"
-          },
           tips: [],
           bookingRequired: false,
           accessibility: {
@@ -235,6 +223,15 @@ export default function TripDetailsPage() {
               // Use REAL itinerary data from API if available, otherwise fallback to generated mock
               days: data.trip.days && data.trip.days.length > 0 
                 ? transformApiDaysToUiFormat(data.trip.days)
+                : data.trip.itineraryData && data.trip.itineraryData.rawData?.itinerary?.days
+                ? transformApiDaysToUiFormat(data.trip.itineraryData.rawData.itinerary.days.map((day: any, index: number) => ({
+                    dayNumber: day.day || (index + 1),
+                    date: day.date || new Date(new Date(data.trip.startDate).getTime() + index * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    theme: day.theme || `Day ${day.day || (index + 1)}`,
+                    transportation: day.transportation,
+                    dailyBudget: day.dailyBudget,
+                    activities: day.activities || []
+                  })))
                 : generateMockItinerary(data.trip.destination, data.trip.startDate, data.trip.endDate, data.trip.destinationCoords),
               status: data.trip.status || "PLANNED"
             }
@@ -274,8 +271,8 @@ export default function TripDetailsPage() {
               day: 1,
               date: "2025-08-15",
               theme: "Arrival and city exploration",
-              dailyBudget: { amount: 150, currency: "USD", breakdown: {} },
-              transportation: { type: "walking", details: "City walking tour" },
+              dailyBudget: { amount: 150, currency: "USD" },
+              transportation: { primaryMethod: "walking" as const, estimatedCost: 0, notes: "City walking tour" },
               activities: [
                 {
                   id: "activity-1",
@@ -355,8 +352,8 @@ export default function TripDetailsPage() {
               day: 2,
               date: "2025-08-16",
               theme: "Museums and culture",
-              dailyBudget: { amount: 120, currency: "USD", breakdown: {} },
-              transportation: { type: "metro", details: "Metro day pass" },
+              dailyBudget: { amount: 120, currency: "USD" },
+              transportation: { primaryMethod: "public" as const, estimatedCost: 10, notes: "Metro day pass" },
               activities: [
                 {
                   id: "activity-4",

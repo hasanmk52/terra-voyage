@@ -210,11 +210,11 @@ function TripsPageContent() {
   const sortedTrips = [...trips].sort((a, b) => {
     const priorityA = getStatusPriority(a.status);
     const priorityB = getStatusPriority(b.status);
-    
+
     if (priorityA !== priorityB) {
       return priorityA - priorityB;
     }
-    
+
     // If same priority, sort by creation date (newest first)
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
@@ -253,7 +253,9 @@ function TripsPageContent() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {session?.user?.name ? `${session.user.name}'s Trips` : 'Your Trips'}
+              {session?.user?.name
+                ? `${session.user.name}'s Trips`
+                : "Your Trips"}
             </h1>
             <p className="text-gray-600 mt-2">
               Manage and view all your travel plans
@@ -365,11 +367,7 @@ function TripsPageContent() {
                         {trip.title}
                       </CardTitle>
                       <div className="relative z-10">
-                        <StatusBadge 
-                          status={trip.status} 
-                          size="sm"
-                          showTooltip
-                        />
+                        <StatusBadge status={trip.status} size="sm" />
                       </div>
                     </div>
                     <div className="flex items-center text-gray-600 text-sm">

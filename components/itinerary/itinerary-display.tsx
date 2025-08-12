@@ -1,28 +1,52 @@
-"use client"
+"use client";
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { DayCard } from './day-card'
-import { ActivityCard } from './activity-card'
-import { ActivityModal } from './activity-modal'
-import { TimelineView } from './timeline-view'
-import { ItineraryControls } from './itinerary-controls'
-import { Day, Activity, ActivityAction, TimelineConfig } from '@/lib/itinerary-types'
-import { formatDateShort } from '@/lib/utils'
-import { Calendar, Clock, MapPin, Plus, Undo2, Redo2, Save } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useCallback, useMemo, useEffect } from "react";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  closestCenter,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { DayCard } from "./day-card";
+import { ActivityCard } from "./activity-card";
+import { ActivityModal } from "./activity-modal";
+import { TimelineView } from "./timeline-view";
+import { ItineraryControls } from "./itinerary-controls";
+import {
+  Day,
+  Activity,
+  ActivityAction,
+  TimelineConfig,
+} from "@/lib/itinerary-types";
+import { formatDateShort } from "@/lib/utils";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Plus,
+  Undo2,
+  Redo2,
+  Save,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ItineraryDisplayProps {
-  days: Day[]
-  onUpdateDays: (days: Day[]) => void
-  onSave?: () => Promise<void>
-  isLoading?: boolean
-  isDirty?: boolean
-  className?: string
+  days: Day[];
+  onUpdateDays: (days: Day[]) => void;
+  onSave?: () => Promise<void>;
+  isLoading?: boolean;
+  isDirty?: boolean;
+  className?: string;
 }
 
 export function ItineraryDisplay({
@@ -31,327 +55,372 @@ export function ItineraryDisplay({
   onSave,
   isLoading = false,
   isDirty = false,
-  className = ''
+  className = "",
 }: ItineraryDisplayProps) {
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null)
-  const [editingActivity, setEditingActivity] = useState<{ activity: Activity; dayNumber: number } | null>(null)
-  const [draggedActivity, setDraggedActivity] = useState<Activity | null>(null)
-  const [showAddModal, setShowAddModal] = useState<{ dayNumber: number } | null>(null)
-  const [history, setHistory] = useState<{ past: ActivityAction[]; future: ActivityAction[] }>({
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(
+    null
+  );
+  const [editingActivity, setEditingActivity] = useState<{
+    activity: Activity;
+    dayNumber: number;
+  } | null>(null);
+  const [draggedActivity, setDraggedActivity] = useState<Activity | null>(null);
+  const [showAddModal, setShowAddModal] = useState<{
+    dayNumber: number;
+  } | null>(null);
+  const [history, setHistory] = useState<{
+    past: ActivityAction[];
+    future: ActivityAction[];
+  }>({
     past: [],
-    future: []
-  })
+    future: [],
+  });
   const [timelineConfig, setTimelineConfig] = useState<TimelineConfig>({
     showAllDays: true,
-    expandedDays: new Set(days.map(d => d.day)),
-    viewMode: 'cards',
-    sortBy: 'time',
-    filterBy: {}
-  })
+    expandedDays: new Set(days.map((d) => d.day)),
+    viewMode: "cards",
+    sortBy: "time",
+    filterBy: {},
+  });
 
   // Handle showAllDays toggle functionality
-  const handleConfigChange = useCallback((newConfig: TimelineConfig) => {
-    // If showAllDays changed, expand/collapse all days accordingly
-    if (newConfig.showAllDays !== timelineConfig.showAllDays) {
-      const newExpandedDays = newConfig.showAllDays 
-        ? new Set(days.map(d => d.day)) // Expand all days
-        : new Set() // Collapse all days
-      
-      setTimelineConfig({
-        ...newConfig,
-        expandedDays: newExpandedDays
-      })
-    } else {
-      setTimelineConfig(newConfig)
-    }
-  }, [timelineConfig.showAllDays, days])
+  const handleConfigChange = useCallback(
+    (newConfig: TimelineConfig) => {
+      // If showAllDays changed, expand/collapse all days accordingly
+      if (newConfig.showAllDays !== timelineConfig.showAllDays) {
+        const newExpandedDays = newConfig.showAllDays
+          ? new Set(days.map((d) => d.day)) // Expand all days
+          : new Set(); // Collapse all days
+
+        setTimelineConfig({
+          ...newConfig,
+          expandedDays: newExpandedDays,
+        });
+      } else {
+        setTimelineConfig(newConfig);
+      }
+    },
+    [timelineConfig.showAllDays, days]
+  );
 
   // Update expandedDays when days change and showAllDays is true
   useEffect(() => {
     if (timelineConfig.showAllDays) {
-      setTimelineConfig(prev => ({
+      setTimelineConfig((prev) => ({
         ...prev,
-        expandedDays: new Set(days.map(d => d.day))
-      }))
+        expandedDays: new Set(days.map((d) => d.day)),
+      }));
     }
-  }, [days, timelineConfig.showAllDays])
+  }, [days, timelineConfig.showAllDays]);
 
   // Execute action and update history
-  const executeAction = useCallback((action: ActivityAction, addToHistory = true) => {
-    const newDays = [...days]
-    
-    switch (action.type) {
-      case 'MOVE_ACTIVITY': {
-        const { fromDay, toDay, fromIndex, toIndex, activityId } = action.payload
-        const fromDayData = newDays.find(d => d.day === fromDay)
-        const toDayData = newDays.find(d => d.day === toDay)
-        
-        if (fromDayData && toDayData) {
-          const activity = fromDayData.activities.splice(fromIndex, 1)[0]
-          if (activity && activity.id === activityId) {
-            toDayData.activities.splice(toIndex, 0, activity)
+  const executeAction = useCallback(
+    (action: ActivityAction, addToHistory = true) => {
+      const newDays = [...days];
+
+      switch (action.type) {
+        case "MOVE_ACTIVITY": {
+          const { fromDay, toDay, fromIndex, toIndex, activityId } =
+            action.payload;
+          const fromDayData = newDays.find((d) => d.day === fromDay);
+          const toDayData = newDays.find((d) => d.day === toDay);
+
+          if (fromDayData && toDayData) {
+            const activity = fromDayData.activities.splice(fromIndex, 1)[0];
+            if (activity && activity.id === activityId) {
+              toDayData.activities.splice(toIndex, 0, activity);
+            }
           }
+          break;
         }
-        break
-      }
-      case 'ADD_ACTIVITY': {
-        const { dayNumber, activity, index } = action.payload
-        const dayData = newDays.find(d => d.day === dayNumber)
-        if (dayData) {
-          dayData.activities.splice(index, 0, activity)
-        }
-        break
-      }
-      case 'REMOVE_ACTIVITY': {
-        const { dayNumber, activityId } = action.payload
-        const dayData = newDays.find(d => d.day === dayNumber)
-        if (dayData) {
-          const activityIndex = dayData.activities.findIndex(a => a.id === activityId)
-          if (activityIndex !== -1) {
-            dayData.activities.splice(activityIndex, 1)
+        case "ADD_ACTIVITY": {
+          const { dayNumber, activity, index } = action.payload;
+          const dayData = newDays.find((d) => d.day === dayNumber);
+          if (dayData) {
+            dayData.activities.splice(index, 0, activity);
           }
+          break;
         }
-        break
-      }
-      case 'UPDATE_ACTIVITY': {
-        const { dayNumber, activityId, newActivity } = action.payload
-        const dayData = newDays.find(d => d.day === dayNumber)
-        if (dayData) {
-          const activityIndex = dayData.activities.findIndex(a => a.id === activityId)
-          if (activityIndex !== -1) {
-            dayData.activities[activityIndex] = newActivity
+        case "REMOVE_ACTIVITY": {
+          const { dayNumber, activityId } = action.payload;
+          const dayData = newDays.find((d) => d.day === dayNumber);
+          if (dayData) {
+            const activityIndex = dayData.activities.findIndex(
+              (a) => a.id === activityId
+            );
+            if (activityIndex !== -1) {
+              dayData.activities.splice(activityIndex, 1);
+            }
           }
+          break;
         }
-        break
+        case "UPDATE_ACTIVITY": {
+          const { dayNumber, activityId, newActivity } = action.payload;
+          const dayData = newDays.find((d) => d.day === dayNumber);
+          if (dayData) {
+            const activityIndex = dayData.activities.findIndex(
+              (a) => a.id === activityId
+            );
+            if (activityIndex !== -1) {
+              dayData.activities[activityIndex] = newActivity;
+            }
+          }
+          break;
+        }
       }
-    }
-    
-    onUpdateDays(newDays)
-    
-    if (addToHistory) {
-      setHistory(prev => ({
-        past: [...prev.past, action],
-        future: []
-      }))
-    }
-  }, [days, onUpdateDays])
+
+      onUpdateDays(newDays);
+
+      if (addToHistory) {
+        setHistory((prev) => ({
+          past: [...prev.past, action],
+          future: [],
+        }));
+      }
+    },
+    [days, onUpdateDays]
+  );
 
   // Undo last action
   const handleUndo = useCallback(() => {
-    if (history.past.length === 0) return
-    
-    const lastAction = history.past[history.past.length - 1]
-    const reverseAction = getReverseAction(lastAction, days)
-    
+    if (history.past.length === 0) return;
+
+    const lastAction = history.past[history.past.length - 1];
+    const reverseAction = getReverseAction(lastAction, days);
+
     if (reverseAction) {
-      executeAction(reverseAction, false)
-      setHistory(prev => ({
+      executeAction(reverseAction, false);
+      setHistory((prev) => ({
         past: prev.past.slice(0, -1),
-        future: [lastAction, ...prev.future]
-      }))
+        future: [lastAction, ...prev.future],
+      }));
     }
-  }, [history.past, days, executeAction])
+  }, [history.past, days, executeAction]);
 
   // Redo last undone action
   const handleRedo = useCallback(() => {
-    if (history.future.length === 0) return
-    
-    const nextAction = history.future[0]
-    executeAction(nextAction, false)
-    
-    setHistory(prev => ({
+    if (history.future.length === 0) return;
+
+    const nextAction = history.future[0];
+    executeAction(nextAction, false);
+
+    setHistory((prev) => ({
       past: [...prev.past, nextAction],
-      future: prev.future.slice(1)
-    }))
-  }, [history.future, executeAction])
+      future: prev.future.slice(1),
+    }));
+  }, [history.future, executeAction]);
 
   // Drag and drop handlers
   const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event
-    const activityId = active.id as string
-    
+    const { active } = event;
+    const activityId = active.id as string;
+
     // Find the activity being dragged
     for (const day of days) {
-      const activity = day.activities.find(a => a.id === activityId)
+      const activity = day.activities.find((a) => a.id === activityId);
       if (activity) {
-        setDraggedActivity(activity)
-        break
+        setDraggedActivity(activity);
+        break;
       }
     }
-  }
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    setDraggedActivity(null)
-    
-    if (!over || active.id === over.id) return
-    
-    const activeId = active.id as string
-    const overId = over.id as string
-    
+    const { active, over } = event;
+    setDraggedActivity(null);
+
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
     // Find source and destination
-    let sourceDay = -1
-    let sourceIndex = -1
-    let targetDay = -1
-    let targetIndex = -1
-    
+    let sourceDay = -1;
+    let sourceIndex = -1;
+    let targetDay = -1;
+    let targetIndex = -1;
+
     for (let i = 0; i < days.length; i++) {
-      const day = days[i]
-      const activityIndex = day.activities.findIndex(a => a.id === activeId)
+      const day = days[i];
+      const activityIndex = day.activities.findIndex((a) => a.id === activeId);
       if (activityIndex !== -1) {
-        sourceDay = day.day
-        sourceIndex = activityIndex
-        break
+        sourceDay = day.day;
+        sourceIndex = activityIndex;
+        break;
       }
     }
-    
+
     // Determine target position
-    if (overId.startsWith('day-')) {
+    if (overId.startsWith("day-")) {
       // Dropped on a day container
-      targetDay = parseInt(overId.replace('day-', ''))
-      const dayData = days.find(d => d.day === targetDay)
-      targetIndex = dayData ? dayData.activities.length : 0
+      targetDay = parseInt(overId.replace("day-", ""));
+      const dayData = days.find((d) => d.day === targetDay);
+      targetIndex = dayData ? dayData.activities.length : 0;
     } else {
       // Dropped on another activity
       for (let i = 0; i < days.length; i++) {
-        const day = days[i]
-        const activityIndex = day.activities.findIndex(a => a.id === overId)
+        const day = days[i];
+        const activityIndex = day.activities.findIndex((a) => a.id === overId);
         if (activityIndex !== -1) {
-          targetDay = day.day
-          targetIndex = activityIndex
-          break
+          targetDay = day.day;
+          targetIndex = activityIndex;
+          break;
         }
       }
     }
-    
+
     if (sourceDay !== -1 && targetDay !== -1) {
       executeAction({
-        type: 'MOVE_ACTIVITY',
+        type: "MOVE_ACTIVITY",
         payload: {
           fromDay: sourceDay,
           toDay: targetDay,
           fromIndex: sourceIndex,
           toIndex: targetIndex,
-          activityId: activeId
-        }
-      })
+          activityId: activeId,
+        },
+      });
     }
-  }
+  };
 
   // Activity management handlers
   const handleAddActivity = (dayNumber: number, activity: Activity) => {
-    const dayData = days.find(d => d.day === dayNumber)
+    const dayData = days.find((d) => d.day === dayNumber);
     if (dayData) {
       executeAction({
-        type: 'ADD_ACTIVITY',
+        type: "ADD_ACTIVITY",
         payload: {
           dayNumber,
           activity,
-          index: dayData.activities.length
-        }
-      })
+          index: dayData.activities.length,
+        },
+      });
     }
-    setShowAddModal(null)
-  }
+    setShowAddModal(null);
+  };
 
   const handleEditActivity = (activity: Activity, dayNumber: number) => {
-    setEditingActivity({ activity, dayNumber })
-  }
+    setEditingActivity({ activity, dayNumber });
+  };
 
-  const handleUpdateActivity = (oldActivity: Activity, newActivity: Activity, dayNumber: number) => {
+  const handleUpdateActivity = (
+    oldActivity: Activity,
+    newActivity: Activity,
+    dayNumber: number
+  ) => {
     executeAction({
-      type: 'UPDATE_ACTIVITY',
+      type: "UPDATE_ACTIVITY",
       payload: {
         dayNumber,
         activityId: oldActivity.id,
         oldActivity,
-        newActivity
-      }
-    })
-    setEditingActivity(null)
-  }
+        newActivity,
+      },
+    });
+    setEditingActivity(null);
+  };
 
   const handleRemoveActivity = (activity: Activity, dayNumber: number) => {
-    const dayData = days.find(d => d.day === dayNumber)
+    const dayData = days.find((d) => d.day === dayNumber);
     if (dayData) {
-      const index = dayData.activities.findIndex(a => a.id === activity.id)
+      const index = dayData.activities.findIndex((a) => a.id === activity.id);
       executeAction({
-        type: 'REMOVE_ACTIVITY',
+        type: "REMOVE_ACTIVITY",
         payload: {
           dayNumber,
           activityId: activity.id,
           index,
-          activity
-        }
-      })
+          activity,
+        },
+      });
     }
-  }
+  };
 
   // Calculate total statistics
   // Apply sorting and filtering to days
   const processedDays = useMemo(() => {
-    return days.map(day => {
+    return days.map((day) => {
       // Filter activities within each day
-      let filteredActivities = day.activities.filter(activity => {
+      let filteredActivities = day.activities.filter((activity) => {
         // Type filter
-        if (timelineConfig.filterBy.type && activity.type !== timelineConfig.filterBy.type) {
-          return false
+        if (
+          timelineConfig.filterBy.type &&
+          activity.type !== timelineConfig.filterBy.type
+        ) {
+          return false;
         }
-        
+
         // Time slot filter
-        if (timelineConfig.filterBy.timeSlot && activity.timeSlot !== timelineConfig.filterBy.timeSlot) {
-          return false
+        if (
+          timelineConfig.filterBy.timeSlot &&
+          activity.timeSlot !== timelineConfig.filterBy.timeSlot
+        ) {
+          return false;
         }
-        
+
         // Price range filter
         if (timelineConfig.filterBy.priceRange) {
-          const [min, max] = timelineConfig.filterBy.priceRange
+          const [min, max] = timelineConfig.filterBy.priceRange;
           // Validate filter values to prevent issues
-          if (typeof min !== 'number' || typeof max !== 'number' || 
-              !isFinite(min) || !isFinite(max) || min < 0 || max < 0 || min > max) {
-            return true // Skip invalid filter
+          if (
+            typeof min !== "number" ||
+            typeof max !== "number" ||
+            !isFinite(min) ||
+            !isFinite(max) ||
+            min < 0 ||
+            max < 0 ||
+            min > max
+          ) {
+            return true; // Skip invalid filter
           }
-          const activityPrice = activity.pricing?.amount || 0
+          const activityPrice = activity.pricing?.amount || 0;
           if (activityPrice < min || activityPrice > max) {
-            return false
+            return false;
           }
         }
-        
-        return true
-      })
+
+        return true;
+      });
 
       // Sort activities within each day
       filteredActivities = [...filteredActivities].sort((a, b) => {
         switch (timelineConfig.sortBy) {
-          case 'time':
-            return a.startTime.localeCompare(b.startTime)
-          case 'type':
-            return a.type.localeCompare(b.type)
-          case 'price':
-            const priceA = a.pricing?.amount || 0
-            const priceB = b.pricing?.amount || 0
-            return priceA - priceB
+          case "time":
+            return a.startTime.localeCompare(b.startTime);
+          case "type":
+            return a.type.localeCompare(b.type);
+          case "price":
+            const priceA = a.pricing?.amount || 0;
+            const priceB = b.pricing?.amount || 0;
+            return priceA - priceB;
           default:
-            return 0
+            return 0;
         }
-      })
+      });
 
       return {
         ...day,
-        activities: filteredActivities
-      }
-    })
-  }, [days, timelineConfig.filterBy, timelineConfig.sortBy])
+        activities: filteredActivities,
+      };
+    });
+  }, [days, timelineConfig.filterBy, timelineConfig.sortBy]);
 
-  const totalActivities = processedDays.reduce((sum, day) => sum + day.activities.length, 0)
+  const totalActivities = processedDays.reduce(
+    (sum, day) => sum + day.activities.length,
+    0
+  );
   const totalDuration = processedDays.reduce((sum, day) => {
-    return sum + day.activities.reduce((daySum, activity) => {
-      // Safely extract duration number from string, handling cases where duration might not be a string
-      const durationStr = typeof activity.duration === 'string' ? activity.duration : ''
-      const duration = parseInt(durationStr.match(/\d+/)?.[0] || '0')
-      return daySum + duration
-    }, 0)
-  }, 0)
+    return (
+      sum +
+      day.activities.reduce((daySum, activity) => {
+        // Safely extract duration number from string, handling cases where duration might not be a string
+        const durationStr =
+          typeof activity.duration === "string" ? activity.duration : "";
+        const duration = parseInt(durationStr.match(/\d+/)?.[0] || "0");
+        return daySum + duration;
+      }, 0)
+    );
+  }, 0);
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -377,45 +446,91 @@ export function ItineraryDisplay({
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg text-sm text-gray-700 border border-gray-200 shadow-sm">
-            {isDirty && <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>}
-            <span className="font-medium">{isDirty ? 'Unsaved changes' : 'All changes saved'}</span>
+          {/* Status chip */}
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border shadow-sm ${
+              isDirty
+                ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+            }`}
+            aria-live="polite"
+          >
+            {isDirty ? (
+              <AlertTriangle className="h-4 w-4" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
+            <span className="font-medium">
+              {isDirty ? "Unsaved changes" : "All changes saved"}
+            </span>
           </div>
-          
+
+          {/* Undo / Redo */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleUndo}
-              disabled={history.past.length === 0}
-              className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 transition-all duration-200 shadow-sm"
-              title={`Undo last action${history.past.length > 0 ? ` (${history.past.length} actions available)` : ''}`}
-            >
-              <Undo2 className="h-4 w-4" />
-              Undo
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRedo}
-              disabled={history.future.length === 0}
-              className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 transition-all duration-200 shadow-sm"
-              title={`Redo action${history.future.length > 0 ? ` (${history.future.length} actions available)` : ''}`}
-            >
-              <Redo2 className="h-4 w-4" />
-              Redo
-            </Button>
+            {(() => {
+              const undoDisabled = history.past.length === 0;
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUndo}
+                  disabled={undoDisabled}
+                  className={`h-8 px-3 py-1 rounded-full flex items-center gap-2 transition-all duration-200 shadow-sm ${
+                    undoDisabled
+                      ? "bg-white text-gray-400 border-gray-200"
+                      : "bg-white text-gray-800 border-blue-300 hover:bg-blue-50"
+                  }`}
+                  title={`Undo last action${
+                    history.past.length > 0
+                      ? ` (${history.past.length} actions available)`
+                      : ""
+                  }`}
+                >
+                  <Undo2 className="h-4 w-4" />
+                  Undo
+                </Button>
+              );
+            })()}
+            {(() => {
+              const redoDisabled = history.future.length === 0;
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRedo}
+                  disabled={redoDisabled}
+                  className={`h-8 px-3 py-1 rounded-full flex items-center gap-2 transition-all duration-200 shadow-sm ${
+                    redoDisabled
+                      ? "bg-white text-gray-400 border-gray-200"
+                      : "bg-white text-gray-800 border-blue-300 hover:bg-blue-50"
+                  }`}
+                  title={`Redo action${
+                    history.future.length > 0
+                      ? ` (${history.future.length} actions available)`
+                      : ""
+                  }`}
+                >
+                  <Redo2 className="h-4 w-4" />
+                  Redo
+                </Button>
+              );
+            })()}
           </div>
-          
+
+          {/* Save */}
           {onSave && (
             <Button
               onClick={onSave}
               disabled={isLoading || !isDirty}
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 shadow-md hover:shadow-lg transition-all duration-200"
-              title={isDirty ? 'Save changes to server' : 'No changes to save'}
+              className={`flex items-center gap-2 rounded-full px-4 py-2 shadow-sm transition-all duration-200 ${
+                isLoading || !isDirty
+                  ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                  : "bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg"
+              }`}
+              title={isDirty ? "Save changes to server" : "No changes to save"}
             >
               <Save className="h-4 w-4" />
-              {isLoading ? 'Saving...' : 'Save Changes'}
+              {isLoading ? "Saving..." : "Save Changes"}
             </Button>
           )}
         </div>
@@ -434,7 +549,7 @@ export function ItineraryDisplay({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {timelineConfig.viewMode === 'timeline' ? (
+        {timelineConfig.viewMode === "timeline" ? (
           <TimelineView
             days={processedDays}
             config={timelineConfig}
@@ -458,17 +573,23 @@ export function ItineraryDisplay({
                     day={day}
                     isExpanded={timelineConfig.expandedDays.has(day.day)}
                     onToggleExpanded={(expanded) => {
-                      setTimelineConfig(prev => ({
+                      setTimelineConfig((prev) => ({
                         ...prev,
                         expandedDays: expanded
                           ? new Set([...prev.expandedDays, day.day])
-                          : new Set([...prev.expandedDays].filter(d => d !== day.day))
-                      }))
+                          : new Set(
+                              [...prev.expandedDays].filter(
+                                (d) => d !== day.day
+                              )
+                            ),
+                      }));
                     }}
                     onActivitySelect={setSelectedActivity}
                     onActivityEdit={handleEditActivity}
                     onActivityRemove={handleRemoveActivity}
-                    onAddActivity={() => setShowAddModal({ dayNumber: day.day })}
+                    onAddActivity={() =>
+                      setShowAddModal({ dayNumber: day.day })
+                    }
                   />
                 </motion.div>
               ))}
@@ -497,7 +618,9 @@ export function ItineraryDisplay({
         <ActivityModal
           isOpen={true}
           onClose={() => setShowAddModal(null)}
-          onSave={(activity) => handleAddActivity(showAddModal.dayNumber, activity)}
+          onSave={(activity) =>
+            handleAddActivity(showAddModal.dayNumber, activity)
+          }
           dayNumber={showAddModal.dayNumber}
         />
       )}
@@ -506,65 +629,70 @@ export function ItineraryDisplay({
         <ActivityModal
           isOpen={true}
           onClose={() => setEditingActivity(null)}
-          onSave={(activity) => handleUpdateActivity(
-            editingActivity.activity,
-            activity,
-            editingActivity.dayNumber
-          )}
+          onSave={(activity) =>
+            handleUpdateActivity(
+              editingActivity.activity,
+              activity,
+              editingActivity.dayNumber
+            )
+          }
           activity={editingActivity.activity}
           dayNumber={editingActivity.dayNumber}
         />
       )}
     </div>
-  )
+  );
 }
 
 // Helper function to create reverse actions for undo
-function getReverseAction(action: ActivityAction, days: Day[]): ActivityAction | null {
+function getReverseAction(
+  action: ActivityAction,
+  days: Day[]
+): ActivityAction | null {
   switch (action.type) {
-    case 'MOVE_ACTIVITY':
+    case "MOVE_ACTIVITY":
       return {
-        type: 'MOVE_ACTIVITY',
+        type: "MOVE_ACTIVITY",
         payload: {
           fromDay: action.payload.toDay,
           toDay: action.payload.fromDay,
           fromIndex: action.payload.toIndex,
           toIndex: action.payload.fromIndex,
-          activityId: action.payload.activityId
-        }
-      }
-    case 'ADD_ACTIVITY':
+          activityId: action.payload.activityId,
+        },
+      };
+    case "ADD_ACTIVITY":
       return {
-        type: 'REMOVE_ACTIVITY',
+        type: "REMOVE_ACTIVITY",
         payload: {
           dayNumber: action.payload.dayNumber,
           activityId: action.payload.activity.id,
           index: action.payload.index,
-          activity: action.payload.activity
-        }
-      }
-    case 'REMOVE_ACTIVITY':
+          activity: action.payload.activity,
+        },
+      };
+    case "REMOVE_ACTIVITY":
       return {
-        type: 'ADD_ACTIVITY',
+        type: "ADD_ACTIVITY",
         payload: {
           dayNumber: action.payload.dayNumber,
           activity: action.payload.activity,
-          index: action.payload.index
-        }
-      }
-    case 'UPDATE_ACTIVITY':
+          index: action.payload.index,
+        },
+      };
+    case "UPDATE_ACTIVITY":
       return {
-        type: 'UPDATE_ACTIVITY',
+        type: "UPDATE_ACTIVITY",
         payload: {
           dayNumber: action.payload.dayNumber,
           activityId: action.payload.activityId,
           oldActivity: action.payload.newActivity,
-          newActivity: action.payload.oldActivity
-        }
-      }
+          newActivity: action.payload.oldActivity,
+        },
+      };
     default:
-      return null
+      return null;
   }
 }
 
-export default ItineraryDisplay
+export default ItineraryDisplay;

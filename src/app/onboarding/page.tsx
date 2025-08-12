@@ -12,27 +12,33 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { 
-  User, 
-  MapPin, 
-  Heart, 
-  Plane, 
-  Camera, 
-  Mountain, 
-  Car, 
-  Home, 
+import {
+  User,
+  MapPin,
+  Heart,
+  Plane,
+  Camera,
+  Mountain,
+  Car,
+  Home,
   Utensils,
   Wallet,
   Clock,
   Users,
   CheckCircle,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
 } from "lucide-react";
 
 // Onboarding schema
@@ -41,25 +47,36 @@ const onboardingSchema = z.object({
   displayName: z.string().min(2, "Name must be at least 2 characters").max(50),
   location: z.string().optional(),
   bio: z.string().max(500).optional(),
-  
+
   // Travel Style & Preferences
-  travelStyle: z.enum(["adventure", "luxury", "budget", "cultural", "relaxation", "mixed"]),
+  travelStyle: z.enum([
+    "adventure",
+    "luxury",
+    "budget",
+    "cultural",
+    "relaxation",
+    "mixed",
+  ]),
   pace: z.enum(["slow", "moderate", "fast"]),
-  accommodationType: z.array(z.string()).min(1, "Select at least one accommodation type"),
-  transportPreferences: z.array(z.string()).min(1, "Select at least one transport preference"),
-  
+  accommodationType: z
+    .array(z.string())
+    .min(1, "Select at least one accommodation type"),
+  transportPreferences: z
+    .array(z.string())
+    .min(1, "Select at least one transport preference"),
+
   // Interests
   interests: z.array(z.string()).min(3, "Select at least 3 interests"),
-  
+
   // Dietary & Accessibility
   dietaryRestrictions: z.array(z.string()),
   accessibility: z.enum(["full", "limited", "wheelchair", "none"]),
-  
+
   // Preferences
   currency: z.enum(["USD", "EUR", "GBP", "CAD", "AUD", "JPY"]),
   measurementUnit: z.enum(["metric", "imperial"]),
   language: z.enum(["en", "es", "fr", "de", "it", "pt"]),
-  
+
   // Privacy
   profilePublic: z.boolean(),
   allowMarketing: z.boolean(),
@@ -201,7 +218,7 @@ export default function OnboardingPage() {
 
       // Update session to reflect completed onboarding
       await update();
-      
+
       // Redirect to trips page
       router.push("/trips");
     } catch (error) {
@@ -229,7 +246,7 @@ export default function OnboardingPage() {
                 Let's personalize your travel experience
               </p>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <Label htmlFor="displayName">Display Name</Label>
@@ -244,7 +261,7 @@ export default function OnboardingPage() {
                   </p>
                 )}
               </div>
-              
+
               <div>
                 <Label htmlFor="location">Location (Optional)</Label>
                 <Input
@@ -253,7 +270,7 @@ export default function OnboardingPage() {
                   placeholder="Where are you based?"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="bio">Bio (Optional)</Label>
                 <Textarea
@@ -276,13 +293,15 @@ export default function OnboardingPage() {
                 Help us understand how you like to travel
               </p>
             </div>
-            
+
             <div className="space-y-6">
               <div>
                 <Label>Primary Travel Style</Label>
                 <RadioGroup
                   value={watch("travelStyle")}
-                  onValueChange={(value) => setValue("travelStyle", value as any)}
+                  onValueChange={(value) =>
+                    setValue("travelStyle", value as any)
+                  }
                   className="grid grid-cols-2 gap-4 mt-2"
                 >
                   {[
@@ -293,9 +312,15 @@ export default function OnboardingPage() {
                     { value: "relaxation", label: "Relaxation", icon: "🧘" },
                     { value: "mixed", label: "Mixed", icon: "🎯" },
                   ].map((style) => (
-                    <div key={style.value} className="flex items-center space-x-2">
+                    <div
+                      key={style.value}
+                      className="flex items-center space-x-2"
+                    >
                       <RadioGroupItem value={style.value} id={style.value} />
-                      <Label htmlFor={style.value} className="flex items-center gap-2 cursor-pointer">
+                      <Label
+                        htmlFor={style.value}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <span>{style.icon}</span>
                         {style.label}
                       </Label>
@@ -332,9 +357,15 @@ export default function OnboardingPage() {
                         onCheckedChange={(checked) => {
                           const current = watch("accommodationType");
                           if (checked) {
-                            setValue("accommodationType", [...current, type.id]);
+                            setValue("accommodationType", [
+                              ...current,
+                              type.id,
+                            ]);
                           } else {
-                            setValue("accommodationType", current.filter(t => t !== type.id));
+                            setValue(
+                              "accommodationType",
+                              current.filter((t) => t !== type.id)
+                            );
                           }
                         }}
                       />
@@ -350,16 +381,27 @@ export default function OnboardingPage() {
                 <Label>Transport Preferences</Label>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   {TRANSPORT_PREFERENCES.map((transport) => (
-                    <div key={transport.id} className="flex items-center space-x-2">
+                    <div
+                      key={transport.id}
+                      className="flex items-center space-x-2"
+                    >
                       <Checkbox
                         id={transport.id}
-                        checked={watch("transportPreferences").includes(transport.id)}
+                        checked={watch("transportPreferences").includes(
+                          transport.id
+                        )}
                         onCheckedChange={(checked) => {
                           const current = watch("transportPreferences");
                           if (checked) {
-                            setValue("transportPreferences", [...current, transport.id]);
+                            setValue("transportPreferences", [
+                              ...current,
+                              transport.id,
+                            ]);
                           } else {
-                            setValue("transportPreferences", current.filter(t => t !== transport.id));
+                            setValue(
+                              "transportPreferences",
+                              current.filter((t) => t !== transport.id)
+                            );
                           }
                         }}
                       />
@@ -383,7 +425,7 @@ export default function OnboardingPage() {
                 What excites you most when traveling? (Select at least 3)
               </p>
             </div>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {INTERESTS.map((interest) => (
                 <div
@@ -396,7 +438,10 @@ export default function OnboardingPage() {
                   onClick={() => {
                     const current = watch("interests");
                     if (current.includes(interest.id)) {
-                      setValue("interests", current.filter(i => i !== interest.id));
+                      setValue(
+                        "interests",
+                        current.filter((i) => i !== interest.id)
+                      );
                     } else {
                       setValue("interests", [...current, interest.id]);
                     }
@@ -409,7 +454,7 @@ export default function OnboardingPage() {
                 </div>
               ))}
             </div>
-            
+
             <div className="text-center">
               <Badge variant="outline">
                 {watch("interests").length} interests selected
@@ -423,18 +468,18 @@ export default function OnboardingPage() {
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold">Preferences & Settings</h2>
-              <p className="text-gray-600 mt-2">
-                Customize your experience
-              </p>
+              <p className="text-gray-600 mt-2">Customize your experience</p>
             </div>
-            
+
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Currency</Label>
                   <Select
                     value={watch("currency")}
-                    onValueChange={(value) => setValue("currency", value as any)}
+                    onValueChange={(value) =>
+                      setValue("currency", value as any)
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -454,14 +499,18 @@ export default function OnboardingPage() {
                   <Label>Measurement Unit</Label>
                   <Select
                     value={watch("measurementUnit")}
-                    onValueChange={(value) => setValue("measurementUnit", value as any)}
+                    onValueChange={(value) =>
+                      setValue("measurementUnit", value as any)
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="metric">Metric (km, °C)</SelectItem>
-                      <SelectItem value="imperial">Imperial (mi, °F)</SelectItem>
+                      <SelectItem value="imperial">
+                        Imperial (mi, °F)
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -498,9 +547,15 @@ export default function OnboardingPage() {
                         onCheckedChange={(checked) => {
                           const current = watch("dietaryRestrictions");
                           if (checked) {
-                            setValue("dietaryRestrictions", [...current, diet.id]);
+                            setValue("dietaryRestrictions", [
+                              ...current,
+                              diet.id,
+                            ]);
                           } else {
-                            setValue("dietaryRestrictions", current.filter(d => d !== diet.id));
+                            setValue(
+                              "dietaryRestrictions",
+                              current.filter((d) => d !== diet.id)
+                            );
                           }
                         }}
                       />
@@ -516,7 +571,9 @@ export default function OnboardingPage() {
                 <Label>Accessibility Needs</Label>
                 <Select
                   value={watch("accessibility")}
-                  onValueChange={(value) => setValue("accessibility", value as any)}
+                  onValueChange={(value) =>
+                    setValue("accessibility", value as any)
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -524,7 +581,9 @@ export default function OnboardingPage() {
                   <SelectContent>
                     <SelectItem value="full">No accessibility needs</SelectItem>
                     <SelectItem value="limited">Limited mobility</SelectItem>
-                    <SelectItem value="wheelchair">Wheelchair accessible</SelectItem>
+                    <SelectItem value="wheelchair">
+                      Wheelchair accessible
+                    </SelectItem>
                     <SelectItem value="none">Prefer not to say</SelectItem>
                   </SelectContent>
                 </Select>
@@ -542,13 +601,15 @@ export default function OnboardingPage() {
                 Control how your data is used
               </p>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <Checkbox
                   id="profilePublic"
                   checked={watch("profilePublic")}
-                  onCheckedChange={(checked) => setValue("profilePublic", !!checked)}
+                  onCheckedChange={(checked) =>
+                    setValue("profilePublic", !!checked)
+                  }
                 />
                 <div>
                   <Label htmlFor="profilePublic">Make my profile public</Label>
@@ -562,10 +623,14 @@ export default function OnboardingPage() {
                 <Checkbox
                   id="allowMarketing"
                   checked={watch("allowMarketing")}
-                  onCheckedChange={(checked) => setValue("allowMarketing", !!checked)}
+                  onCheckedChange={(checked) =>
+                    setValue("allowMarketing", !!checked)
+                  }
                 />
                 <div>
-                  <Label htmlFor="allowMarketing">Receive marketing communications</Label>
+                  <Label htmlFor="allowMarketing">
+                    Receive marketing communications
+                  </Label>
                   <p className="text-sm text-gray-600">
                     Get travel tips, deals, and product updates
                   </p>
@@ -574,9 +639,12 @@ export default function OnboardingPage() {
             </div>
 
             <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-blue-900 mb-2">🎉 You're all set!</h3>
+              <h3 className="font-semibold text-blue-900 mb-2">
+                🎉 You're all set!
+              </h3>
               <p className="text-blue-800 text-sm">
-                Click "Complete Setup" to start planning your next adventure with personalized recommendations based on your preferences.
+                Click "Complete Setup" to start planning your next adventure
+                with personalized recommendations based on your preferences.
               </p>
             </div>
           </div>
@@ -588,7 +656,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12">
       <div className="max-w-2xl mx-auto px-4">
         {/* Progress Header */}
         <div className="mb-8">
@@ -602,9 +670,9 @@ export default function OnboardingPage() {
               Sign Out
             </Button>
           </div>
-          
+
           <Progress value={progress} className="mb-2" />
-          
+
           <div className="flex justify-between text-xs text-gray-600">
             {STEPS.map((step) => (
               <div
@@ -620,7 +688,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* Step Content */}
-        <Card className="mb-8">
+        <Card className="mb-8 shadow-2xl border-0 bg-white/90 backdrop-blur-sm rounded-2xl">
           <CardContent className="p-8">
             <form onSubmit={form.handleSubmit(handleSubmit)}>
               {renderStep()}
@@ -629,18 +697,22 @@ export default function OnboardingPage() {
         </Card>
 
         {/* Navigation */}
-        <div className="flex justify-between">
+        <div className="flex justify-between items-center">
           <Button
             variant="outline"
             onClick={prevStep}
             disabled={currentStep === 1}
+            className="h-11 px-6 rounded-xl"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Previous
           </Button>
 
           {currentStep < STEPS.length ? (
-            <Button onClick={nextStep}>
+            <Button
+              onClick={nextStep}
+              className="h-11 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+            >
               Next
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
@@ -648,6 +720,7 @@ export default function OnboardingPage() {
             <Button
               onClick={form.handleSubmit(handleSubmit)}
               disabled={isSubmitting || watch("interests").length < 3}
+              className="h-11 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg disabled:opacity-60"
             >
               {isSubmitting ? (
                 <>

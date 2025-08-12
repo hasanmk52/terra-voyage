@@ -7,7 +7,7 @@
   .tooltip-container {
     overflow: visible !important;
   }
-  
+
   .tooltip-content {
     z-index: 9999;
     pointer-events: none;
@@ -15,7 +15,7 @@
     max-width: 250px;
     white-space: normal;
   }
-  
+
   /* Ensure tooltips don't get clipped by card containers */
   .card-with-tooltip {
     overflow: visible !important;
@@ -55,7 +55,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
     --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
+    --primary-foreground: 210 40% 98%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
