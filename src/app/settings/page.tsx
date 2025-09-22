@@ -24,6 +24,9 @@ import {
   Ruler,
   Languages,
   Save,
+  CheckCircle,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -91,6 +94,10 @@ function SettingsContent() {
     useState<UserPreferences>(defaultPreferences);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<{
+    type: 'success' | 'error' | null;
+    message: string;
+  }>({ type: null, message: '' });
 
   // Apply theme immediately when changed in settings
   useEffect(() => {
@@ -179,6 +186,8 @@ function SettingsContent() {
 
   const handleSavePreferences = async () => {
     setIsSaving(true);
+    setSaveStatus({ type: null, message: '' });
+    
     try {
       const response = await fetch("/api/user/profile", {
         method: "PUT",
@@ -191,7 +200,14 @@ function SettingsContent() {
 
       if (response.ok) {
         console.log("✅ Preferences saved successfully");
-        // Show success message or toast
+        setSaveStatus({ 
+          type: 'success', 
+          message: 'Your preferences have been saved successfully!' 
+        });
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => {
+          setSaveStatus({ type: null, message: '' });
+        }, 5000);
       } else {
         let message = "Failed to save preferences";
         try {
@@ -202,11 +218,17 @@ function SettingsContent() {
           }
         } catch {}
         console.error(message);
-        alert(`${message}. Please try again.`);
+        setSaveStatus({ 
+          type: 'error', 
+          message: `${message}. Please try again.` 
+        });
       }
     } catch (error) {
       console.error("Error saving preferences:", error);
-      alert("Failed to save preferences. Please try again.");
+      setSaveStatus({ 
+        type: 'error', 
+        message: 'Failed to save preferences. Please check your connection and try again.' 
+      });
     } finally {
       setIsSaving(false);
     }
@@ -258,6 +280,32 @@ function SettingsContent() {
             {isSaving ? "Saving..." : "Save All Changes"}
           </Button>
         </div>
+
+        {/* Status Message */}
+        {saveStatus.type && (
+          <div className="mb-6">
+            <div
+              className={`flex items-center gap-3 p-4 rounded-lg border ${
+                saveStatus.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-800'
+                  : 'bg-red-50 border-red-200 text-red-800'
+              } transition-all duration-200 animate-in fade-in-0 slide-in-from-top-1`}
+            >
+              {saveStatus.type === 'success' ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              )}
+              <span className="flex-1 font-medium">{saveStatus.message}</span>
+              <button
+                onClick={() => setSaveStatus({ type: null, message: '' })}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* App Preferences */}
@@ -686,7 +734,31 @@ function SettingsContent() {
         </div>
 
         {/* Save Button - Bottom */}
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex flex-col items-center gap-4">
+          {/* Status Message - Bottom */}
+          {saveStatus.type && (
+            <div
+              className={`flex items-center gap-3 p-4 rounded-lg border max-w-md ${
+                saveStatus.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-800'
+                  : 'bg-red-50 border-red-200 text-red-800'
+              } transition-all duration-200 animate-in fade-in-0 slide-in-from-bottom-1`}
+            >
+              {saveStatus.type === 'success' ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              )}
+              <span className="flex-1 font-medium text-sm">{saveStatus.message}</span>
+              <button
+                onClick={() => setSaveStatus({ type: null, message: '' })}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          
           <Button
             onClick={handleSavePreferences}
             disabled={isSaving}

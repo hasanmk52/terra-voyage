@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { DollarSign, ChevronDown } from "lucide-react"
+import { DollarSign, ChevronDown, Check } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 
 export interface BudgetData {
@@ -118,22 +118,36 @@ export function BudgetSelector({
     })
   }
 
-  // Handle click outside
+  // Handle click outside - simplified approach
   useEffect(() => {
+    if (!isOpen) return
+
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      
+      // Don't close if clicking on dropdown content or main button
       if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        !buttonRef.current?.contains(event.target as Node)
+        dropdownRef.current?.contains(target) ||
+        buttonRef.current?.contains(target)
       ) {
-        setIsOpen(false)
-        setShowCustomInput(false)
+        return
       }
+      
+      // Close dropdown for outside clicks
+      setIsOpen(false)
+      setShowCustomInput(false)
     }
 
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    // Add listener after a small delay to avoid immediate closure
+    const timeoutId = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside)
+    }, 100)
+    
+    return () => {
+      clearTimeout(timeoutId)
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isOpen])
 
   return (
     <div className="relative">
@@ -164,7 +178,8 @@ export function BudgetSelector({
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="absolute z-50 mt-2 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-4"
+          className="absolute z-[100] mt-2 w-full bg-white border border-gray-300 rounded-lg shadow-xl p-4"
+          style={{ zIndex: 1000 }}
         >
           {/* Budget Range Type Selector */}
           <div className="mb-4">
@@ -195,25 +210,49 @@ export function BudgetSelector({
 
           {/* Currency Selector */}
           <div className="mb-4">
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
-              Currency
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-sm font-medium text-gray-700">
+                Currency
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                Close
+              </button>
+            </div>
             <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
-              {currencies.map((currency) => (
+              {currencies.map((currency) => {
+                const isSelected = value.currency === currency.code
+                return (
                 <button
                   key={currency.code}
                   type="button"
-                  onClick={() => handleCurrencyChange(currency.code)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    handleCurrencyChange(currency.code)
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation() // Prevent mousedown from triggering outside click
+                  }}
                   className={cn(
-                    "px-2 py-1 text-xs rounded border transition-colors text-left",
-                    value.currency === currency.code
-                      ? "bg-blue-50 border-blue-200 text-blue-700"
-                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                    "px-2 py-1 text-xs rounded border transition-all duration-200 text-left cursor-pointer relative",
+                    isSelected
+                      ? "bg-blue-100 border-blue-300 text-blue-800 font-semibold shadow-sm"
+                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
                   )}
                 >
-                  <div className="font-medium">{currency.symbol} {currency.code}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{currency.symbol} {currency.code}</div>
+                    {isSelected && (
+                      <Check className="w-3 h-3 text-blue-600 ml-1" />
+                    )}
+                  </div>
                 </button>
-              ))}
+                )
+              })}
             </div>
           </div>
 

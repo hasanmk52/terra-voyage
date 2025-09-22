@@ -1,17 +1,29 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { ChevronLeft, ChevronRight, Check, MapPin, Calendar, Sparkles, Plane } from "lucide-react"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  MapPin,
+  Calendar,
+  Sparkles,
+  Plane,
+} from "lucide-react";
 // import { useForm } from "react-hook-form"
 // import { zodResolver } from "@hookform/resolvers/zod"
 
-import { DestinationAutocomplete } from "./destination-autocomplete"
-import { DateRangePicker } from "./date-range-picker"
-import { TravelerSelector, TravelerData } from "./traveler-selector"
-import { BudgetSelector, BudgetData } from "./budget-selector"
-import { InterestSelector } from "./interest-selector"
-import { TravelPreferences } from "./travel-preferences"
+import { DestinationAutocomplete } from "./destination-autocomplete";
+import { DateRangePicker } from "./date-range-picker";
+import { TravelerSelector, TravelerData } from "./traveler-selector";
+import { BudgetSelector, BudgetData } from "./budget-selector";
+import { InterestSelector } from "./interest-selector";
+import { TravelPreferences } from "./travel-preferences";
+import {
+  useUserPreferences,
+  useEnhancedFormData,
+} from "@/hooks/use-user-preferences";
 
 import {
   // tripPlanningFormSchema,
@@ -21,89 +33,324 @@ import {
   // type DateRangeData,
   type InterestCategories,
   type TravelPreferences as TravelPreferencesType,
-} from "@/lib/trip-validation"
+} from "@/lib/trip-validation";
+
+import {
+  DietaryRestriction,
+  TransportationType,
+  AccommodationType,
+  TravelPace,
+} from "@/types/travel-preferences";
+
+import { mapStringToDietaryRestriction } from "@/lib/user-preferences-service";
+
+function normalizePreferences(prefs: any) {
+  return {
+    pace: prefs.pace ? prefs.pace : TravelPace.Moderate,
+    accommodationType: prefs.accommodationType
+      ? prefs.accommodationType
+      : AccommodationType.MidRange,
+    transportation: prefs.transportation
+      ? prefs.transportation
+      : TransportationType.Mixed,
+    dietaryRestrictions: (prefs.dietaryRestrictions || []).map(
+      mapStringToDietaryRestriction
+    ),
+    accessibility: prefs.accessibility === true, // Only true if explicitly set, otherwise false
+    specialRequests: prefs.specialRequests || "",
+  };
+}
 
 // Form state types with optional dates for initialization
 interface FormDateRangeData {
-  startDate: Date | undefined
-  endDate: Date | undefined
+  startDate: Date | undefined;
+  endDate: Date | undefined;
 }
-import { cn } from "@/lib/utils"
-import { apiClient } from "@/lib/api-client"
+import { cn } from "@/lib/utils";
+import { apiClient } from "@/lib/api-client";
+import {
+  useErrorStateManager,
+  useFormDataPreservation,
+} from "@/lib/error-state-manager";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { categorizeError } from "@/lib/error-service";
 
 interface FormStep {
-  id: string
-  title: string
-  description: string
-  component: React.ReactNode
-  isValid: boolean
-  isComplete: boolean
+  id: string;
+  title: string;
+  description: string;
+  component: React.ReactNode;
+  isValid: boolean;
+  isComplete: boolean;
 }
 
 interface TripPlanningFormProps {
-  onComplete?: (data: TripPlanningFormData) => void
-  className?: string
+  onComplete?: (data: TripPlanningFormData) => void;
+  className?: string;
 }
 
-export function TripPlanningForm({ onComplete, className }: TripPlanningFormProps) {
-  const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(0)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [currentLoadingStep, setCurrentLoadingStep] = useState(0)
+export function TripPlanningForm({
+  onComplete,
+  className,
+}: TripPlanningFormProps) {
+  const router = useRouter();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentLoadingStep, setCurrentLoadingStep] = useState(0);
 
-  // Form state
+  // Enhanced error handling
+  const errorManager = useErrorStateManager();
+  const [retryAttempts, setRetryAttempts] = useState(0);
+
+  // User preferences integration
+  const {
+    preferences: userDefaults,
+    isLoading: preferencesLoading,
+    hasPreferences,
+  } = useUserPreferences();
+  const { createEnhancedFormData } = useEnhancedFormData();
+  const [preferencesApplied, setPreferencesApplied] = useState(false);
+  const [freshFormStart, setFreshFormStart] = useState(true); // Flag to prevent automatic restoration on fresh start
+
+  // Form state - will be initialized with user preferences when available
   const [destination, setDestination] = useState<DestinationData>({
     destination: "",
     placeId: undefined,
-  })
+  });
   const [dateRange, setDateRange] = useState<FormDateRangeData>({
     startDate: undefined,
     endDate: undefined,
-  })
+  });
   const [travelers, setTravelers] = useState<TravelerData>({
     adults: 2,
     children: 0,
     infants: 0,
-  })
-  const [budget, setBudget] = useState<BudgetData>({
+  });
+  const [budget, setBudgetState] = useState<BudgetData>({
     amount: 1500,
-    currency: "USD",
+    currency: "USD", // Will be updated from user preferences
     range: "per-person",
-  })
-  const [interests, setInterests] = useState<InterestCategories>([])
+  });
+
+  // Custom budget setter that tracks user currency changes
+  const setBudget = (newBudget: BudgetData) => {
+    // Check if the currency is being changed by comparing with current state
+    if (newBudget.currency !== budget.currency) {
+      setUserModifiedCurrency(true);
+    }
+    setBudgetState(newBudget);
+  };
+
+  const [interests, setInterests] = useState<InterestCategories>([]);
   const [preferences, setPreferences] = useState<TravelPreferencesType>({
-    pace: "moderate",
-    accommodationType: "mid-range",
-    transportation: "mixed",
+    pace: TravelPace.Moderate,
+    accommodationType: AccommodationType.MidRange,
+    transportation: TransportationType.Mixed,
     accessibility: false,
     dietaryRestrictions: [],
     specialRequests: "",
-  })
+  });
 
-  // Load saved form data from localStorage
+  // Track whether user has manually changed the currency
+  const [hasInitialCurrencySync, setHasInitialCurrencySync] = useState(false);
+  const [userModifiedCurrency, setUserModifiedCurrency] = useState(false);
+
+  // Current form data for preservation
+  const currentFormData = {
+    destination,
+    dateRange,
+    travelers,
+    budget,
+    interests,
+    preferences,
+    currentStep,
+  };
+
+  // Form data preservation
+  const { preserveFormData, restoreFormData, clearFormData } =
+    useFormDataPreservation(currentFormData, errorManager);
+
+  // Reset form to initial state while preserving user preferences
+  const resetForm = () => {
+    // Clear localStorage and preserved data
+    clearFormData();
+    localStorage.removeItem("trip-planning-form");
+
+    // Reset trip-specific selections to initial values
+    setDestination({
+      destination: "",
+      placeId: undefined,
+    });
+    setDateRange({
+      startDate: undefined,
+      endDate: undefined,
+    });
+    setInterests([]);
+
+    // Reset preferences to defaults but preserve user's personal settings
+    const defaultPreferences = {
+      pace: TravelPace.Moderate,
+      accommodationType: AccommodationType.MidRange,
+      transportation: TransportationType.Mixed,
+      accessibility: false,
+      dietaryRestrictions: (
+        userDefaults?.preferences?.dietaryRestrictions || []
+      ).map(mapStringToDietaryRestriction),
+      specialRequests: "",
+    };
+
+    // Apply user's saved preferences if available, otherwise use defaults
+    if (userDefaults) {
+      if (userDefaults.travelers) setTravelers(userDefaults.travelers);
+      if (userDefaults.budget) setBudgetState(userDefaults.budget);
+      if (userDefaults && userDefaults.preferences) {
+        // Apply user preferences but ensure accessibility always defaults to false (trip-specific)
+        setPreferences(normalizePreferences({
+          ...userDefaults.preferences,
+          accessibility: false, // Always reset accessibility for new trips
+        }));
+      } else {
+        setPreferences(defaultPreferences);
+      }
+    } else {
+      // No user defaults, use standard defaults
+      setTravelers({
+        adults: 2,
+        children: 0,
+        infants: 0,
+      });
+      setBudgetState({
+        amount: 1500,
+        currency: userDefaults?.budget?.currency || "USD",
+        range: "per-person",
+      });
+      setPreferences(defaultPreferences);
+    }
+
+    // Reset step and other UI state
+    setCurrentStep(0);
+    setPreferencesApplied(false);
+    setRetryAttempts(0);
+    setFreshFormStart(true); // Mark as fresh start to prevent automatic restoration
+    setHasInitialCurrencySync(false);
+    setUserModifiedCurrency(false);
+
+    // Clear any errors
+    errorManager.clearError();
+  };
+
+  // Reset form on component mount - but wait for user preferences to load
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("trip-planning-form")
-      if (saved) {
-        const data = JSON.parse(saved)
-        if (data.destination) setDestination(data.destination)
-        if (data.dateRange) {
-          setDateRange({
-            startDate: data.dateRange.startDate ? new Date(data.dateRange.startDate) : undefined,
-            endDate: data.dateRange.endDate ? new Date(data.dateRange.endDate) : undefined,
-          })
+    if (!preferencesLoading) {
+      resetForm();
+    }
+  }, [preferencesLoading]); // Reset when preferences finish loading
+
+  // Apply user preferences as defaults (only once, when available)
+  useEffect(() => {
+    if (!preferencesLoading && userDefaults && !preferencesApplied) {
+      // Only apply defaults if no saved form data exists
+      const hasSavedData = localStorage.getItem("trip-planning-form");
+
+      if (!hasSavedData) {
+        // Apply preferences defaults
+        if (userDefaults.travelers) setTravelers(userDefaults.travelers);
+        
+        // For budget, only apply if user hasn't made any changes yet
+        if (userDefaults.budget && !hasInitialCurrencySync) {
+          setBudgetState(userDefaults.budget);
         }
-        if (data.travelers) setTravelers(data.travelers)
-        if (data.budget) setBudget(data.budget)
-        if (data.interests) setInterests(data.interests)
-        if (data.preferences) setPreferences(data.preferences)
-        if (data.currentStep) setCurrentStep(data.currentStep)
+        
+        if (userDefaults.interests && userDefaults.interests.length > 0) {
+          setInterests(userDefaults.interests);
+        }
+
+        // Apply travel preferences with type safety
+        // Note: accessibility is trip-specific and should not be loaded from user preferences
+        setPreferences((prev) =>
+          normalizePreferences({
+            pace: userDefaults.pace,
+            accommodationType: userDefaults.accommodationType,
+            transportation: userDefaults.transportation,
+            dietaryRestrictions: userDefaults.dietaryRestrictions,
+            specialRequests: userDefaults.specialRequests,
+            // accessibility is always trip-specific, keep current form value (defaults to false)
+            accessibility: prev.accessibility,
+          })
+        );
+
+        setPreferencesApplied(true);
+      }
+    }
+  }, [preferencesLoading, userDefaults, preferencesApplied, hasInitialCurrencySync]);
+
+  useEffect(() => {
+    if (!preferencesLoading && userDefaults?.budget?.currency && !hasInitialCurrencySync && !userModifiedCurrency) {
+      setBudgetState(prev => ({
+        ...prev,
+        currency: userDefaults.budget.currency
+      }));
+      setHasInitialCurrencySync(true);
+    }
+  }, [preferencesLoading, hasInitialCurrencySync, userModifiedCurrency]);
+
+  // Load saved form data from localStorage or error state (only if not a fresh start)
+  useEffect(() => {
+    // Skip restoration if this is a fresh form start
+    if (freshFormStart) {
+      setFreshFormStart(false); // Allow future restorations after the first load
+      return;
+    }
+
+    try {
+      // First check for preserved error state data
+      const preservedData = restoreFormData();
+      if (preservedData) {
+        setDestination(preservedData.destination);
+        setDateRange({
+          startDate: preservedData.dateRange.startDate
+            ? new Date(preservedData.dateRange.startDate)
+            : undefined,
+          endDate: preservedData.dateRange.endDate
+            ? new Date(preservedData.dateRange.endDate)
+            : undefined,
+        });
+        setTravelers(preservedData.travelers);
+        setBudgetState(preservedData.budget);
+        setInterests(preservedData.interests);
+        setPreferences(preservedData.preferences);
+        if (preservedData.currentStep !== undefined)
+          setCurrentStep(preservedData.currentStep);
+        return;
+      }
+
+      // Fallback to regular localStorage
+      const saved = localStorage.getItem("trip-planning-form");
+      if (saved) {
+        const data = JSON.parse(saved);
+        setDestination(data.destination);
+        setDateRange({
+          startDate: data.dateRange.startDate
+            ? new Date(data.dateRange.startDate)
+            : undefined,
+          endDate: data.dateRange.endDate
+            ? new Date(data.dateRange.endDate)
+            : undefined,
+        });
+        setTravelers(data.travelers);
+        setBudgetState(data.budget);
+        setInterests(data.interests);
+        if (data.preferences) {
+          // Ensure accessibility always defaults to false unless explicitly user-set
+          const normalizedPrefs = normalizePreferences(data.preferences);
+          setPreferences(normalizedPrefs);
+        }
+        if (data.currentStep) setCurrentStep(data.currentStep);
       }
     } catch (error) {
-      console.error("Failed to load saved form data:", error)
+      console.error("Failed to load saved form data:", error);
     }
-  }, [])
+  }, []);
 
   // Save form data to localStorage
   useEffect(() => {
@@ -118,35 +365,44 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
       interests,
       preferences,
       currentStep,
-    }
-    localStorage.setItem("trip-planning-form", JSON.stringify(formData))
-  }, [destination, dateRange, travelers, budget, interests, preferences, currentStep])
+    };
+    localStorage.setItem("trip-planning-form", JSON.stringify(formData));
+  }, [
+    destination,
+    dateRange,
+    travelers,
+    budget,
+    interests,
+    preferences,
+    currentStep,
+  ]);
 
   // Validation state for each step
   const getStepValidation = (stepIndex: number) => {
     switch (stepIndex) {
       case 0:
-        return validateStep("destination", { destination })
+        return validateStep("destination", { destination });
       case 1:
         // Convert to the required format for validation
-        const dateRangeForValidation = dateRange.startDate && dateRange.endDate 
-          ? { startDate: dateRange.startDate, endDate: dateRange.endDate }
-          : null
-        return dateRangeForValidation 
+        const dateRangeForValidation =
+          dateRange.startDate && dateRange.endDate
+            ? { startDate: dateRange.startDate, endDate: dateRange.endDate }
+            : null;
+        return dateRangeForValidation
           ? validateStep("dates", { dateRange: dateRangeForValidation })
-          : { success: false, errors: null }
+          : { success: false, errors: null };
       case 2:
-        return validateStep("travelers", { travelers })
+        return validateStep("travelers", { travelers });
       case 3:
-        return validateStep("budget", { budget })
+        return validateStep("budget", { budget });
       case 4:
-        return validateStep("interests", { interests })
+        return validateStep("interests", { interests });
       case 5:
-        return validateStep("preferences", { preferences })
+        return validateStep("preferences", { preferences });
       default:
-        return { success: false, errors: null }
+        return { success: false, errors: null };
     }
-  }
+  };
 
   // Form steps configuration
   const steps: FormStep[] = [
@@ -162,7 +418,9 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
             </label>
             <DestinationAutocomplete
               value={destination.destination}
-              onChange={(value, placeId) => setDestination({ destination: value, placeId })}
+              onChange={(value, placeId) =>
+                setDestination({ destination: value, placeId })
+              }
               placeholder="Search for cities, countries, or landmarks..."
               className="text-lg"
             />
@@ -185,22 +443,29 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
             <DateRangePicker
               startDate={dateRange.startDate}
               endDate={dateRange.endDate}
-              onChange={(startDate, endDate) => setDateRange({ startDate, endDate })}
+              onChange={(startDate, endDate) =>
+                setDateRange({ startDate, endDate })
+              }
               className="text-lg"
-              error={!getStepValidation(1).success && (dateRange.startDate !== undefined || dateRange.endDate !== undefined)}
+              error={
+                !getStepValidation(1).success &&
+                (dateRange.startDate !== undefined ||
+                  dateRange.endDate !== undefined)
+              }
               errorMessage={
-                !dateRange.startDate 
-                  ? "Please select a start date" 
-                  : !dateRange.endDate 
-                    ? "Please select an end date" 
-                    : getStepValidation(1).errors?.[0]?.message
+                !dateRange.startDate
+                  ? "Please select a start date"
+                  : !dateRange.endDate
+                  ? "Please select an end date"
+                  : getStepValidation(1).errors?.[0]?.message
               }
             />
           </div>
         </div>
       ),
       isValid: getStepValidation(1).success,
-      isComplete: dateRange.startDate !== undefined && dateRange.endDate !== undefined,
+      isComplete:
+        dateRange.startDate !== undefined && dateRange.endDate !== undefined,
     },
     {
       id: "travelers",
@@ -262,66 +527,108 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
       title: "Travel preferences",
       description: "Customize your travel style",
       component: (
-        <TravelPreferences
-          value={preferences}
-          onChange={setPreferences}
-        />
+        <>
+          <TravelPreferences value={preferences} onChange={setPreferences} />
+        </>
       ),
       isValid: getStepValidation(5).success,
       isComplete: true, // Preferences have defaults, so always complete
     },
-  ]
+  ];
 
-  const currentStepData = steps[currentStep]
-  const isLastStep = currentStep === steps.length - 1
-  const canProceed = currentStepData.isValid
-  const canGoBack = currentStep > 0
+  const currentStepData = steps[currentStep];
+  const isLastStep = currentStep === steps.length - 1;
+
+  // Enhanced validation for the final step to ensure all required data is present
+  const isFormCompletelyValid = isLastStep
+    ? currentStepData.isValid &&
+      destination.destination.length > 0 &&
+      dateRange.startDate !== undefined &&
+      dateRange.endDate !== undefined &&
+      travelers.adults > 0 &&
+      budget.amount > 0 &&
+      interests.length > 0
+    : currentStepData.isValid;
+
+  const canProceed = isFormCompletelyValid;
+  const canGoBack = currentStep > 0;
 
   // Handle next step
   const handleNext = () => {
     if (canProceed && !isLastStep) {
-      setCurrentStep(currentStep + 1)
+      setCurrentStep(currentStep + 1);
     }
-  }
+  };
 
   // Handle previous step
   const handlePrevious = () => {
     if (canGoBack) {
-      setCurrentStep(currentStep - 1)
+      setCurrentStep(currentStep - 1);
     }
-  }
+  };
 
   // Loading steps for progress indication
   const loadingSteps = [
-    { id: 0, title: "Processing your preferences", icon: Sparkles, duration: 2000 },
-    { id: 1, title: "Finding amazing destinations", icon: MapPin, duration: 3000 },
-    { id: 2, title: "Optimizing your travel dates", icon: Calendar, duration: 2500 },
-    { id: 3, title: "Crafting your perfect itinerary", icon: Plane, duration: 4000 },
-    { id: 4, title: "Adding final touches", icon: Check, duration: 1500 }
-  ]
+    {
+      id: 0,
+      title: "Processing your preferences",
+      icon: Sparkles,
+      duration: 2000,
+    },
+    {
+      id: 1,
+      title: "Finding amazing destinations",
+      icon: MapPin,
+      duration: 3000,
+    },
+    {
+      id: 2,
+      title: "Optimizing your travel dates",
+      icon: Calendar,
+      duration: 2500,
+    },
+    {
+      id: 3,
+      title: "Crafting your perfect itinerary",
+      icon: Plane,
+      duration: 4000,
+    },
+    { id: 4, title: "Adding final touches", icon: Check, duration: 1500 },
+  ];
 
-  // Handle form submission
+  // Handle form submission with enhanced error handling
   const handleSubmit = async () => {
-    if (!currentStepData.isValid) return
+    if (!currentStepData.isValid) return;
 
-    setIsSubmitting(true)
-    setSubmitError(null)
-    setCurrentLoadingStep(0)
+    setIsSubmitting(true);
+    errorManager.clearError();
+    setCurrentLoadingStep(0);
+
+    // Preserve form data before attempting submission
+    preserveFormData();
 
     // Simulate progress through loading steps
     const progressInterval = setInterval(() => {
-      setCurrentLoadingStep(prev => {
+      setCurrentLoadingStep((prev) => {
         if (prev < loadingSteps.length - 1) {
-          return prev + 1
+          return prev + 1;
         }
-        return prev
-      })
-    }, 2500) // Average step duration
+        return prev;
+      });
+    }, 2500); // Average step duration
 
     try {
-      // Validate complete form
+      // Additional safety check - this should already be validated by step validation
       if (!dateRange.startDate || !dateRange.endDate) {
-        throw new Error("Start and end dates are required")
+        // Don't throw a validation error immediately, instead gracefully handle it
+        console.error(
+          "Date validation failed during submission - this indicates a form state issue"
+        );
+        errorManager.clearError();
+        setCurrentStep(1); // Go back to date selection step
+        setIsSubmitting(false);
+        clearInterval(progressInterval);
+        return;
       }
 
       const formData: TripPlanningFormData = {
@@ -334,48 +641,106 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
         budget,
         interests,
         preferences,
-      }
+      };
+
+      // Create enhanced form data with user context for better AI personalization
+      const enhancedFormData = createEnhancedFormData(formData);
 
       // Calculate total budget based on range type
-      const totalTravelers = travelers.adults + travelers.children + travelers.infants
-      const totalBudget = budget.range === "per-person" 
-        ? budget.amount * totalTravelers 
-        : budget.amount
+      const totalTravelers =
+        travelers.adults + travelers.children + travelers.infants;
+      const totalBudget =
+        budget.range === "per-person"
+          ? budget.amount * totalTravelers
+          : budget.amount;
 
-      // Create trip via API
-      const response = await apiClient.createTrip({
+      
+      // Create trip via API with enhanced data
+      const response = (await apiClient.createTrip({
         title: `Trip to ${destination.destination}`,
         destination: destination.destination,
         startDate: dateRange.startDate!.toISOString(),
         endDate: dateRange.endDate!.toISOString(),
         budget: totalBudget,
+        currency: budget.currency, // Include user's selected currency
         travelers: totalTravelers,
         generateItinerary: true, // Enable itinerary generation
         interests,
-        accommodationType: preferences.accommodationType
-      }) as { trip: { id: string } }
+        accommodationType: preferences.accommodationType,
+        // Include user context and enhanced data for AI personalization
+        ...enhancedFormData.userContext,
+        preferences: enhancedFormData.preferences || preferences,
+      })) as { trip: { id: string } };
 
-      clearInterval(progressInterval)
+      clearInterval(progressInterval);
 
-      // Clear saved form data
-      localStorage.removeItem("trip-planning-form")
+      // Clear saved form data on success
+      localStorage.removeItem("trip-planning-form");
+      clearFormData();
 
       // Call completion handler or redirect to trip details
       if (onComplete) {
-        onComplete(formData)
+        onComplete(formData);
       } else {
         // Redirect to trip details without alert
-        router.push(`/trip/${response.trip.id}`)
+        router.push(`/trip/${response.trip.id}`);
       }
     } catch (error) {
-      clearInterval(progressInterval)
-      console.error("Trip creation failed:", error)
-      setSubmitError(error instanceof Error ? error.message : "Failed to create trip")
+      clearInterval(progressInterval);
+      console.error("Trip creation failed:", error);
+
+      // Determine context for better error categorization
+      let context = "trip_creation";
+      if (error instanceof Error) {
+        if (error.message.includes("destination")) context = "destination";
+        if (error.message.includes("date")) context = "dates";
+        if (error.message.includes("validation")) context = "validation";
+      }
+
+      // Show categorized error with form data preserved
+      errorManager.showError(
+        error instanceof Error ? error : "Failed to create trip",
+        context,
+        currentFormData
+      );
+      setRetryAttempts((prev) => prev + 1);
     } finally {
-      setIsSubmitting(false)
-      setCurrentLoadingStep(0)
+      setIsSubmitting(false);
+      setCurrentLoadingStep(0);
     }
-  }
+  };
+
+  // Set up retry handler for error manager
+  useEffect(() => {
+    errorManager.setRetryHandler(async () => {
+      await handleSubmit();
+    });
+  }, [currentFormData]);
+
+  // Handle error actions
+  const handleErrorAction = (action: any) => {
+    switch (action.type) {
+      case "retry":
+        handleSubmit();
+        break;
+      case "modify":
+        // Allow user to modify trip details
+        errorManager.dismissError();
+        break;
+      case "navigate":
+        if (action.url) {
+          router.push(action.url);
+        }
+        break;
+      case "contact":
+        // Could integrate with support system
+        console.log("Contact support requested");
+        break;
+      case "dismiss":
+        errorManager.dismissError();
+        break;
+    }
+  };
 
   return (
     <div className={cn("max-w-4xl mx-auto relative", className)}>
@@ -398,35 +763,41 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
             {/* Progress Steps */}
             <div className="space-y-4">
               {loadingSteps.map((step, index) => {
-                const Icon = step.icon
-                const isActive = index === currentLoadingStep
-                const isCompleted = index < currentLoadingStep
-                
+                const Icon = step.icon;
+                const isActive = index === currentLoadingStep;
+                const isCompleted = index < currentLoadingStep;
+
                 return (
                   <div key={step.id} className="flex items-center space-x-3">
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500",
-                      isCompleted
-                        ? "bg-green-100 text-green-600"
-                        : isActive
-                        ? "bg-blue-100 text-blue-600"
-                        : "bg-gray-100 text-gray-400"
-                    )}>
+                    <div
+                      className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500",
+                        isCompleted
+                          ? "bg-green-100 text-green-600"
+                          : isActive
+                          ? "bg-blue-100 text-blue-600"
+                          : "bg-gray-100 text-gray-400"
+                      )}
+                    >
                       {isCompleted ? (
                         <Check className="w-4 h-4" />
                       ) : (
-                        <Icon className={cn("w-4 h-4", isActive && "animate-pulse")} />
+                        <Icon
+                          className={cn("w-4 h-4", isActive && "animate-pulse")}
+                        />
                       )}
                     </div>
                     <div className="flex-1">
-                      <p className={cn(
-                        "text-sm font-medium transition-colors duration-300",
-                        isCompleted
-                          ? "text-green-600"
-                          : isActive
-                          ? "text-blue-600"
-                          : "text-gray-400"
-                      )}>
+                      <p
+                        className={cn(
+                          "text-sm font-medium transition-colors duration-300",
+                          isCompleted
+                            ? "text-green-600"
+                            : isActive
+                            ? "text-blue-600"
+                            : "text-gray-400"
+                        )}
+                      >
                         {step.title}
                       </p>
                     </div>
@@ -438,7 +809,7 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
                       </div>
                     )}
                   </div>
-                )
+                );
               })}
             </div>
 
@@ -446,19 +817,29 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
             <div className="mt-6">
               <div className="flex justify-between text-xs text-gray-500 mb-2">
                 <span>Progress</span>
-                <span>{Math.round(((currentLoadingStep + 1) / loadingSteps.length) * 100)}%</span>
+                <span>
+                  {Math.round(
+                    ((currentLoadingStep + 1) / loadingSteps.length) * 100
+                  )}
+                  %
+                </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${((currentLoadingStep + 1) / loadingSteps.length) * 100}%` }}
+                  style={{
+                    width: `${
+                      ((currentLoadingStep + 1) / loadingSteps.length) * 100
+                    }%`,
+                  }}
                 />
               </div>
             </div>
 
             <div className="mt-6 text-center">
               <p className="text-xs text-gray-500">
-                This may take a few moments while we create something amazing for you
+                This may take a few moments while we create something amazing
+                for you
               </p>
             </div>
           </div>
@@ -525,37 +906,60 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             {currentStepData.title}
           </h2>
-          <p className="text-gray-600">
-            {currentStepData.description}
-          </p>
-        </div>
+          <p className="text-gray-600">{currentStepData.description}</p>
 
-        <div className="mb-8">
-          {currentStepData.component}
-        </div>
-
-        {/* Error display */}
-        {!currentStepData.isValid && currentStepData.isComplete && (
-          <div className="mb-6 p-4 border border-red-200 bg-red-50 rounded-lg">
-            <div className="text-red-800 text-sm">
-              Please fix the following issues:
-              <ul className="list-disc list-inside mt-2">
-                {getStepValidation(currentStep).errors?.map((error, index) => (
-                  <li key={index}>{error.message}</li>
-                ))}
-              </ul>
+          {/* User preferences indicator */}
+          {hasPreferences && preferencesApplied && currentStep >= 2 && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2 text-blue-800 text-sm">
+                <Check className="h-4 w-4" />
+                <span className="font-medium">Smart defaults applied</span>
+              </div>
+              <p className="text-blue-700 text-xs mt-1">
+                We've pre-filled some options based on your preferences. You can
+                modify them anytime.
+              </p>
             </div>
+          )}
+        </div>
+
+        <div className="mb-8">{currentStepData.component}</div>
+
+        {/* Enhanced Error Display */}
+        {errorManager.errorState.isVisible && errorManager.errorState.error && (
+          <div className="mb-6">
+            <ErrorDisplay
+              error={errorManager.errorState.error}
+              onAction={handleErrorAction}
+              onDismiss={
+                errorManager.errorState.isDismissible
+                  ? errorManager.dismissError
+                  : undefined
+              }
+              showTechnicalDetails={retryAttempts >= 2}
+            />
           </div>
         )}
 
-        {/* Submit error */}
-        {submitError && (
-          <div className="mb-6 p-4 border border-red-200 bg-red-50 rounded-lg">
-            <div className="text-red-800 text-sm">
-              {submitError}
+        {/* Step validation errors */}
+        {!currentStepData.isValid &&
+          currentStepData.isComplete &&
+          !errorManager.errorState.isVisible && (
+            <div className="mb-6 p-4 border border-blue-200 bg-blue-50 rounded-lg">
+              <div className="text-blue-800 text-sm">
+                <div className="font-medium mb-2">
+                  Please complete these details:
+                </div>
+                <ul className="list-disc list-inside space-y-1">
+                  {getStepValidation(currentStep).errors?.map(
+                    (error, index) => (
+                      <li key={index}>{error.message}</li>
+                    )
+                  )}
+                </ul>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Navigation buttons */}
         <div className="flex items-center justify-between">
@@ -617,5 +1021,5 @@ export function TripPlanningForm({ onComplete, className }: TripPlanningFormProp
         </div>
       </div>
     </div>
-  )
+  );
 }

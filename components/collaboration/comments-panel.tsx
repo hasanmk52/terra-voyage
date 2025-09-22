@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -12,9 +12,6 @@ import {
   MessageSquare,
   Send,
   Reply,
-  MoreVertical,
-  Edit2,
-  Trash2,
   Clock
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -39,7 +36,6 @@ export function CommentsPanel({
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
-  const [editingComment, setEditingComment] = useState<string | null>(null)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
 
   const commentsEndRef = useRef<HTMLDivElement>(null)
@@ -80,7 +76,7 @@ export function CommentsPanel({
   })
 
   // Fetch comments
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       const params = new URLSearchParams()
       if (activityId) {
@@ -99,11 +95,11 @@ export function CommentsPanel({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [tripId, activityId])
 
   useEffect(() => {
     fetchComments()
-  }, [tripId, activityId])
+  }, [tripId, activityId, fetchComments])
 
   // Scroll to bottom when new comments are added
   useEffect(() => {
@@ -146,24 +142,25 @@ export function CommentsPanel({
     form.setValue('content', '')
   }
 
-  const handleEdit = (comment: CommentData) => {
-    setEditingComment(comment.id)
-    form.setValue('content', comment.content)
-  }
+  // TODO: Implement edit and delete functionality
+  // const handleEdit = (comment: CommentData) => {
+  //   setEditingComment(comment.id)
+  //   form.setValue('content', comment.content)
+  // }
 
-  const handleDelete = async (commentId: string) => {
-    try {
-      const response = await fetch(`/api/comments?commentId=${commentId}`, {
-        method: 'DELETE'
-      })
+  // const handleDelete = async (commentId: string) => {
+  //   try {
+  //     const response = await fetch(`/api/comments?commentId=${commentId}`, {
+  //       method: 'DELETE'
+  //     })
       
-      if (response.ok) {
-        fetchComments()
-      }
-    } catch (error) {
-      console.error('Failed to delete comment:', error)
-    }
-  }
+  //     if (response.ok) {
+  //       fetchComments()
+  //     }
+  //   } catch (error) {
+  //     console.error('Failed to delete comment:', error)
+  //   }
+  // }
 
   const formatTimestamp = (date: Date) => {
     const now = new Date()
@@ -371,7 +368,7 @@ export function CommentsPanel({
       {!canComment && (
         <div className="text-center py-4 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-500">
-            You don't have permission to comment on this trip
+            You don&apos;t have permission to comment on this trip
           </p>
         </div>
       )}

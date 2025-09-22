@@ -18,13 +18,14 @@ import {
   DollarSign, 
   ArrowLeft,
   Cloud,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import { TripStatus } from '@prisma/client'
 
 // Helper function to transform API days data to UI format
-function transformApiDaysToUiFormat(apiDays: any[]): Day[] {
+function transformApiDaysToUiFormat(apiDays: any[], tripCurrency: string = 'USD'): Day[] {
   return apiDays.map(day => ({
     day: day.dayNumber,
     date: day.date,
@@ -46,7 +47,7 @@ function transformApiDaysToUiFormat(apiDays: any[]): Day[] {
       type: activity.type?.toLowerCase() || 'attraction',
       price: {
         amount: activity.price || 0,
-        currency: activity.currency || 'USD'
+        currency: activity.currency || tripCurrency
       },
       isBooked: activity.bookingStatus === 'CONFIRMED',
       notes: activity.notes || '',
@@ -54,7 +55,7 @@ function transformApiDaysToUiFormat(apiDays: any[]): Day[] {
       timeSlot: activity.timeSlot || 'morning',
       pricing: {
         amount: activity.price || 0,
-        currency: activity.currency || 'USD',
+        currency: activity.currency || tripCurrency,
         priceType: activity.priceType || 'per_person'
       },
       tips: Array.isArray(activity.tips) ? activity.tips : [],
@@ -69,7 +70,7 @@ function transformApiDaysToUiFormat(apiDays: any[]): Day[] {
 }
 
 // Helper function to generate mock itinerary based on destination and dates
-function generateMockItinerary(destination: string, startDate: string, endDate: string, baseCoords?: { lat: number; lng: number }): Day[] {
+function generateMockItinerary(destination: string, startDate: string, endDate: string, currency: string = 'USD', baseCoords?: { lat: number; lng: number }): Day[] {
   const start = new Date(startDate)
   const end = new Date(endDate)
   const dayCount = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
@@ -87,7 +88,7 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
       day: i + 1,
       date: currentDate.toISOString().split('T')[0],
       transportation: { primaryMethod: 'walking' as const, estimatedCost: 0, notes: '' },
-      dailyBudget: { amount: 100, currency: 'USD' },
+      dailyBudget: { amount: 100, currency: currency },
       theme: `Day ${i + 1} in ${destination}`,
       activities: [
         {
@@ -105,7 +106,7 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
           type: i === 0 ? "accommodation" : "attraction",
           pricing: {
             amount: 0,
-            currency: "USD",
+            currency: currency,
             priceType: "free" as const
           },
           notes: `Generated activity for ${destination}`,
@@ -134,7 +135,7 @@ function generateMockItinerary(destination: string, startDate: string, endDate: 
           type: "restaurant",
           pricing: {
             amount: 35,
-            currency: "USD",
+            currency: currency,
             priceType: "per_person" as const
           },
           notes: "Local cuisine experience",
@@ -218,11 +219,11 @@ export default function TripDetailsPage() {
               },
               budget: {
                 amount: data.trip.budget || 2000,
-                currency: "USD"
+                currency: data.trip.currency || "USD"
               },
               // Use REAL itinerary data from API if available, otherwise fallback to generated mock
               days: data.trip.days && data.trip.days.length > 0 
-                ? transformApiDaysToUiFormat(data.trip.days)
+                ? transformApiDaysToUiFormat(data.trip.days, data.trip.currency || 'USD')
                 : data.trip.itineraryData && data.trip.itineraryData.rawData?.itinerary?.days
                 ? transformApiDaysToUiFormat(data.trip.itineraryData.rawData.itinerary.days.map((day: any, index: number) => ({
                     dayNumber: day.day || (index + 1),
@@ -231,8 +232,8 @@ export default function TripDetailsPage() {
                     transportation: day.transportation,
                     dailyBudget: day.dailyBudget,
                     activities: day.activities || []
-                  })))
-                : generateMockItinerary(data.trip.destination, data.trip.startDate, data.trip.endDate, data.trip.destinationCoords),
+                  })), data.trip.currency || 'USD')
+                : generateMockItinerary(data.trip.destination, data.trip.startDate, data.trip.endDate, data.trip.currency || 'USD', data.trip.destinationCoords),
               status: data.trip.status || "PLANNED"
             }
             
@@ -241,199 +242,23 @@ export default function TripDetailsPage() {
             return
           }
         } catch (apiError) {
-          // API fetch failed, falling back to mock data
-        }
-        
-        // Fallback to mock data
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        // Mock trip data
-        const mockTrip: TripData = {
-          id: tripId,
-          title: "Amazing Paris Adventure",
-          destination: {
-            name: "Paris, France",
-            coordinates: { lat: 48.8566, lng: 2.3522 }
-          },
-          startDate: "2025-08-15",
-          endDate: "2025-08-20",
-          travelers: {
-            adults: 2,
-            children: 0,
-            infants: 0
-          },
-          budget: {
-            amount: 2500,
-            currency: "USD"
-          },
-          days: [
-            {
-              day: 1,
-              date: "2025-08-15",
-              theme: "Arrival and city exploration",
-              dailyBudget: { amount: 150, currency: "USD" },
-              transportation: { primaryMethod: "walking" as const, estimatedCost: 0, notes: "City walking tour" },
-              activities: [
-                {
-                  id: "activity-1",
-                  name: "Arrive at Charles de Gaulle Airport",
-                  description: "Flight arrival and transfer to hotel",
-                  location: {
-                    name: "Charles de Gaulle Airport",
-                    address: "95700 Roissy-en-France, France",
-                    coordinates: { lat: 49.0097, lng: 2.5479 }
-                  },
-                  startTime: "09:00",
-                  endTime: "11:00",
-                  duration: "120 minutes",
-                  type: "transportation",
-                  timeSlot: "morning",
-                  pricing: { amount: 0, currency: "USD", priceType: "free" },
-                  tips: ["Check flight status online", "Arrive early for customs"],
-                  bookingRequired: false,
-                  accessibility: {
-                    wheelchairAccessible: true,
-                    hasElevator: true,
-                    notes: "Wheelchair accessible"
-                  },
-                  bookingUrl: undefined,
-                },
-                {
-                  id: "activity-2", 
-                  name: "Check-in at Hotel",
-                  description: "Hotel check-in and rest",
-                  location: {
-                    name: "Hotel des Grands Boulevards",
-                    address: "17 Boulevard Poissonnière, 75002 Paris, France",
-                    coordinates: { lat: 48.8708, lng: 2.3439 }
-                  },
-                  startTime: "14:00",
-                  endTime: "15:00",
-                  duration: "60 minutes",
-                  type: "accommodation",
-                  timeSlot: "afternoon",
-                  pricing: { amount: 150, currency: "USD", priceType: "per_group" },
-                  tips: ["Request early check-in", "Ask for room upgrade"],
-                  bookingRequired: true,
-                  accessibility: {
-                    wheelchairAccessible: true,
-                    hasElevator: true,
-                    notes: "Accessible rooms available"
-                  },
-                  bookingUrl: undefined,
-                },
-                {
-                  id: "activity-3",
-                  name: "Evening Stroll along Seine",
-                  description: "Romantic walk along the Seine River",
-                  location: {
-                    name: "Seine River",
-                    address: "Seine River, Paris, France",
-                    coordinates: { lat: 48.8566, lng: 2.3522 }
-                  },
-                  startTime: "18:00",
-                  endTime: "20:00", 
-                  duration: "120 minutes",
-                  type: "attraction",
-                  timeSlot: "evening",
-                  pricing: { amount: 0, currency: "USD", priceType: "free" },
-                  tips: ["Perfect for sunset photos", "Bring a jacket"],
-                  bookingRequired: false,
-                  accessibility: {
-                    wheelchairAccessible: true,
-                    hasElevator: false,
-                    notes: "Some areas may be difficult to access"
-                  },
-                  bookingUrl: undefined,
-                }
-              ]
-            },
-            {
-              day: 2,
-              date: "2025-08-16",
-              theme: "Museums and culture",
-              dailyBudget: { amount: 120, currency: "USD" },
-              transportation: { primaryMethod: "public" as const, estimatedCost: 10, notes: "Metro day pass" },
-              activities: [
-                {
-                  id: "activity-4",
-                  name: "Visit the Louvre Museum",
-                  description: "Explore the world's largest art museum",
-                  location: {
-                    name: "Louvre Museum",
-                    address: "Rue de Rivoli, 75001 Paris, France",
-                    coordinates: { lat: 48.8606, lng: 2.3376 }
-                  },
-                  startTime: "09:00",
-                  endTime: "13:00",
-                  duration: "240 minutes",
-                  type: "attraction",
-                  timeSlot: "morning",
-                  pricing: { amount: 17, currency: "USD", priceType: "per_person" },
-                  tips: ["Book tickets online", "Visit Mona Lisa early", "Allow 4+ hours"],
-                  bookingRequired: true,
-                  accessibility: {
-                    wheelchairAccessible: true,
-                    hasElevator: true,
-                    notes: "Fully accessible with ramps and lifts"
-                  },
-                  bookingUrl: undefined,
-                },
-                {
-                  id: "activity-5",
-                  name: "Lunch at Café de Flore",
-                  description: "Historic café in Saint-Germain",
-                  location: {
-                    name: "Café de Flore",
-                    address: "172 Boulevard Saint-Germain, 75006 Paris, France",
-                    coordinates: { lat: 48.8542, lng: 2.3320 }
-                  },
-                  startTime: "13:30",
-                  endTime: "15:00",
-                  duration: "90 minutes",
-                  type: "restaurant",
-                  timeSlot: "afternoon",
-                  pricing: { amount: 45, currency: "USD", priceType: "per_person" },
-                  tips: ["Famous for literary history", "Try the hot chocolate", "Can be crowded"],
-                  bookingRequired: false,
-                  accessibility: {
-                    wheelchairAccessible: false,
-                    hasElevator: false,
-                    notes: "Historic café with steps"
-                  },
-                  bookingUrl: undefined,
-                },
-                {
-                  id: "activity-6",
-                  name: "Climb the Eiffel Tower",
-                  description: "Iconic tower with panoramic city views",
-                  location: {
-                    name: "Eiffel Tower",
-                    address: "Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France",
-                    coordinates: { lat: 48.8584, lng: 2.2945 }
-                  },
-                  startTime: "16:00",
-                  endTime: "18:00",
-                  duration: "120 minutes",
-                  type: "attraction",
-                  timeSlot: "afternoon",
-                  pricing: { amount: 25, currency: "USD", priceType: "per_person" },
-                  tips: ["Best views at sunset", "Book skip-the-line tickets", "Bring a camera"],
-                  bookingRequired: true,
-                  accessibility: {
-                    wheelchairAccessible: true,
-                    hasElevator: true,
-                    notes: "Elevator access to 2nd floor only"
-                  },
-                  bookingUrl: undefined,
-                }
-              ]
+          console.error('Failed to load trip from API:', apiError)
+          
+          // Set user-friendly error message based on the error type
+          if (apiError instanceof Error) {
+            if (apiError.message.includes('404') || apiError.message.includes('not found')) {
+              setError('Trip not found. This trip may have been deleted or the link is incorrect.')
+            } else if (apiError.message.includes('timeout') || apiError.message.includes('network')) {
+              setError('Unable to connect to our servers. Please check your internet connection and try again.')
+            } else if (apiError.message.includes('AI') || apiError.message.includes('generation')) {
+              setError('Your trip is being processed. Please try refreshing in a few moments.')
+            } else {
+              setError('We encountered an issue loading your trip. Please try again or contact support if the problem persists.')
             }
-          ],
-          status: "planned"
+          } else {
+            setError('We encountered an unexpected issue. Please try again or contact support.')
+          }
         }
-        
-        setTrip(mockTrip)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load trip')
       } finally {
@@ -473,10 +298,78 @@ export default function TripDetailsPage() {
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="text-red-600 mb-4">{error || 'Trip not found'}</p>
-            <Button asChild>
-              <Link href="/plan">Plan a New Trip</Link>
-            </Button>
+            <div className="max-w-md mx-auto">
+              <div className="mb-6">
+                {error?.includes('not found') ? (
+                  <div className="text-red-500 mb-4">
+                    <MapPin className="h-12 w-12 mx-auto mb-3" />
+                    <h2 className="text-xl font-semibold mb-2">Trip Not Found</h2>
+                  </div>
+                ) : error?.includes('processed') ? (
+                  <div className="text-yellow-500 mb-4">
+                    <RefreshCw className="h-12 w-12 mx-auto mb-3" />
+                    <h2 className="text-xl font-semibold mb-2">Trip Being Generated</h2>
+                  </div>
+                ) : error?.includes('connection') || error?.includes('network') ? (
+                  <div className="text-orange-500 mb-4">
+                    <Cloud className="h-12 w-12 mx-auto mb-3" />
+                    <h2 className="text-xl font-semibold mb-2">Connection Issue</h2>
+                  </div>
+                ) : (
+                  <div className="text-red-500 mb-4">
+                    <AlertCircle className="h-12 w-12 mx-auto mb-3" />
+                    <h2 className="text-xl font-semibold mb-2">Something Went Wrong</h2>
+                  </div>
+                )}
+              </div>
+              
+              <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+                {error || 'We couldn\'t load your trip details. Please try again or create a new trip.'}
+              </p>
+              
+              <div className="space-y-3">
+                {error?.includes('processed') ? (
+                  <Button 
+                    onClick={() => window.location.reload()} 
+                    className="w-full flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh Page
+                  </Button>
+                ) : error?.includes('connection') || error?.includes('network') ? (
+                  <>
+                    <Button 
+                      onClick={() => window.location.reload()} 
+                      className="w-full flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Try Again
+                    </Button>
+                    <Button variant="outline" asChild className="w-full">
+                      <Link href="/plan" className="flex items-center justify-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Plan a New Trip
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button asChild className="w-full">
+                      <Link href="/plan" className="flex items-center justify-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Plan a New Trip
+                      </Link>
+                    </Button>
+                    <Button variant="outline" asChild className="w-full">
+                      <Link href="/" className="flex items-center justify-center gap-2">
+                        <ArrowLeft className="h-4 w-4" />
+                        Back to Home
+                      </Link>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

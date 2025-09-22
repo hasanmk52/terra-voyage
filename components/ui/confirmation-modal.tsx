@@ -198,12 +198,13 @@ export function useConfirmationModal() {
       setIsLoading(true)
       try {
         await onConfirmCallback()
+        // Close modal first, then allow state updates
         setIsOpen(false)
+        setIsLoading(false)
       } catch (error) {
         console.error('Confirmation action failed:', error)
-        // Keep modal open on error
-      } finally {
         setIsLoading(false)
+        // Keep modal open on error
       }
     }
   }

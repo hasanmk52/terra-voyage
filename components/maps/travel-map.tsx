@@ -6,6 +6,10 @@ import { MAPBOX_CONFIG, calculateBounds, getDayColor, getMarkerColor } from '@/l
 import { Activity, Day } from '@/lib/itinerary-validation'
 import { MapControls } from './map-controls'
 import { ActivityPopup } from './activity-popup'
+import { MapErrorDisplay, MapLoadingDisplay, OfflineIndicator } from './map-error-display'
+import { MapFallbackOptions } from './map-fallback-options'
+import { MapErrorHandler, type MapError, type MapLoadingState } from '@/lib/map-error-handler'
+import { MapOfflineStorage } from '@/lib/map-offline-storage'
 import { mapClustering, type MapPoint, type ActivityPoint, type ClusterPoint } from '@/lib/map-clustering'
 
 // Import Mapbox CSS
@@ -26,6 +30,9 @@ interface TravelMapProps {
   onToggleRoutes?: (show: boolean) => void
   lazy?: boolean
   enableClustering?: boolean
+  enableOfflineMode?: boolean
+  fallbackEnabled?: boolean
+  performanceMode?: 'standard' | 'optimized' | 'low-data'
 }
 
 export function TravelMap({
@@ -42,7 +49,10 @@ export function TravelMap({
   onMapStyleChange,
   onToggleRoutes,
   lazy = false,
-  enableClustering: enableClusteringProp = true
+  enableClustering: enableClusteringProp = true,
+  enableOfflineMode = true,
+  fallbackEnabled = true,
+  performanceMode = 'standard'
 }: TravelMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
@@ -53,6 +63,81 @@ export function TravelMap({
   const [enableClustering, setEnableClustering] = useState(enableClusteringProp)
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const [isIntersecting, setIsIntersecting] = useState(!lazy)
+  
+  // Error handling and offline state
+  const [loadingState, setLoadingState] = useState<MapLoadingState>({
+    isLoading: false,
+    error: null,
+    retryCount: 0
+  })
+  const [isOffline, setIsOffline] = useState(false)
+  const [offlineCoverage, setOfflineCoverage] = useState<number>(0)
+  const [showFallback, setShowFallback] = useState(false)
+  const [offlineStorage] = useState(() => new MapOfflineStorage())
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Initialize offline storage
+  useEffect(() => {
+    if (enableOfflineMode && offlineStorage.isOfflineSupported()) {
+      offlineStorage.initialize().catch(error => {
+        console.warn('Failed to initialize offline storage:', error)
+      })
+    }
+  }, [enableOfflineMode, offlineStorage])
+
+  // Retry mechanism with error handling
+  const retryMapOperation = useCallback(async () => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current)
+      retryTimeoutRef.current = null
+    }
+
+    const retryFunction = MapErrorHandler.createRetryFunction(
+      async () => {
+        // Clear previous error state
+        setLoadingState(prev => ({ ...prev, error: null, isLoading: true }))
+        
+        // Attempt to reinitialize map
+        if (map.current) {
+          map.current.remove()
+          map.current = null
+        }
+        
+        setIsMapLoaded(false)
+        
+        // Trigger map reinitialization
+        setTimeout(() => {
+          if (mapContainer.current && isIntersecting) {
+            initializeMap()
+          }
+        }, 100)
+        
+        return Promise.resolve()
+      },
+      { maxRetries: 3, retryDelay: 1000, exponentialBackoff: true }
+    )
+
+    try {
+      await retryFunction(setLoadingState)
+    } catch (error) {
+      console.error('Map retry failed:', error)
+    }
+  }, [isIntersecting])
+
+  // Enhanced coordinate validation
+  const validateAndFilterCoordinates = useCallback((activities: Activity[]) => {
+    return activities.filter(activity => {
+      const { lat, lng } = activity.location.coordinates
+      const validation = MapErrorHandler.validateCoordinates(lat, lng)
+      
+      if (!validation.valid) {
+        console.warn(`Invalid coordinates for activity "${activity.name}": ${validation.error}`)
+        return false
+      }
+      
+      return true
+    })
+  }, [])
 
   // Intersection Observer for lazy loading
   useEffect(() => {
@@ -73,59 +158,86 @@ export function TravelMap({
     return () => observer.disconnect()
   }, [lazy])
 
-  // Initialize map
-  useEffect(() => {
-    if (!mapContainer.current || map.current || !isIntersecting) return
+  // Initialize map with error handling
+  const initializeMap = useCallback(async () => {
+    if (!mapContainer.current || map.current) return
 
-    // Validate and set Mapbox access token
-    if (MAPBOX_CONFIG.ACCESS_TOKEN === "mock-mapbox-token") {
-      console.log('🗺️ Using mock map data (no valid Mapbox token provided)')
-    } else if (!MAPBOX_CONFIG.ACCESS_TOKEN.startsWith('pk.')) {
-      console.error('❌ Invalid Mapbox token: Client-side apps need PUBLIC tokens (pk.*), not secret tokens (sk.*)')
-      return
-    }
-    
-    mapboxgl.accessToken = MAPBOX_CONFIG.ACCESS_TOKEN
+    try {
+      setLoadingState({ isLoading: true, error: null, retryCount: 0 })
 
-    // Calculate initial center from activities, trip destination, or default
-    const getInitialCenter = (): [number, number] => {
-      // First try to use valid activity coordinates
-      if (days.length > 0) {
-        const allCoords = days.flatMap(day => 
-          day.activities
-            .filter(activity => {
-              const lat = activity.location.coordinates.lat
-              const lng = activity.location.coordinates.lng
-              return lat !== 0 || lng !== 0 // Filter out invalid coordinates
-            })
-            .map(activity => [activity.location.coordinates.lng, activity.location.coordinates.lat] as [number, number])
-        )
-        
-        if (allCoords.length > 0) {
-          console.log('🗺️ Map centering on activity coordinates:', allCoords[0])
-          return allCoords[0]
+      // Validate Mapbox token
+      if (MAPBOX_CONFIG.ACCESS_TOKEN === "mock-mapbox-token") {
+        throw new Error('Mapbox access token not configured. Please set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN environment variable.')
+      } else if (!MAPBOX_CONFIG.ACCESS_TOKEN.startsWith('pk.')) {
+        throw new Error('Invalid Mapbox token: Client-side apps need PUBLIC tokens (pk.*), not secret tokens (sk.*)')
+      }
+      
+      mapboxgl.accessToken = MAPBOX_CONFIG.ACCESS_TOKEN
+
+      // Check network connectivity for better error reporting
+      const isConnected = await MapErrorHandler.checkNetworkConnectivity()
+      if (!isConnected && !isOffline) {
+        console.warn('Network connectivity issues detected')
+      }
+
+      // Calculate initial center with enhanced validation
+      const getInitialCenter = (): [number, number] => {
+        // First try to use valid activity coordinates
+        if (days.length > 0) {
+          const validActivities = days.flatMap(day => 
+            validateAndFilterCoordinates(day.activities)
+          )
+          
+          if (validActivities.length > 0) {
+            const firstCoord = validActivities[0].location.coordinates
+            console.log('🗺️ Map centering on validated activity coordinates:', [firstCoord.lng, firstCoord.lat])
+            return [firstCoord.lng, firstCoord.lat]
+          }
         }
+
+        // If no valid activity coordinates, use trip destination coordinates
+        if (destinationCoords) {
+          const validation = MapErrorHandler.validateCoordinates(destinationCoords.lat, destinationCoords.lng)
+          if (validation.valid) {
+            console.log('🗺️ Map centering on trip destination coordinates:', [destinationCoords.lng, destinationCoords.lat])
+            return [destinationCoords.lng, destinationCoords.lat]
+          }
+        }
+
+        // Last resort: use default center
+        console.log('🗺️ Map using default center (Paris) - no valid coordinates found')
+        return MAPBOX_CONFIG.DEFAULT_CENTER
       }
 
-      // If no valid activity coordinates, use trip destination coordinates
-      if (destinationCoords && destinationCoords.lat !== 0 && destinationCoords.lng !== 0) {
-        console.log('🗺️ Map centering on trip destination coordinates:', [destinationCoords.lng, destinationCoords.lat])
-        return [destinationCoords.lng, destinationCoords.lat]
-      }
+      // Create map instance with error handling
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: MAPBOX_CONFIG.STYLES[mapStyle],
+        center: getInitialCenter(),
+        zoom: MAPBOX_CONFIG.DEFAULT_ZOOM,
+        attributionControl: false,
+        performanceMetricsCollection: performanceMode === 'optimized'
+      })
 
-      // Last resort: use default center
-      console.log('🗺️ Map using default center (Paris) - no valid coordinates found')
-      return MAPBOX_CONFIG.DEFAULT_CENTER
-    }
+      // Map error event handlers
+      map.current.on('error', (e) => {
+        console.error('Mapbox GL error:', e.error)
+        const mapError = MapErrorHandler.parseMapboxError(e.error)
+        setLoadingState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: mapError
+        }))
+      })
 
-    // Create map instance
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: MAPBOX_CONFIG.STYLES[mapStyle],
-      center: getInitialCenter(),
-      zoom: MAPBOX_CONFIG.DEFAULT_ZOOM,
-      attributionControl: false
-    })
+      // Map style error handler
+      map.current.on('style.load', () => {
+        console.log('Map style loaded successfully')
+      })
+
+      map.current.on('styleimagemissing', (e) => {
+        console.warn('Missing style image:', e.id)
+      })
 
     // Add navigation controls
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right')
@@ -156,18 +268,63 @@ export function TravelMap({
       }, 100)
     })
 
-    // Mark map as loaded
-    map.current.on('load', () => {
-      setIsMapLoaded(true)
-    })
+      // Mark map as loaded and check offline availability
+      map.current.on('load', async () => {
+        console.log('Map loaded successfully')
+        setIsMapLoaded(true)
+        setLoadingState({ isLoading: false, error: null, retryCount: 0 })
+
+        // Check offline coverage if enabled
+        if (enableOfflineMode && offlineStorage.isOfflineSupported()) {
+          try {
+            const bounds = map.current!.getBounds()
+            const availability = await offlineStorage.checkOfflineAvailability(
+              {
+                north: bounds.getNorth(),
+                south: bounds.getSouth(),
+                east: bounds.getEast(),
+                west: bounds.getWest()
+              },
+              Math.floor(currentZoom)
+            )
+            setOfflineCoverage(availability.coverage)
+          } catch (error) {
+            console.warn('Failed to check offline availability:', error)
+          }
+        }
+      })
+
+      // Performance optimization based on mode
+      if (performanceMode === 'low-data') {
+        map.current.setRenderWorldCopies(false)
+      }
+
+    } catch (error) {
+      console.error('Failed to initialize map:', error)
+      const mapError = MapErrorHandler.parseMapboxError(error)
+      setLoadingState({
+        isLoading: false,
+        error: mapError,
+        retryCount: 0
+      })
+    }
+  }, [mapStyle, isIntersecting, validateAndFilterCoordinates, destinationCoords, days, currentZoom, enableOfflineMode, offlineStorage, performanceMode])
+
+  // Initialize map effect
+  useEffect(() => {
+    if (!mapContainer.current || map.current || !isIntersecting) return
+    initializeMap()
 
     return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current)
+      }
       if (map.current) {
         map.current.remove()
         map.current = null
       }
     }
-  }, [mapStyle, isIntersecting])
+  }, [initializeMap, isIntersecting])
 
   // Clear existing markers
   const clearMarkers = useCallback(() => {
@@ -249,33 +406,24 @@ export function TravelMap({
     return el
   }, [])
 
-  // Add markers for activities
+  // Add markers for activities with enhanced validation
   const addMarkers = useCallback(() => {
     if (!map.current) return
 
     clearMarkers()
 
     const allCoordinates: [number, number][] = []
+    let invalidCoordinatesCount = 0
 
     days.forEach((day, dayIndex) => {
       // Skip if selectedDay is set and this isn't the selected day
       if (selectedDay !== undefined && selectedDay !== day.day) return
 
-      day.activities.forEach(activity => {
-        // Validate coordinates for security
-        const lat = activity.location.coordinates.lat;
-        const lng = activity.location.coordinates.lng;
-        
-        if (
-          typeof lat !== 'number' || typeof lng !== 'number' ||
-          isNaN(lat) || isNaN(lng) ||
-          lat < -90 || lat > 90 || lng < -180 || lng > 180 ||
-          (lat === 0 && lng === 0)
-        ) {
-          console.warn('Invalid or suspicious coordinates detected, skipping activity');
-          return; // Skip invalid/suspicious coordinates
-        }
+      // Use enhanced coordinate validation
+      const validActivities = validateAndFilterCoordinates(day.activities)
+      invalidCoordinatesCount += day.activities.length - validActivities.length
 
+      validActivities.forEach(activity => {
         const coordinates: [number, number] = [
           activity.location.coordinates.lng,
           activity.location.coordinates.lat
@@ -310,6 +458,11 @@ export function TravelMap({
       })
     })
 
+    // Log coordinate validation results
+    if (invalidCoordinatesCount > 0) {
+      console.warn(`${invalidCoordinatesCount} activities skipped due to invalid coordinates`)
+    }
+
     // Fit map to show all markers
     if (allCoordinates.length > 0) {
       const bounds = calculateBounds(allCoordinates)
@@ -317,8 +470,25 @@ export function TravelMap({
         padding: 50,
         maxZoom: 15
       })
+    } else if (invalidCoordinatesCount > 0) {
+      // If all coordinates were invalid, show fallback
+      if (fallbackEnabled) {
+        setShowFallback(true)
+      }
     }
-  }, [days, selectedDay, createMarkerElement, onActivitySelect, clearMarkers])
+
+    // Preload tiles for offline use if enabled
+    if (enableOfflineMode && allCoordinates.length > 0 && offlineStorage.isOfflineSupported()) {
+      const center = allCoordinates[0]
+      offlineStorage.preloadArea(
+        { lat: center[1], lng: center[0] },
+        currentZoom,
+        1
+      ).catch(error => {
+        console.warn('Failed to preload tiles:', error)
+      })
+    }
+  }, [days, selectedDay, createMarkerElement, onActivitySelect, clearMarkers, validateAndFilterCoordinates, fallbackEnabled, enableOfflineMode, offlineStorage, currentZoom])
 
   // Update markers with clustering
   const updateMarkersWithClustering = useCallback(() => {
@@ -418,23 +588,11 @@ export function TravelMap({
       // Skip if selectedDay is set and this isn't the selected day
       if (selectedDay !== undefined && selectedDay !== day.day) return
 
-      const coordinates = day.activities
-        .filter(activity => {
-          const lat = activity.location.coordinates.lat;
-          const lng = activity.location.coordinates.lng;
-          
-          // Validate coordinates for security
-          return (
-            typeof lat === 'number' && typeof lng === 'number' &&
-            !isNaN(lat) && !isNaN(lng) &&
-            lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 &&
-            !(lat === 0 && lng === 0)
-          );
-        })
-        .map(activity => [
-          activity.location.coordinates.lng,
-          activity.location.coordinates.lat
-        ] as [number, number])
+      const validActivities = validateAndFilterCoordinates(day.activities)
+      const coordinates = validActivities.map(activity => [
+        activity.location.coordinates.lng,
+        activity.location.coordinates.lat
+      ] as [number, number])
 
       if (coordinates.length < 2) return
 
@@ -534,36 +692,45 @@ export function TravelMap({
     }
   }, [])
 
-  // Check for invalid Mapbox token
-  const hasInvalidToken = MAPBOX_CONFIG.ACCESS_TOKEN !== "mock-mapbox-token" && 
-                         !MAPBOX_CONFIG.ACCESS_TOKEN.startsWith('pk.')
-  
-  if (hasInvalidToken) {
+  // Prepare coordinates for fallback options
+  const fallbackCoordinates = days.flatMap(day => 
+    validateAndFilterCoordinates(day.activities).map(activity => ({
+      lat: activity.location.coordinates.lat,
+      lng: activity.location.coordinates.lng,
+      name: activity.name,
+      type: activity.type
+    }))
+  )
+
+  // Handle errors with fallback options
+  if (loadingState.error) {
     return (
       <div className={`relative w-full h-full ${className}`}>
-        <div className="absolute inset-0 bg-red-50 rounded-lg flex items-center justify-center">
-          <div className="text-center p-6 max-w-md">
-            <div className="w-16 h-16 bg-red-100 rounded-lg mb-4 mx-auto flex items-center justify-center">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 19c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-            </div>
-            <h3 className="font-semibold text-red-900 mb-2">Invalid Mapbox Token</h3>
-            <p className="text-sm text-red-700 mb-4">
-              Mapbox GL JS requires a <strong>public access token</strong> (starts with 'pk.'), 
-              not a secret token (starts with 'sk.').
-            </p>
-            <div className="text-xs text-red-600 bg-red-100 p-3 rounded-lg">
-              <p className="font-medium mb-1">To fix this:</p>
-              <p>1. Get a public token from <br/>
-                 <a href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener noreferrer" className="underline">
-                   account.mapbox.com/access-tokens
-                 </a>
-              </p>
-              <p>2. Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="pk.your-token"</p>
-            </div>
-          </div>
-        </div>
+        <MapErrorDisplay
+          error={loadingState.error}
+          loadingState={loadingState}
+          onRetry={retryMapOperation}
+          onFallback={(type) => {
+            if (type === 'static' || type === 'external' || type === 'coordinates') {
+              setShowFallback(true)
+            }
+          }}
+          coordinates={fallbackCoordinates}
+          className="h-full"
+        />
+      </div>
+    )
+  }
+
+  // Show fallback options
+  if (showFallback && fallbackEnabled) {
+    return (
+      <div className={`relative w-full h-full ${className}`}>
+        <MapFallbackOptions
+          coordinates={fallbackCoordinates}
+          onClose={() => setShowFallback(false)}
+          className="h-full"
+        />
       </div>
     )
   }
@@ -571,13 +738,24 @@ export function TravelMap({
   return (
     <div className={`relative w-full h-full ${className}`}>
       {/* Loading State */}
-      {!isMapLoaded && isIntersecting && (
-        <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center z-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-sm text-gray-600">Loading map...</p>
-          </div>
-        </div>
+      {(loadingState.isLoading || (!isMapLoaded && isIntersecting)) && (
+        <MapLoadingDisplay
+          message={loadingState.retryCount > 0 ? `Retrying... (${loadingState.retryCount}/3)` : 'Loading map...'}
+          className="absolute inset-0 z-10"
+        />
+      )}
+
+      {/* Offline Indicator */}
+      {isOffline && (
+        <OfflineIndicator
+          isOffline={isOffline}
+          coverage={offlineCoverage}
+          onSwitchToOnline={() => {
+            setIsOffline(false)
+            retryMapOperation()
+          }}
+          className="absolute top-4 left-4 z-20 max-w-xs"
+        />
       )}
 
       {/* Lazy Loading Placeholder */}

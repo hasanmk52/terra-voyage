@@ -102,7 +102,7 @@ export class PDFGenerator {
     const duration = Math.ceil(
       (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / 
       (1000 * 60 * 60 * 24)
-    )
+    ) + 1 // Add 1 to make date range inclusive
 
     // Group activities by day
     const activitiesByDay = this.groupActivitiesByDay(trip.activities, trip.startDate)

@@ -77,7 +77,7 @@ export function ActivityCard({
 
   const formatPrice = (pricing: Activity["pricing"]) => {
     if (!pricing || pricing.amount === 0) return "Free";
-    return `${formatCurrency(pricing.amount)} ${
+    return `${formatCurrency(pricing.amount, pricing.currency)} ${
       pricing.priceType === "per_person"
         ? "/person"
         : pricing.priceType === "per_group"

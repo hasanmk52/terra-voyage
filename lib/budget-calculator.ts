@@ -150,7 +150,8 @@ export class BudgetCalculator {
     const multiplier = regionalMultipliers[region] || regionalMultipliers['default']
     
     // Get base costs for accommodation type
-    const baseCosts = baseDailyCosts[formData.preferences.accommodationType]
+    const accommodationType = formData.preferences.accommodationType
+    const baseCosts = baseDailyCosts[accommodationType as keyof typeof baseDailyCosts] || baseDailyCosts['mid-range']
     
     // Apply regional multiplier and traveler adjustments
     const adjustedCosts = {

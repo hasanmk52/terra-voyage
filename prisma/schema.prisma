@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,7 +7,339 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums
+model User {
+  id                    String          @id @default(cuid())
+  email                 String          @unique
+  name                  String?
+  image                 String?
+  emailVerified         DateTime?
+  preferences           Json?
+  onboardingCompleted   Boolean         @default(false)
+  onboardingCompletedAt DateTime?
+  travelStyle           String?
+  interests             String?
+  travelPreferences     String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  bio                   String?
+  city                  String?
+  country               String?
+  dateOfBirth           DateTime?
+  phone                 String?
+  profilePicture        Bytes?
+  profilePictureType    String?
+  accounts              Account[]
+  collaborations        Collaboration[]
+  comments              Comment[]
+  sentInvitations       Invitation[]    @relation("InvitationSender")
+  invitations           Invitation[]
+  notifications         Notification[]
+  sessions              Session[]
+  statusHistory         StatusHistory[]
+  trips                 Trip[]
+  votes                 Vote[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+model Trip {
+  id                String          @id @default(cuid())
+  userId            String
+  title             String
+  destination       String
+  destinationCoords Json?
+  description       String?
+  startDate         DateTime
+  endDate           DateTime
+  budget            Float?
+  travelers         Int             @default(1)
+  status            TripStatus      @default(DRAFT)
+  isPublic          Boolean         @default(false)
+  coverImage        String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  currency          String?         @default("USD")
+  activities        Activity[]
+  collaborations    Collaboration[]
+  comments          Comment[]
+  days              Day[]
+  invitations       Invitation[]
+  itineraryData     ItineraryData?
+  notifications     Notification[]
+  sharedTrip        SharedTrip?
+  statusHistory     StatusHistory[]
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes             Vote[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([startDate])
+  @@map("trips")
+}
+
+model Day {
+  id             String     @id @default(cuid())
+  tripId         String
+  dayNumber      Int
+  date           String
+  theme          String?
+  dailyBudget    Json?
+  transportation Json?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  activities     Activity[]
+  trip           Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, dayNumber])
+  @@index([tripId])
+  @@index([dayNumber])
+  @@map("days")
+}
+
+model Activity {
+  id              String        @id @default(cuid())
+  tripId          String
+  dayId           String?
+  name            String
+  description     String?
+  location        String?
+  address         String?
+  coordinates     Json?
+  startTime       String?
+  endTime         String?
+  timeSlot        String?
+  type            ActivityType  @default(OTHER)
+  price           Float?
+  currency        String?       @default("USD")
+  priceType       String?
+  duration        String?
+  tips            Json?
+  bookingRequired Boolean       @default(false)
+  bookingStatus   BookingStatus @default(NOT_BOOKED)
+  bookingUrl      String?
+  accessibility   Json?
+  notes           String?
+  order           Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  day             Day?          @relation(fields: [dayId], references: [id])
+  trip            Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  comments        Comment[]
+  votes           Vote[]
+
+  @@index([tripId])
+  @@index([dayId])
+  @@index([type])
+  @@index([timeSlot])
+  @@map("activities")
+}
+
+model Collaboration {
+  id         String            @id @default(cuid())
+  tripId     String
+  userId     String
+  role       CollaborationRole @default(VIEWER)
+  invitedBy  String?
+  invitedAt  DateTime          @default(now())
+  acceptedAt DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  trip       Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+  @@index([tripId])
+  @@index([userId])
+  @@map("collaborations")
+}
+
+model Comment {
+  id         String    @id @default(cuid())
+  content    String
+  userId     String
+  tripId     String?
+  activityId String?
+  parentId   String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  parent     Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies    Comment[] @relation("CommentReplies")
+  trip       Trip?     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([activityId])
+  @@index([userId])
+  @@map("comments")
+}
+
+model Vote {
+  id         String    @id @default(cuid())
+  userId     String
+  tripId     String?
+  activityId String?
+  value      Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  trip       Trip?     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tripId])
+  @@unique([userId, activityId])
+  @@index([tripId])
+  @@index([activityId])
+  @@map("votes")
+}
+
+model Invitation {
+  id          String            @id @default(cuid())
+  token       String            @unique @default(cuid())
+  email       String
+  tripId      String
+  userId      String?
+  invitedById String
+  role        CollaborationRole @default(VIEWER)
+  status      InvitationStatus  @default(PENDING)
+  message     String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  declinedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  invitedBy   User              @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  trip        Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user        User?             @relation(fields: [userId], references: [id])
+
+  @@unique([tripId, email])
+  @@index([token])
+  @@index([tripId])
+  @@index([email])
+  @@index([status])
+  @@map("invitations")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  tripId    String?
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  trip      Trip?            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tripId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model ItineraryData {
+  id              String   @id @default(cuid())
+  tripId          String   @unique
+  rawData         Json
+  metadata        Json?
+  generalTips     Json?
+  emergencyInfo   Json?
+  budgetBreakdown Json?
+  generatedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  trip            Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([generatedAt])
+  @@map("itinerary_data")
+}
+
+model SharedTrip {
+  id              String    @id @default(cuid())
+  tripId          String    @unique
+  shareToken      String    @unique
+  isPublic        Boolean   @default(true)
+  expiresAt       DateTime?
+  allowComments   Boolean   @default(false)
+  showContactInfo Boolean   @default(false)
+  showBudget      Boolean   @default(false)
+  passwordHash    String?
+  viewCount       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  trip            Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([shareToken])
+  @@index([isPublic])
+  @@index([expiresAt])
+  @@map("shared_trips")
+}
+
+model StatusHistory {
+  id        String      @id @default(cuid())
+  tripId    String
+  oldStatus TripStatus?
+  newStatus TripStatus
+  reason    String
+  userId    String?
+  metadata  Json?
+  timestamp DateTime    @default(now())
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  trip      Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user      User?       @relation(fields: [userId], references: [id])
+
+  @@index([tripId])
+  @@index([userId])
+  @@index([newStatus])
+  @@index([timestamp])
+  @@index([tripId, timestamp])
+  @@map("status_history")
+}
+
 enum TripStatus {
   DRAFT
   PLANNED
@@ -61,380 +387,4 @@ enum NotificationType {
   ACTIVITY_CHANGED
   MEMBER_JOINED
   MEMBER_LEFT
-}
-
-// User model with comprehensive profile data
-model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  image         String?
-  emailVerified DateTime?
-  preferences   Json?    // Store user preferences as JSON
-  
-  // Profile fields
-  bio           String?
-  location      String?
-  phone         String?
-  dateOfBirth   DateTime?
-  profilePicture Bytes?   // Store profile picture as blob
-  profilePictureType String? // MIME type (image/jpeg, image/png, etc.)
-  
-  // Onboarding fields
-  onboardingCompleted Boolean @default(false)
-  onboardingCompletedAt DateTime?
-  travelStyle     String? // JSON string of travel style data
-  interests       String? // JSON string of interests data
-  travelPreferences String? // JSON string of travel preferences data
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
-  accounts      Account[]
-  sessions      Session[]
-  trips         Trip[]
-  collaborations Collaboration[]
-  comments      Comment[]
-  votes         Vote[]
-  invitations   Invitation[]
-  sentInvitations Invitation[] @relation("InvitationSender")
-  notifications Notification[]
-  statusHistory StatusHistory[]
-
-  @@map("users")
-}
-
-// NextAuth Account model
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@map("accounts")
-}
-
-// NextAuth Session model
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
-}
-
-// NextAuth VerificationToken model
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-  @@map("verificationtokens")
-}
-
-// Trip model with comprehensive trip data
-model Trip {
-  id          String     @id @default(cuid())
-  userId      String
-  title       String
-  destination String
-  destinationCoords Json?     // Store destination coordinates as JSON
-  description String?
-  startDate   DateTime
-  endDate     DateTime
-  budget      Float?
-  travelers   Int        @default(1)
-  status      TripStatus @default(DRAFT)
-  isPublic    Boolean    @default(false)
-  coverImage  String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  // Relations
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activities    Activity[]
-  days          Day[]           // Add relationship to days
-  itineraryData ItineraryData?  // Add relationship to generated itinerary
-  collaborations Collaboration[]
-  comments      Comment[]
-  votes         Vote[]
-  invitations   Invitation[]
-  notifications Notification[]
-  sharedTrip    SharedTrip?
-  statusHistory StatusHistory[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([startDate])
-  @@map("trips")
-}
-
-// Day model for organizing activities by day
-model Day {
-  id          String   @id @default(cuid())
-  tripId      String
-  dayNumber   Int      // 1, 2, 3, etc.
-  date        String   // YYYY-MM-DD format
-  theme       String?  // Day theme/title
-  dailyBudget Json?    // Store daily budget as JSON
-  transportation Json? // Store transportation info as JSON
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  trip       Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  activities Activity[]
-
-  @@unique([tripId, dayNumber]) // Ensure unique day numbers per trip
-  @@index([tripId])
-  @@index([dayNumber])
-  @@map("days")
-}
-
-// Activity model for trip activities
-model Activity {
-  id            String        @id @default(cuid())
-  tripId        String
-  dayId         String?       // Optional relationship to specific day
-  name          String
-  description   String?
-  location      String?
-  address       String?
-  coordinates   Json?         // Store lat/lng as JSON
-  startTime     String?       // Store as HH:MM string for flexibility
-  endTime       String?       // Store as HH:MM string for flexibility
-  timeSlot      String?       // morning, afternoon, evening
-  type          ActivityType  @default(OTHER)
-  price         Float?
-  currency      String?       @default("USD")
-  priceType     String?       // per_person, per_group, free
-  duration      String?       // e.g., "120 minutes"
-  tips          Json?         // Store tips array as JSON
-  bookingRequired Boolean     @default(false)
-  bookingStatus BookingStatus @default(NOT_BOOKED)
-  bookingUrl    String?
-  accessibility Json?         // Store accessibility info as JSON
-  notes         String?
-  order         Int           @default(0)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  // Relations
-  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  day      Day?      @relation(fields: [dayId], references: [id], onDelete: SetNull)
-  comments Comment[]
-  votes    Vote[]
-
-  @@index([tripId])
-  @@index([dayId])
-  @@index([type])
-  @@index([timeSlot])
-  @@map("activities")
-}
-
-// Collaboration model for trip sharing
-model Collaboration {
-  id         String            @id @default(cuid())
-  tripId     String
-  userId     String
-  role       CollaborationRole @default(VIEWER)
-  invitedBy  String?
-  invitedAt  DateTime          @default(now())
-  acceptedAt DateTime?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-
-  // Relations
-  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([tripId, userId])
-  @@index([tripId])
-  @@index([userId])
-  @@map("collaborations")
-}
-
-// Comment model for trip and activity discussions
-model Comment {
-  id         String   @id @default(cuid())
-  content    String
-  userId     String
-  tripId     String?
-  activityId String?
-  parentId   String?  // For nested comments
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  // Relations
-  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip     Trip?      @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  activity Activity?  @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  parent   Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
-  replies  Comment[]  @relation("CommentReplies")
-
-  @@index([tripId])
-  @@index([activityId])
-  @@index([userId])
-  @@map("comments")
-}
-
-// Vote model for activity preferences
-model Vote {
-  id         String   @id @default(cuid())
-  userId     String
-  tripId     String?
-  activityId String?
-  value      Int      // 1 for upvote, -1 for downvote, 0 for neutral
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  // Relations
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip     Trip?     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  activity Activity? @relation(fields: [activityId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, tripId])
-  @@unique([userId, activityId])
-  @@index([tripId])
-  @@index([activityId])
-  @@map("votes")
-}
-
-// Invitation model for trip sharing invitations
-model Invitation {
-  id           String           @id @default(cuid())
-  token        String           @unique @default(cuid())
-  email        String
-  tripId       String
-  userId       String?          // Set when user accepts invitation
-  invitedById  String
-  role         CollaborationRole @default(VIEWER)
-  status       InvitationStatus @default(PENDING)
-  message      String?
-  expiresAt    DateTime
-  acceptedAt   DateTime?
-  declinedAt   DateTime?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-
-  // Relations
-  trip       Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  user       User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-  invitedBy  User  @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
-
-  @@unique([tripId, email])
-  @@index([token])
-  @@index([tripId])
-  @@index([email])
-  @@index([status])
-  @@map("invitations")
-}
-
-// Notification model for collaboration events
-model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  tripId    String?
-  type      NotificationType
-  title     String
-  message   String
-  data      Json?            // Additional context data
-  read      Boolean          @default(false)
-  readAt    DateTime?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-
-  // Relations
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip Trip? @relation(fields: [tripId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([tripId])
-  @@index([read])
-  @@index([createdAt])
-  @@map("notifications")
-}
-
-// ItineraryData model to store complete AI-generated itinerary
-model ItineraryData {
-  id          String   @id @default(cuid())
-  tripId      String   @unique
-  rawData     Json     // Complete AI response JSON
-  metadata    Json?    // Generation metadata (performance, quality, etc.)
-  generalTips Json?    // Array of general tips
-  emergencyInfo Json?  // Emergency information
-  budgetBreakdown Json? // Budget breakdown by category
-  generatedAt DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
-
-  @@index([tripId])
-  @@index([generatedAt])
-  @@map("itinerary_data")
-}
-
-// SharedTrip model for public sharing
-model SharedTrip {
-  id              String    @id @default(cuid())
-  tripId          String    @unique
-  shareToken      String    @unique
-  isPublic        Boolean   @default(true)
-  expiresAt       DateTime?
-  allowComments   Boolean   @default(false)
-  showContactInfo Boolean   @default(false)
-  showBudget      Boolean   @default(false)
-  passwordHash    String?
-  viewCount       Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  // Relations
-  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
-
-  @@index([shareToken])
-  @@index([isPublic])
-  @@index([expiresAt])
-  @@map("shared_trips")
-}
-
-// StatusHistory model for tracking trip status changes
-model StatusHistory {
-  id        String     @id @default(cuid())
-  tripId    String
-  oldStatus TripStatus?
-  newStatus TripStatus
-  reason    String     // "manual" | "automatic" | "system" | "itinerary_generated" | "date_based"
-  userId    String?    // null for automatic changes
-  metadata  Json?      // Additional context data
-  timestamp DateTime   @default(now())
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  // Relations
-  trip Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([tripId])
-  @@index([userId])
-  @@index([newStatus])
-  @@index([timestamp])
-  @@index([tripId, timestamp]) // Composite index for trip status history queries
-  @@map("status_history")
 }

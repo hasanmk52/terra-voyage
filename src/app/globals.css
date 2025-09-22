@@ -79,3 +79,63 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
+
+@layer components {
+  /* Force all Radix Portal content to highest z-index */
+  [data-radix-portal] {
+    z-index: 2147483647 !important;
+  }
+  
+  /* Ensure popover content has proper z-index */
+  [data-radix-popper-content-wrapper] {
+    z-index: 2147483647 !important;
+  }
+  
+  /* Target the popover content specifically */
+  [data-radix-popover-content] {
+    z-index: 2147483647 !important;
+    position: fixed !important;
+  }
+  
+  /* Additional safety for calendar components */
+  .rdp,
+  [data-radix-popover-content] .rdp {
+    z-index: 2147483647 !important;
+    position: relative !important;
+  }
+  
+  /* Nuclear option - force all popovers to top */
+  body [data-radix-popover-content] {
+    z-index: 2147483647 !important;
+    position: fixed !important;
+  }
+  
+  /* Prevent stacking context issues from transforms and other properties */
+  .absolute.transform,
+  .absolute[style*="transform"] {
+    z-index: 1 !important;
+  }
+  
+  /* Ensure profile page elements don't interfere */
+  .group-hover\\:opacity-100 {
+    z-index: 1 !important;
+  }
+  
+  /* When date picker is open, ensure other profile sections don't overlay */
+  [data-radix-popover-trigger][data-state="open"] ~ * .space-y-3,
+  [data-radix-popover-trigger][data-state="open"] ~ * .bg-gradient-to-r {
+    z-index: 1 !important;
+    position: relative !important;
+  }
+  
+  /* Target profile form sections specifically */
+  .bg-gradient-to-r.from-gray-50 {
+    z-index: 1 !important;
+    position: relative !important;
+  }
+  
+  /* Specific fix for DateInput component */
+  [data-radix-popover-content][style*="z-index"] {
+    z-index: 2147483647 !important;
+  }
+}

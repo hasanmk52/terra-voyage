@@ -16,7 +16,7 @@ import {
 } from '@/lib/weather-types'
 import { weatherActivityFilter } from '@/lib/weather-activity-filter'
 import { packingListGenerator } from '@/lib/packing-list-generator'
-import { getWeatherForecast } from '@/lib/weather-api'
+import { weatherService } from '@/lib/weather-service'
 import {
   Calendar,
   MapPin,
@@ -69,7 +69,7 @@ export function WeatherItineraryIntegration({
     setError(null)
 
     try {
-      const forecast = await getWeatherForecast(
+      const forecast = await weatherService.getWeatherForecast(
         destination.coordinates.lat,
         destination.coordinates.lng,
         destination.name

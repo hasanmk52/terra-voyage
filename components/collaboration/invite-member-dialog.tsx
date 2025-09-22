@@ -102,7 +102,7 @@ export function InviteMemberDialog({
           message: result.error || 'Failed to send invitation'
         })
       }
-    } catch (error) {
+    } catch {
       setSubmitResult({
         type: 'error',
         message: 'Network error. Please try again.'

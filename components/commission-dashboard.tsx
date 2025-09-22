@@ -16,15 +16,9 @@ import {
 import { 
   DollarSign, 
   TrendingUp, 
-  Users, 
-  MousePointer, 
   ShoppingCart, 
-  Calendar,
-  ExternalLink,
   Download,
   RefreshCw,
-  Filter,
-  Eye,
   CheckCircle,
   Clock,
   XCircle

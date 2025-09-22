@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useEffect, useCallback } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ActivityVotes, VoteData } from '@/lib/collaboration-types'
+import { ActivityVotes } from '@/lib/collaboration-types'
+import { Activity } from '@/lib/itinerary-types'
 import { useCollaboration } from '@/hooks/use-collaboration'
 import {
   ThumbsUp,
@@ -14,7 +15,6 @@ import {
   Vote,
   TrendingUp,
   TrendingDown,
-  Users,
   BarChart3
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -31,7 +31,7 @@ export function VotingPanel({
   className = ''
 }: VotingPanelProps) {
   const [tripVotes, setTripVotes] = useState<Record<string, ActivityVotes>>({})
-  const [activities, setActivities] = useState<any[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [votingOn, setVotingOn] = useState<string | null>(null)
 
@@ -46,7 +46,7 @@ export function VotingPanel({
   })
 
   // Fetch trip activities and votes
-  const fetchVotes = async () => {
+  const fetchVotes = useCallback(async () => {
     try {
       // Fetch activities (you'll need to implement this endpoint)
       const activitiesResponse = await fetch(`/api/trips/${tripId}/activities`)
@@ -66,11 +66,11 @@ export function VotingPanel({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [tripId])
 
   useEffect(() => {
     fetchVotes()
-  }, [tripId])
+  }, [fetchVotes])
 
   const handleVote = async (activityId: string, value: number) => {
     if (!canVote) return

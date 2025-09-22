@@ -143,24 +143,27 @@ function TripsPageContent() {
         try {
           await apiClient.deleteTrip(tripId);
 
-          // Remove trip from local state
-          setTrips((prevTrips) =>
-            prevTrips.filter((trip) => trip.id !== tripId)
-          );
+          // Delay state updates to prevent flickering during modal close animation
+          setTimeout(() => {
+            // Remove trip from local state
+            setTrips((prevTrips) =>
+              prevTrips.filter((trip) => trip.id !== tripId)
+            );
 
-          // Update pagination if needed
-          const newTotal = pagination.total - 1;
-          const newPages = Math.ceil(newTotal / pagination.limit);
-          setPagination((prev) => ({
-            ...prev,
-            total: newTotal,
-            pages: newPages,
-          }));
+            // Update pagination if needed
+            const newTotal = pagination.total - 1;
+            const newPages = Math.ceil(newTotal / pagination.limit);
+            setPagination((prev) => ({
+              ...prev,
+              total: newTotal,
+              pages: newPages,
+            }));
 
-          // If current page becomes empty and not the first page, go to previous page
-          if (trips.length === 1 && page > 1) {
-            setPage(page - 1);
-          }
+            // If current page becomes empty and not the first page, go to previous page
+            if (trips.length === 1 && page > 1) {
+              setPage(page - 1);
+            }
+          }, 300); // Allow modal close animation to complete
         } catch (error) {
           console.error("Failed to delete trip:", error);
           // The error will be handled by the modal's error handling

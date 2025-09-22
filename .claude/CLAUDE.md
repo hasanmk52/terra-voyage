@@ -2,6 +2,25 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Plan and Review
+
+Before you begin, write a detailed implementation plan in a file named `claude/tasks/TASK_NAME.md`.
+
+This plan should include:
+
+- A clear, detailed breakdown of the implementation steps.
+- The reasoning behind your approach.
+- A list of specific tasks.
+
+Focus on a **Minimum Viable Product (MVP)** to avoid over-planning. Once the plan is ready, please ask me to review it.  
+**Do not proceed with implementation until I have approved the plan.**
+
+### While Implementing
+
+As you work, keep the plan updated. After you complete a task, append a detailed description of the changes you've made to the plan. This ensures that the progress and next steps are clear and can be easily handed over to other engineers if needed.
+
+---
+
 ## Project Overview
 
 This is a Next.js 15.4.3 application using React 19.1.0, TypeScript, and Tailwind CSS v4. The project follows the Next.js App Router architecture and was bootstrapped with `create-next-app`.
@@ -16,6 +35,7 @@ This is a Next.js 15.4.3 application using React 19.1.0, TypeScript, and Tailwin
 ## Architecture
 
 ### Directory Structure
+
 - `src/app/` - Next.js App Router directory containing pages and layouts
 - `src/app/layout.tsx` - Root layout with Geist font configuration
 - `src/app/page.tsx` - Home page component
@@ -23,6 +43,7 @@ This is a Next.js 15.4.3 application using React 19.1.0, TypeScript, and Tailwin
 - `public/` - Static assets (SVG icons and images)
 
 ### Key Technologies
+
 - **Next.js 15.4.3** with App Router
 - **React 19.1.0** with TypeScript
 - **Tailwind CSS v4** for styling
@@ -30,11 +51,13 @@ This is a Next.js 15.4.3 application using React 19.1.0, TypeScript, and Tailwin
 - **ESLint** with Next.js config for code quality
 
 ### TypeScript Configuration
+
 - Path alias: `@/*` maps to `./src/*`
 - Strict mode enabled
 - Next.js plugin configured for optimal development experience
 
 ### Styling Approach
+
 - Tailwind CSS v4 with PostCSS configuration
 - Dark mode support built into components
 - Responsive design patterns using Tailwind breakpoints

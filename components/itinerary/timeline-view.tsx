@@ -157,7 +157,8 @@ export function TimelineView({
                       <DollarSign className="h-4 w-4" />
                       <span>
                         {formatCurrency(
-                          filteredActivities.reduce((sum, a) => sum + (a.pricing?.amount || 0), 0)
+                          filteredActivities.reduce((sum, a) => sum + (a.pricing?.amount || 0), 0),
+                          filteredActivities[0]?.pricing?.currency || 'USD'
                         )}
                       </span>
                     </div>
@@ -238,7 +239,7 @@ export function TimelineView({
                             {activity.pricing && activity.pricing.amount > 0 && (
                               <div className="flex items-center gap-1">
                                 <DollarSign className="h-4 w-4" />
-                                <span>{formatCurrency(activity.pricing.amount)}</span>
+                                <span>{formatCurrency(activity.pricing.amount, activity.pricing.currency)}</span>
                               </div>
                             )}
                             {activity.description && (

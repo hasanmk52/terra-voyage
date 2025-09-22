@@ -223,7 +223,7 @@ END:VCALENDAR`
   private generateTripDescription(trip: TripWithActivities): string {
     const duration = Math.ceil(
       (trip.endDate.getTime() - trip.startDate.getTime()) / (1000 * 60 * 60 * 24)
-    )
+    ) + 1 // Add 1 to make date range inclusive
 
     let description = `🌍 ${trip.destination} Adventure\n\n`
     description += `📅 Duration: ${duration} days\n`

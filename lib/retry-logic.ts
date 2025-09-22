@@ -10,6 +10,8 @@ interface RetryConfig {
   backoffMultiplier: number;  // Multiplier for exponential backoff
   jitter: boolean;           // Add random jitter to prevent thundering herd
   retryCondition?: (error: any) => boolean; // Custom condition for when to retry
+  onProgress?: (progress: RetryProgress) => void; // Progress callback for UI updates
+  onRetry?: (attempt: number, delay: number, error: any) => void; // Retry attempt callback
 }
 
 interface RetryAttempt {
@@ -25,6 +27,20 @@ interface RetryResult<T> {
   error?: any;
   attempts: RetryAttempt[];
   totalTime: number;
+}
+
+interface RetryProgress {
+  currentAttempt: number;
+  maxAttempts: number;
+  nextRetryDelay?: number;
+  error?: string;
+  isRetrying: boolean;
+  estimatedCompletion?: number;
+}
+
+interface CancellationToken {
+  isCancelled: boolean;
+  cancel: () => void;
 }
 
 // Default retry configurations for different service types
@@ -64,6 +80,11 @@ export const retryConfigs = {
 
 // Default retry condition - retry on network errors, 5xx, 429, timeout
 function defaultRetryCondition(error: any): boolean {
+  // Don't retry on AbortError - these are intentional cancellations
+  if (error.name === 'AbortError' || error.message?.includes('signal is aborted') || error.message?.includes('abort')) {
+    return false;
+  }
+  
   // Network errors
   if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
     return true;
@@ -75,8 +96,8 @@ function defaultRetryCondition(error: any): boolean {
     return status >= 500 || status === 429 || status === 408; // 5xx, rate limit, timeout
   }
   
-  // Fetch API errors
-  if (error.name === 'TypeError' && error.message.includes('fetch')) {
+  // Fetch API errors (but not abort errors)
+  if (error.name === 'TypeError' && error.message.includes('fetch') && !error.message.includes('abort')) {
     return true;
   }
   
@@ -105,13 +126,30 @@ export class RetryManager {
     };
   }
 
-  async execute<T>(operation: () => Promise<T>): Promise<T> {
+  async execute<T>(operation: () => Promise<T>, cancellationToken?: CancellationToken): Promise<T> {
     const startTime = Date.now();
     const attempts: RetryAttempt[] = [];
     let lastError: any;
 
     for (let attempt = 1; attempt <= this.config.maxAttempts; attempt++) {
+      // Check for cancellation before each attempt
+      if (cancellationToken?.isCancelled) {
+        throw new RetryCancelledException(`Operation cancelled during attempt ${attempt}`);
+      }
+
       const attemptStart = Date.now();
+      
+      // Report progress before attempt
+      const nextDelay = attempt < this.config.maxAttempts ? this.calculateDelay(attempt) : undefined;
+      if (this.config.onProgress) {
+        this.config.onProgress({
+          currentAttempt: attempt,
+          maxAttempts: this.config.maxAttempts,
+          nextRetryDelay: nextDelay,
+          isRetrying: attempt > 1,
+          estimatedCompletion: nextDelay ? Date.now() + nextDelay : undefined,
+        });
+      }
       
       try {
         const result = await operation();
@@ -135,13 +173,13 @@ export class RetryManager {
         attempts.push({
           attempt,
           delay: 0, // Will be set before next attempt
-          error: error.message || 'Unknown error',
+          error: error instanceof Error ? error.message : 'Unknown error',
           timestamp: attemptStart,
         });
 
         // Don't retry if it's the last attempt or retry condition fails
         if (attempt === this.config.maxAttempts || !shouldRetry) {
-          console.error(`❌ ${this.name} failed after ${attempt} attempts:`, error.message);
+          console.error(`❌ ${this.name} failed after ${attempt} attempts:`, error instanceof Error ? error.message : 'Unknown error');
           break;
         }
 
@@ -149,9 +187,27 @@ export class RetryManager {
         const delay = this.calculateDelay(attempt);
         attempts[attempts.length - 1].delay = delay;
 
-        console.warn(`⚠️ ${this.name} attempt ${attempt}/${this.config.maxAttempts} failed, retrying in ${delay}ms:`, error.message);
+        // Call retry callback if provided
+        if (this.config.onRetry) {
+          this.config.onRetry(attempt, delay, error);
+        }
         
-        await this.sleep(delay);
+        console.warn(`⚠️ ${this.name} attempt ${attempt}/${this.config.maxAttempts} failed, retrying in ${delay}ms:`, error instanceof Error ? error.message : 'Unknown error');
+        
+        // Report retry progress
+        if (this.config.onProgress) {
+          this.config.onProgress({
+            currentAttempt: attempt,
+            maxAttempts: this.config.maxAttempts,
+            nextRetryDelay: delay,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            isRetrying: true,
+            estimatedCompletion: Date.now() + delay,
+          });
+        }
+        
+        // Wait with cancellation support
+        await this.sleepWithCancellation(delay, cancellationToken);
       }
     }
 
@@ -189,6 +245,25 @@ export class RetryManager {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  private sleepWithCancellation(ms: number, cancellationToken?: CancellationToken): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => resolve(), ms);
+      
+      // Check cancellation periodically during sleep
+      const checkInterval = Math.min(ms / 10, 100); // Check every 100ms or 10% of delay
+      const cancelCheck = setInterval(() => {
+        if (cancellationToken?.isCancelled) {
+          clearTimeout(timeout);
+          clearInterval(cancelCheck);
+          reject(new RetryCancelledException('Operation cancelled during retry delay'));
+        }
+      }, checkInterval);
+      
+      // Clean up interval when timeout completes
+      setTimeout(() => clearInterval(cancelCheck), ms);
+    });
+  }
+
   // Create pre-configured retry managers for common scenarios
   static forNetworkErrors(name: string): RetryManager {
     return new RetryManager(name, retryConfigs.network);
@@ -222,14 +297,34 @@ export class RetryExhaustedException extends Error {
   }
 }
 
+// Custom exception for retry cancellation
+export class RetryCancelledException extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RetryCancelledException';
+  }
+}
+
 // Utility function for quick retry execution
 export async function withRetry<T>(
   operation: () => Promise<T>,
   name: string,
-  config?: Partial<RetryConfig>
+  config?: Partial<RetryConfig>,
+  cancellationToken?: CancellationToken
 ): Promise<T> {
   const retryManager = new RetryManager(name, config);
-  return retryManager.execute(operation);
+  return retryManager.execute(operation, cancellationToken);
+}
+
+// Helper function to create cancellation token
+export function createCancellationToken(): CancellationToken {
+  const token = {
+    isCancelled: false,
+    cancel: () => {
+      token.isCancelled = true;
+    }
+  };
+  return token;
 }
 
 // Pre-configured retry instances for common APIs
@@ -255,7 +350,19 @@ export const retryManagers = {
   
   maps: new RetryManager('Maps API', {
     ...retryConfigs.network,
-    maxAttempts: 3,
+    maxAttempts: 1, // Don't retry Maps API calls - they're usually user-initiated and time-sensitive
+    retryCondition: (error) => {
+      // Never retry AbortErrors or timeouts for Maps API
+      if (error.name === 'AbortError' || error.message?.includes('signal is aborted') || error.message?.includes('abort')) {
+        return false;
+      }
+      // Only retry on 5xx server errors, not rate limits or timeouts
+      if (error.response?.status) {
+        const status = error.response.status;
+        return status >= 500; // Only 5xx errors
+      }
+      return defaultRetryCondition(error);
+    }
   }),
   
   mapbox: new RetryManager('Mapbox API', {
@@ -269,3 +376,6 @@ export const retryManagers = {
     baseDelay: 1000,
   }),
 };
+
+// Export types for external use
+export type { RetryConfig, RetryProgress, RetryAttempt, RetryResult, CancellationToken };

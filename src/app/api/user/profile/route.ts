@@ -33,13 +33,22 @@ const updateProfileSchema = z.object({
       message: "Bio contains unsafe content",
     })
     .optional(),
-  location: z
+  city: z
     .string()
     .max(100)
     .trim()
-    .refine((location) => /^[a-zA-Z0-9\s\-,\.]+$/.test(location), {
+    .refine((city) => /^[a-zA-Z0-9\s\-,\.]+$/.test(city), {
       message:
-        "Location can only contain letters, numbers, spaces, hyphens, commas, and periods",
+        "City can only contain letters, numbers, spaces, hyphens, commas, and periods",
+    })
+    .optional(),
+  country: z
+    .string()
+    .max(100)
+    .trim()
+    .refine((country) => /^[a-zA-Z0-9\s\-,\.]+$/.test(country), {
+      message:
+        "Country can only contain letters, numbers, spaces, hyphens, commas, and periods",
     })
     .optional(),
   phone: z
@@ -160,7 +169,8 @@ export async function GET() {
         name: true,
         image: true,
         bio: true,
-        location: true,
+        city: true,
+        country: true,
         phone: true,
         dateOfBirth: true,
         profilePicture: true,
@@ -229,9 +239,14 @@ export async function PUT(request: NextRequest) {
         ? sanitizeString(validatedData.bio) || null
         : null;
     }
-    if (validatedData.location !== undefined) {
-      updateData.location = validatedData.location
-        ? sanitizeString(validatedData.location) || null
+    if (validatedData.city !== undefined) {
+      updateData.city = validatedData.city
+        ? sanitizeString(validatedData.city) || null
+        : null;
+    }
+    if (validatedData.country !== undefined) {
+      updateData.country = validatedData.country
+        ? sanitizeString(validatedData.country) || null
         : null;
     }
     if (validatedData.phone !== undefined) {
@@ -272,7 +287,8 @@ export async function PUT(request: NextRequest) {
         name: true,
         image: true,
         bio: true,
-        location: true,
+        city: true,
+        country: true,
         phone: true,
         dateOfBirth: true,
         preferences: true,

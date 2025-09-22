@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { itineraryService } from '@/lib/itinerary-service'
 import { TripStatusService } from '@/lib/trip-status-service'
+import { 
+  RetryProgress, 
+  createCancellationToken,
+  RetryCancelledException,
+  RetryExhaustedException 
+} from '@/lib/retry-logic'
 
 // Helper function to map AI activity types to database enum
 function mapActivityType(aiType: string): string {
@@ -56,6 +62,7 @@ export async function POST(
       startDate: trip.startDate.toISOString(),
       endDate: trip.endDate.toISOString(),
       budget: trip.budget,
+      currency: trip.currency, // Include stored currency
       travelers: trip.travelers,
       interests: ['culture', 'food', 'sightseeing'],
       accommodationType: 'hotel'
@@ -78,7 +85,7 @@ export async function POST(
       },
       budget: {
         amount: validatedData.budget || 2000,
-        currency: 'USD',
+        currency: validatedData.currency || 'USD',
         range: 'total' as const
       },
       interests: validatedData.interests || ['culture', 'food'],
@@ -99,11 +106,25 @@ export async function POST(
 
     console.log('Calling AI service with form data:', JSON.stringify(formData, null, 2))
 
-    // Generate itinerary using AI service
+    // Create cancellation token for potential retry cancellation
+    const cancellationToken = createCancellationToken()
+    
+    // Progress tracking for retry system (FR-003.2)
+    const progressCallback = (progress: RetryProgress) => {
+      console.log(`Generation progress: Attempt ${progress.currentAttempt}/${progress.maxAttempts}`, {
+        isRetrying: progress.isRetrying,
+        error: progress.error,
+        nextRetryDelay: progress.nextRetryDelay
+      })
+      // In a real implementation, you might want to send progress via WebSocket or SSE
+    }
+
+    // Generate itinerary using AI service with retry support
     const itineraryResult = await itineraryService.generateItinerary(formData, {
       prioritizeSpeed: false,
       useCache: true,
-      fallbackOnTimeout: true // Enable fallback to debug
+      onProgress: progressCallback,
+      cancellationToken
     })
 
     console.log('AI service response received:', {
@@ -182,7 +203,7 @@ export async function POST(
                       timeSlot: activityData.timeSlot || 'morning',
                       type: mapActivityType(activityData.type || 'other') as any,
                       price: activityData.pricing?.amount || null,
-                      currency: activityData.pricing?.currency || 'USD',
+                      currency: activityData.pricing?.currency || validatedData.currency || 'USD',
                       priceType: activityData.pricing?.priceType || 'per_person',
                       duration: activityData.duration || '',
                       tips: Array.isArray(activityData.tips) ? activityData.tips : [],
@@ -247,12 +268,55 @@ export async function POST(
       name: error instanceof Error ? error.name : undefined
     })
 
+    // FR-003.5: Categorized error handling for retry failure escalation
+    let statusCode = 500
+    let errorMessage = "Failed to generate itinerary"
+    let errorDetails = error instanceof Error ? error.message : 'Unknown error'
+
+    if (error instanceof RetryCancelledException) {
+      statusCode = 499 // Client Closed Request
+      errorMessage = "Generation cancelled"
+      errorDetails = "The itinerary generation was cancelled by the user"
+    } else if (error instanceof RetryExhaustedException) {
+      statusCode = 503 // Service Unavailable
+      errorMessage = "Generation failed after retries"
+      errorDetails = `Failed after ${error.attempts.length} attempts. Please try again later.`
+      
+      // Extract last error for better user feedback
+      if (error.lastError?.message) {
+        if (error.lastError.message.includes('AI_QUOTA_EXCEEDED')) {
+          errorDetails = "AI service quota exceeded. Please try again later."
+        } else if (error.lastError.message.includes('AI_SERVICE_TIMEOUT')) {
+          errorDetails = "AI service is taking too long. Please try again later."
+        } else if (error.lastError.message.includes('RATE_LIMIT_ERROR')) {
+          errorDetails = "Too many requests. Please wait a moment and try again."
+        } else if (error.lastError.message.includes('AUTHENTICATION_ERROR')) {
+          statusCode = 401
+          errorDetails = "Authentication failed. Please check your account settings."
+        }
+      }
+    } else if (error instanceof Error) {
+      // Handle other specific error types
+      if (error.message.includes('timeout')) {
+        statusCode = 408
+        errorMessage = "Request timeout"
+        errorDetails = "The request took too long. Please try again."
+      } else if (error.message.includes('not found')) {
+        statusCode = 404
+        errorMessage = "Trip not found"
+        errorDetails = "The specified trip could not be found."
+      }
+    }
+
     return NextResponse.json(
       { 
-        error: "Failed to generate itinerary",
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage,
+        details: errorDetails,
+        retryable: statusCode >= 500 && statusCode < 600, // Server errors are retryable
+        category: error instanceof RetryCancelledException ? 'cancelled' : 
+                 error instanceof RetryExhaustedException ? 'retry_exhausted' : 'unknown'
       },
-      { status: 500 }
+      { status: statusCode }
     )
   }
 }

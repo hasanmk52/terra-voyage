@@ -12,8 +12,10 @@ import { budgetCalculator } from './budget-calculator'
 import { 
   createItineraryPrompt, 
   createQuickItineraryPrompt,
-  optimizePromptForModel 
+  optimizePromptForModel,
+  type EnhancedFormData 
 } from './prompt-templates'
+import { RetryProgress, CancellationToken } from './retry-logic'
 
 // Performance monitoring interface
 export interface PerformanceMetrics {
@@ -29,9 +31,10 @@ export interface PerformanceMetrics {
 export interface GenerationOptions {
   useCache?: boolean
   maxTimeout?: number
-  fallbackOnTimeout?: boolean
   prioritizeSpeed?: boolean
   model?: string
+  onProgress?: (progress: RetryProgress) => void
+  cancellationToken?: CancellationToken
 }
 
 // Result interface
@@ -53,16 +56,17 @@ export class ItineraryService {
   private readonly CACHE_TTL = 86400 // 24 hours
 
   async generateItinerary(
-    formData: TripPlanningFormData,
+    formData: TripPlanningFormData | EnhancedFormData,
     options: GenerationOptions = {}
   ): Promise<ItineraryResult> {
     const startTime = Date.now()
     const {
       useCache = true,
       maxTimeout = this.DEFAULT_TIMEOUT,
-      fallbackOnTimeout = true,
       prioritizeSpeed = false,
-      model = 'gpt-4o-mini'
+      model = 'gpt-4o-mini',
+      onProgress,
+      cancellationToken
     } = options
 
     const optimizationsApplied: string[] = []
@@ -96,7 +100,6 @@ export class ItineraryService {
       let itinerary: ItineraryResponse
       let aiGenerationTime = 0
       let validationTime = 0
-      const fallbackUsed = false
 
       if (prioritizeSpeed) {
         // Use quick generation for speed
@@ -111,7 +114,7 @@ export class ItineraryService {
         try {
           console.log('📝 ItineraryService: Starting full AI generation')
           const aiStartTime = Date.now()
-          itinerary = await this.generateFullItinerary(formData, maxTimeout, model)
+          itinerary = await this.generateFullItinerary(formData, maxTimeout, model, onProgress, cancellationToken)
           aiGenerationTime = Date.now() - aiStartTime
           optimizationsApplied.push('full-ai-generation')
           console.log('✅ ItineraryService: AI generation completed successfully')
@@ -139,7 +142,7 @@ export class ItineraryService {
       }
 
       // 5. Cache the result
-      if (useCache && !fallbackUsed) {
+      if (useCache) {
         await cacheService.setItinerary(cacheKey, itinerary)
       }
 
@@ -152,13 +155,13 @@ export class ItineraryService {
           cacheHit: false,
           aiGenerationTime: aiGenerationTime > 0 ? aiGenerationTime : undefined,
           validationTime,
-          fallbackUsed,
+          fallbackUsed: false,
           optimizationsApplied
         },
         warnings: budgetValidation.recommendations,
         metadata: {
           generatedAt: new Date(),
-          generationMethod: fallbackUsed ? 'fallback' : 'ai',
+          generationMethod: 'ai',
           quality: quality.overall,
           estimatedAccuracy: quality.accuracy
         }
@@ -171,52 +174,44 @@ export class ItineraryService {
     }
   }
 
-  // Generate full itinerary using AI
+  // Generate full itinerary using AI with retry logic
   private async generateFullItinerary(
-    formData: TripPlanningFormData,
+    formData: TripPlanningFormData | EnhancedFormData,
     timeout: number,
-    model: string
+    model: string,
+    onProgress?: (progress: RetryProgress) => void,
+    cancellationToken?: CancellationToken
   ): Promise<ItineraryResponse> {
-    try {
-      console.log('📝 ItineraryService: Creating prompt template')
-      const promptTemplate = createItineraryPrompt(formData)
-      console.log('📝 ItineraryService: Optimizing prompt for model')
-      const optimizedPrompt = optimizePromptForModel(promptTemplate, model)
+    const promptTemplate = createItineraryPrompt(formData)
+    const optimizedPrompt = optimizePromptForModel(promptTemplate, model)
 
-      console.log('📝 ItineraryService: Calling AI service generateCompletion')
-      const response = await aiService.generateCompletion(
-        `${optimizedPrompt.systemPrompt}\n\n${optimizedPrompt.userPrompt}`,
-        {
-          model,
-          maxTokens: optimizedPrompt.maxTokens,
-          temperature: optimizedPrompt.temperature,
-          timeout
-        }
-      )
-
-      console.log('📝 ItineraryService: Validating and parsing AI response')
-      console.log('📝 ItineraryService: Response length:', response.length, 'characters')
-      
-      // Log first and last 200 characters to help debug parsing issues
-      if (response.length > 400) {
-        console.log('📝 ItineraryService: Response preview (first 200 chars):', response.substring(0, 200))
-        console.log('📝 ItineraryService: Response preview (last 200 chars):', response.substring(response.length - 200))
-      } else {
-        console.log('📝 ItineraryService: Full response:', response)
+    const response = await aiService.generateCompletion(
+      `${optimizedPrompt.systemPrompt}\n\n${optimizedPrompt.userPrompt}`,
+      {
+        model,
+        maxTokens: optimizedPrompt.maxTokens,
+        temperature: optimizedPrompt.temperature,
+        timeout,
+        onProgress, // Pass retry progress callback
+        cancellationToken // Pass cancellation token
       }
-      
-      const parseResult = validateAndParseItinerary(response)
-      if (!parseResult.success) {
-        console.error('❌ ItineraryService: Validation failed with errors:', parseResult.errors)
-        throw new Error(`Itinerary validation failed: ${parseResult.errors?.join(', ')}`)
-      }
+    )
 
-      console.log('✅ ItineraryService: Full itinerary generation successful')
-      return parseResult.data!
-    } catch (error) {
-      console.error('❌ ItineraryService: Error in generateFullItinerary:', error)
-      throw error
+    // Extract JSON from AI response (remove markdown formatting)
+    const cleanResponse = this.extractJsonFromResponse(response)
+    
+    // Fix common AI duration format errors before validation
+    const fixedResponse = this.fixDurationFormats(cleanResponse)
+    
+    const parseResult = validateAndParseItinerary(fixedResponse)
+    if (!parseResult.success) {
+      const validationError = new Error(`Itinerary validation failed: ${parseResult.errors?.join(', ')}`)
+      console.error('❌ ItineraryService: Validation failed:', parseResult.errors)
+      throw validationError
     }
+
+    console.log('✅ ItineraryService: Successfully parsed and validated itinerary')
+    return parseResult.data!
   }
 
   // Generate quick itinerary using AI (simplified version)
@@ -230,7 +225,7 @@ export class ItineraryService {
     const duration = Math.ceil(
       (formData.dateRange.endDate.getTime() - formData.dateRange.startDate.getTime()) / 
       (1000 * 60 * 60 * 24)
-    )
+    ) + 1 // Add 1 to make date range inclusive
 
     const promptTemplate = createQuickItineraryPrompt(
       formData.destination.destination,
@@ -468,6 +463,159 @@ export class ItineraryService {
       console.warn('Model preload failed:', error)
     }
   }
+
+  // Extract clean JSON from AI response (removes markdown formatting only)
+  private extractJsonFromResponse(response: string): string {
+    try {
+      // Clean up markdown formatting and extract JSON
+      let cleanResponse = response.trim()
+      
+      // Remove markdown code blocks
+      if (cleanResponse.startsWith('```json') || cleanResponse.startsWith('```')) {
+        cleanResponse = cleanResponse.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '')
+      }
+      
+      // Remove any extra text before/after JSON
+      const jsonStart = cleanResponse.indexOf('{')
+      const jsonEnd = cleanResponse.lastIndexOf('}')
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        cleanResponse = cleanResponse.substring(jsonStart, jsonEnd + 1)
+      }
+      
+      // Only extract JSON, don't fix AI instruction compliance issues
+      return cleanResponse
+    } catch (error) {
+      console.warn('Post-processing failed, using original response:', error)
+      return response
+    }
+  }
+
+  // Fix common AI data type and format errors
+  private fixDurationFormats(jsonString: string): string {
+    try {
+      // Parse the JSON to fix data type issues
+      const data = JSON.parse(jsonString)
+      
+      const fixDurationValue = (value: any): string => {
+        if (typeof value === 'string') {
+          // Already a string, check if it matches required format
+          if (/^\d+\s*(minutes?|hours?|mins?|hrs?)$/i.test(value)) {
+            return value
+          }
+          
+          // Fix common format issues
+          const patterns = [
+            // Fix "2h", "3hrs" -> "2 hours", "3 hours"
+            { regex: /^(\d+)h(rs?)?$/i, replacement: '$1 hours' },
+            // Fix "90m", "120mins" -> "90 minutes", "120 minutes"
+            { regex: /^(\d+)m(ins?)?$/i, replacement: '$1 minutes' },
+            // Fix "1.5 hours" -> "90 minutes" (convert to minutes)
+            { regex: /^(\d+\.?\d*)\s*hours?$/i, replacement: (match, p1) => {
+              const hours = parseFloat(p1)
+              const minutes = Math.round(hours * 60)
+              return `${minutes} minutes`
+            }},
+            // Fix "2-3 hours" -> "150 minutes" (take average)
+            { regex: /^(\d+)-(\d+)\s*hours?$/i, replacement: (match, p1, p2) => {
+              const avg = (parseInt(p1) + parseInt(p2)) / 2
+              const minutes = Math.round(avg * 60)
+              return `${minutes} minutes`
+            }},
+          ]
+          
+          for (const pattern of patterns) {
+            if (typeof pattern.replacement === 'string') {
+              if (pattern.regex.test(value)) {
+                return value.replace(pattern.regex, pattern.replacement)
+              }
+            } else {
+              const match = value.match(pattern.regex)
+              if (match) {
+                return pattern.replacement.apply(null, match as any)
+              }
+            }
+          }
+        } else if (typeof value === 'number') {
+          // Convert number to string format (assume minutes if < 24, hours if >= 24)
+          return value < 24 ? `${value} hours` : `${value} minutes`
+        }
+        
+        // Fallback for invalid formats
+        return '120 minutes'
+      }
+
+      // Fix coordinate precision issues
+      const fixCoordinates = (coords: any): any => {
+        if (coords && typeof coords === 'object' && coords.lat !== undefined && coords.lng !== undefined) {
+          return {
+            lat: parseFloat(Number(coords.lat).toFixed(4)),
+            lng: parseFloat(Number(coords.lng).toFixed(4))
+          }
+        }
+        return coords
+      }
+      
+      // Recursively fix data type issues
+      const fixObject = (obj: any): any => {
+        if (Array.isArray(obj)) {
+          return obj.map(fixObject)
+        } else if (obj && typeof obj === 'object') {
+          const result: any = {}
+          for (const [key, value] of Object.entries(obj)) {
+            if (key === 'duration' && typeof value !== 'undefined') {
+              result[key] = fixDurationValue(value)
+            } else if (key === 'coordinates') {
+              result[key] = fixCoordinates(value)
+            } else if (key === 'duration' && value === undefined) {
+              // Fix missing duration
+              result[key] = '120 minutes'
+            } else {
+              result[key] = fixObject(value)
+            }
+          }
+          return result
+        }
+        return obj
+      }
+      
+      const fixedData = fixObject(data)
+      
+      // Fix top-level duration if it's a string (should be number)
+      if (fixedData.itinerary && typeof fixedData.itinerary.duration === 'string') {
+        const durationStr = fixedData.itinerary.duration
+        const durationNum = parseInt(durationStr) || fixedData.itinerary.days?.length || 1
+        fixedData.itinerary.duration = durationNum
+      }
+      
+      
+      return JSON.stringify(fixedData)
+    } catch (error) {
+      // If parsing fails, try regex replacement as fallback
+      let fixed = jsonString
+      
+      // Fix top-level duration field (convert string to number)
+      fixed = fixed.replace(/"duration":\s*"(\d+)"/g, '"duration": $1')
+      
+      // Fix activity duration format issues
+      fixed = fixed.replace(/"duration":\s*(\d+)([,\}])/g, '"duration": "$1 minutes"$2')
+      fixed = fixed.replace(/"duration":\s*"(\d+)h"/g, '"duration": "$1 hours"')
+      fixed = fixed.replace(/"duration":\s*"(\d+)m"/g, '"duration": "$1 minutes"')
+      fixed = fixed.replace(/"duration":\s*"(\d+\.?\d*)\s*hours?"/g, (match, hours) => {
+        const minutes = Math.round(parseFloat(hours) * 60)
+        return `"duration": "${minutes} minutes"`
+      })
+      
+      // Fix coordinate precision (limit to 4 decimal places)
+      fixed = fixed.replace(/"lat":\s*(-?\d+\.\d{5,})/g, (match, lat) => {
+        return `"lat": ${parseFloat(lat).toFixed(4)}`
+      })
+      fixed = fixed.replace(/"lng":\s*(-?\d+\.\d{5,})/g, (match, lng) => {
+        return `"lng": ${parseFloat(lng).toFixed(4)}`
+      })
+      
+      return fixed
+    }
+  }
 }
 
 // Export singleton instance
@@ -475,13 +623,12 @@ export const itineraryService = new ItineraryService()
 
 // Utility functions for performance optimization
 export async function generateOptimizedItinerary(
-  formData: TripPlanningFormData,
+  formData: TripPlanningFormData | EnhancedFormData,
   prioritizeSpeed: boolean = false
 ): Promise<ItineraryResult> {
   return itineraryService.generateItinerary(formData, {
     prioritizeSpeed,
     useCache: true,
-    fallbackOnTimeout: true,
     maxTimeout: prioritizeSpeed ? 15000 : 25000
   })
 }

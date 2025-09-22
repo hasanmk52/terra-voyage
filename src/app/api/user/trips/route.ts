@@ -32,6 +32,7 @@ const createTripSchema = z.object({
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
   budget: z.number().positive().optional(),
+  currency: z.string().length(3).default('USD'), // Add currency support
   travelers: z.number().int().min(1).max(50).default(1),
   isPublic: z.boolean().default(false),
   generateItinerary: z.boolean().default(true), // Add option to generate itinerary
@@ -292,7 +293,7 @@ export async function POST(request: NextRequest) {
           },
           budget: {
             amount: validatedData.budget || 2000,
-            currency: 'USD',
+            currency: validatedData.currency || 'USD',
             range: 'total' as const
           },
           interests: validatedData.interests || ['culture', 'food'],
@@ -368,6 +369,7 @@ export async function POST(request: NextRequest) {
           startDate,
           endDate,
           budget: validatedData.budget,
+          currency: validatedData.currency, // Store user's selected currency
           travelers: validatedData.travelers,
           isPublic: validatedData.isPublic || false, // Default to private
           destinationCoords,
@@ -463,7 +465,7 @@ export async function POST(request: NextRequest) {
                   timeSlot: activityData.timeSlot || 'morning',
                   type: mapActivityType(activityData.type || 'other') as any,
                   price: activityData.pricing?.amount || null,
-                  currency: activityData.pricing?.currency || 'USD',
+                  currency: activityData.pricing?.currency || validatedData.currency || 'USD',
                   priceType: activityData.pricing?.priceType || 'per_person',
                   duration: activityData.duration || '',
                   tips: Array.isArray(activityData.tips) ? activityData.tips : [],
