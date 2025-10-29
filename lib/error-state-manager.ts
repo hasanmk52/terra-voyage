@@ -41,6 +41,9 @@ export function useErrorStateManager(): ErrorStateManager {
   })
 
   const retryHandlerRef = useRef<(() => Promise<void>) | null>(null)
+  // Use ref to always access latest state without causing re-renders
+  const errorStateRef = useRef(errorState)
+  errorStateRef.current = errorState
 
   // Load preserved state from storage
   const loadPreservedState = useCallback(() => {
@@ -83,13 +86,13 @@ export function useErrorStateManager(): ErrorStateManager {
   }, [])
 
   const showError = useCallback((
-    error: Error | string, 
-    context?: string, 
+    error: Error | string,
+    context?: string,
     preserveData?: any
   ) => {
     const now = new Date()
     const preservedState = loadPreservedState()
-    
+
     // Determine retry count
     let retryCount = 0
     if (preservedState?.lastErrorTime) {
@@ -141,7 +144,8 @@ export function useErrorStateManager(): ErrorStateManager {
   }, [clearPreservedState])
 
   const retryLastAction = useCallback(async () => {
-    if (retryHandlerRef.current && errorState.error?.retryable) {
+    // Use ref to access current state without adding it as a dependency
+    if (retryHandlerRef.current && errorStateRef.current.error?.retryable) {
       try {
         await retryHandlerRef.current()
         // Clear error on successful retry
@@ -151,25 +155,38 @@ export function useErrorStateManager(): ErrorStateManager {
         showError(error as Error, 'retry')
       }
     }
-  }, [errorState.error, clearError, showError])
+  }, [clearError, showError]) // Removed errorState.error dependency
 
   const setRetryHandler = useCallback((handler: () => Promise<void>) => {
     retryHandlerRef.current = handler
   }, [])
 
   const getPreservedData = useCallback(<T>(): T | null => {
-    return errorState.preservedData as T || null
-  }, [errorState.preservedData])
+    // Use ref to access current state without adding it as a dependency
+    return errorStateRef.current.preservedData as T || null
+  }, []) // Removed errorState.preservedData dependency
 
-  return {
-    errorState,
-    showError,
-    dismissError,
-    retryLastAction,
-    clearError,
-    setRetryHandler,
-    getPreservedData
+  // Store the manager object in a ref to maintain stable reference
+  const managerRef = useRef<ErrorStateManager | null>(null)
+
+  // Initialize the manager object only once
+  if (!managerRef.current) {
+    managerRef.current = {
+      errorState,
+      showError,
+      dismissError,
+      retryLastAction,
+      clearError,
+      setRetryHandler,
+      getPreservedData
+    }
+  } else {
+    // Update only the errorState property, keeping the same object reference
+    managerRef.current.errorState = errorState
   }
+
+  // Return the same object reference every time
+  return managerRef.current
 }
 
 // Higher-order component for automatic error state management
@@ -191,17 +208,38 @@ export function useFormDataPreservation<T extends Record<string, any>>(
   formData: T,
   errorManager: ErrorStateManager
 ) {
+  // Use refs to store the latest values without causing re-renders
+  const formDataRef = useRef(formData)
+  const errorManagerRef = useRef(errorManager)
+
+  // Update refs on each render
+  formDataRef.current = formData
+  errorManagerRef.current = errorManager
+
   const preserveFormData = useCallback(() => {
-    errorManager.showError('Form data preserved for retry', 'form', formData)
-  }, [formData, errorManager])
+    // Save form data to localStorage without showing an error
+    // We don't want to trigger the error UI, just preserve the data
+    try {
+      const data = formDataRef.current
+      if (data) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          preservedData: data,
+          retryCount: 0,
+          lastErrorTime: new Date().toISOString()
+        }))
+      }
+    } catch (error) {
+      console.warn('Failed to preserve form data:', error)
+    }
+  }, []) // Stable callback
 
   const restoreFormData = useCallback((): Partial<T> | null => {
-    return errorManager.getPreservedData<T>()
-  }, [errorManager])
+    return errorManagerRef.current.getPreservedData<T>()
+  }, []) // Stable callback
 
   const clearFormData = useCallback(() => {
-    errorManager.clearError()
-  }, [errorManager])
+    errorManagerRef.current.clearError()
+  }, []) // Stable callback
 
   return {
     preserveFormData,

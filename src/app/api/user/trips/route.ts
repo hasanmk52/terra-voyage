@@ -32,7 +32,7 @@ const createTripSchema = z.object({
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
   budget: z.number().positive().optional(),
-  currency: z.string().length(3).default('USD'), // Add currency support
+  currency: z.string().length(3).default('USD'), // Fixed to USD only
   travelers: z.number().int().min(1).max(50).default(1),
   isPublic: z.boolean().default(false),
   generateItinerary: z.boolean().default(true), // Add option to generate itinerary
@@ -106,8 +106,7 @@ export async function GET(request: NextRequest) {
           _count: {
             select: {
               activities: true,
-              days: true,
-              collaborations: true
+              days: true
             }
           }
         }
@@ -193,13 +192,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Security: Prevent creating trips in the distant past
-    const minPastDate = new Date()
-    minPastDate.setFullYear(minPastDate.getFullYear() - 1)
-    
-    if (endDate < minPastDate) {
+    // Prevent creating trips in the past
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (startDate < today) {
       return NextResponse.json(
-        { error: "Trip cannot be more than 1 year in the past" },
+        { error: "Trip cannot start in the past. Please select today or a future date." },
         { status: 400 }
       )
     }
@@ -240,11 +239,20 @@ export async function POST(request: NextRequest) {
       })
       
       if (!validationResult.isValid) {
+        // Determine the specific error type for better error messaging
+        const hasOverlap = validationResult.overlapResult?.hasOverlap || false
+        const hasValidationErrors = validationResult.errors && validationResult.errors.length > 0
+
+        // Use the first error message as the main error, or a default
+        const mainError = hasValidationErrors
+          ? validationResult.errors[0]
+          : "Trip date validation failed"
+
         // Return detailed error with suggestions
         const response = {
-          error: "Trip date validation failed",
+          error: mainError,
           details: validationResult.errors,
-          hasOverlap: validationResult.overlapResult?.hasOverlap || false,
+          hasOverlap,
           ...(validationResult.overlapResult && {
             overlappingTrips: validationResult.overlapResult.overlappingTrips.map(trip => ({
               id: trip.id,
@@ -263,8 +271,10 @@ export async function POST(request: NextRequest) {
             }))
           })
         }
-        
-        return NextResponse.json(response, { status: 409 }) // 409 Conflict
+
+        // Use 409 for overlaps, 400 for validation errors
+        const statusCode = hasOverlap ? 409 : 400
+        return NextResponse.json(response, { status: statusCode })
       }
     } catch (validationError) {
       console.error('Date overlap validation error:', validationError)
@@ -293,7 +303,7 @@ export async function POST(request: NextRequest) {
           },
           budget: {
             amount: validatedData.budget || 2000,
-            currency: validatedData.currency || 'USD',
+            currency: 'USD', // Always USD
             range: 'total' as const
           },
           interests: validatedData.interests || ['culture', 'food'],
@@ -369,7 +379,7 @@ export async function POST(request: NextRequest) {
           startDate,
           endDate,
           budget: validatedData.budget,
-          currency: validatedData.currency, // Store user's selected currency
+          currency: 'USD', // Always USD
           travelers: validatedData.travelers,
           isPublic: validatedData.isPublic || false, // Default to private
           destinationCoords,
@@ -409,8 +419,11 @@ export async function POST(request: NextRequest) {
           timestamp: new Date()
         }
       })
-      
+
       return createdTrip
+    }, {
+      maxWait: 5000,  // 5 seconds max wait to acquire a transaction
+      timeout: 10000  // 10 seconds max for the transaction to complete
     })
 
     // Save itinerary data separately if generated
@@ -465,7 +478,8 @@ export async function POST(request: NextRequest) {
                   timeSlot: activityData.timeSlot || 'morning',
                   type: mapActivityType(activityData.type || 'other') as any,
                   price: activityData.pricing?.amount || null,
-                  currency: activityData.pricing?.currency || validatedData.currency || 'USD',
+                  // Always use USD for consistency
+                  currency: 'USD',
                   priceType: activityData.pricing?.priceType || 'per_person',
                   duration: activityData.duration || '',
                   tips: Array.isArray(activityData.tips) ? activityData.tips : [],
@@ -486,8 +500,8 @@ export async function POST(request: NextRequest) {
             )
           }
         }, {
-          timeout: 60000, // 60 second timeout
-          maxWait: 5000,  // 5 second max wait for transaction to start
+          timeout: 30000, // 30 second timeout
+          maxWait: 3000,  // 3 second max wait for transaction to start
         })
         
         console.log('Itinerary data saved successfully for trip:', trip.id)
@@ -542,8 +556,7 @@ export async function POST(request: NextRequest) {
         _count: {
           select: {
             activities: true,
-            days: true,
-            collaborations: true,
+            days: true
           }
         }
       }
@@ -597,4 +610,3 @@ async function getDestinationCoordinatesFromAPI(destination: string): Promise<{ 
     throw new Error(`Unable to locate destination "${destination}". Please use a more specific location name.`)
   }
 }
-

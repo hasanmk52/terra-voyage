@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { collaborationService } from '@/lib/collaboration-service'
-
 export async function GET(request: NextRequest) {
   try {
     // Use mock notifications if enabled
@@ -77,28 +75,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Parameters are currently unused now that collaboration notifications are disabled,
+    // but we parse them to maintain backward compatibility with callers.
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const unreadOnly = searchParams.get('unreadOnly') === 'true'
-
-    // Get user notifications
-    const notifications = await collaborationService.getUserNotifications(
-      session.user.id,
-      limit
-    )
-
-    // Filter unread if requested
-    const filteredNotifications = unreadOnly 
-      ? notifications.filter(n => !n.read)
-      : notifications
-
-    // Get unread count
-    const unreadCount = notifications.filter(n => !n.read).length
+    searchParams.get('limit')
+    searchParams.get('unreadOnly')
 
     return NextResponse.json({
-      notifications: filteredNotifications,
-      unreadCount,
-      total: notifications.length
+      notifications: [],
+      unreadCount: 0,
+      total: 0
     })
 
   } catch (error) {
@@ -117,22 +103,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { notificationId, markAllAsRead } = body
-
-    if (markAllAsRead) {
-      // Mark all notifications as read
-      await collaborationService.markAllNotificationsRead(session.user.id)
-    } else if (notificationId) {
-      // Mark specific notification as read
-      await collaborationService.markNotificationRead(notificationId, session.user.id)
-    } else {
-      return NextResponse.json(
-        { error: 'Either notificationId or markAllAsRead is required' },
-        { status: 400 }
-      )
-    }
-
+    await request.json().catch(() => null)
+    // Collaboration notifications have been removed; acknowledge the request.
     return NextResponse.json({ success: true })
 
   } catch (error) {

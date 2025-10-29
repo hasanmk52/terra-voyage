@@ -3,18 +3,14 @@
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { TimelineConfig } from '@/lib/itinerary-types'
 import {
-  Calendar,
   Clock,
   DollarSign,
   Filter,
   Grid3X3,
   List,
-  Settings,
-  SortAsc,
   X
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'

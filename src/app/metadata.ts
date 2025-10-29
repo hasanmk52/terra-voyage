@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 export const metadata: Metadata = {
   title: "Terra Voyage - AI-Powered Travel Planning",
   description:
-    "Plan your perfect trip with AI-powered itinerary generation, real-time collaboration, and smart recommendations.",
+    "Plan your perfect trip with AI-powered itinerary generation and smart recommendations.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

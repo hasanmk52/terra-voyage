@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import React from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ActivityCard } from './activity-card'
 import { Day, Activity } from '@/lib/itinerary-types'
-import { formatDateShort, formatCurrency } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -101,9 +101,9 @@ export function DayCard({
   }
 
   return (
-    <Card className="overflow-hidden border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-white to-blue-50/20">
-      <CardHeader 
-        className="cursor-pointer select-none bg-gradient-to-r from-white via-blue-50/30 to-indigo-50/20 border-b border-gray-100"
+    <Card className="overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-white dark:from-gray-800 to-blue-50/20 dark:to-blue-900/10">
+      <CardHeader
+        className="cursor-pointer select-none bg-gradient-to-r from-white dark:from-gray-800 via-blue-50/30 dark:via-blue-900/10 to-indigo-50/20 dark:to-indigo-900/10 border-b border-gray-100 dark:border-gray-700"
         onClick={() => onToggleExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
@@ -122,23 +122,23 @@ export function DayCard({
             
             <div className="flex flex-col">
               <div className="flex items-center gap-3 mb-1">
-                <h3 className="font-bold text-xl text-gray-900">
+                <h3 className="font-bold text-xl text-gray-900 dark:text-gray-100">
                   Day {day.day}
                 </h3>
                 {day.theme && (
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200 font-medium">
+                  <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-700 font-medium">
                     {day.theme}
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
                 <div className="flex items-center gap-1 font-medium">
-                  <Calendar className="h-4 w-4 text-blue-500" />
+                  <Calendar className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                   <span>{formatDate(day.date)}</span>
                 </div>
                 {timeRange && (
                   <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4 text-green-500" />
+                    <Clock className="h-4 w-4 text-green-500 dark:text-green-400" />
                     <span>{formatTime(timeRange.start)} - {formatTime(timeRange.end)}</span>
                   </div>
                 )}
@@ -151,18 +151,18 @@ export function DayCard({
             {/* Summary stats - desktop only */}
             <div className="hidden lg:flex items-center gap-6">
               {totalCost > 0 && (
-                <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <span className="font-semibold text-green-700">{formatCurrency(totalCost)}</span>
+                <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded-lg border border-green-200 dark:border-green-700">
+                  <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <span className="font-semibold text-green-700 dark:text-green-300">{formatCurrency(totalCost)}</span>
                 </div>
               )}
-              
+
               {/* Activity type summary */}
               <div className="flex items-center gap-2">
                 {Object.entries(activityCounts).slice(0, 3).map(([type, count]) => (
                   <div
                     key={type}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm shadow-sm"
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm shadow-sm"
                     title={`${count} ${type}${count > 1 ? 's' : ''}`}
                   >
                     {getActivityTypeIcon(type)}
@@ -170,7 +170,7 @@ export function DayCard({
                   </div>
                 ))}
                 {Object.keys(activityCounts).length > 3 && (
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-500 text-xs font-medium">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs font-medium">
                     +{Object.keys(activityCounts).length - 3}
                   </div>
                 )}
@@ -181,7 +181,7 @@ export function DayCard({
             <Button
               variant="ghost"
               size="sm"
-              className="p-2 h-10 w-10 rounded-xl hover:bg-blue-100 hover:text-blue-700 transition-all duration-200"
+              className="p-2 h-10 w-10 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400 transition-all duration-200"
             >
               {isExpanded ? (
                 <ChevronUp className="h-5 w-5" />
@@ -193,21 +193,21 @@ export function DayCard({
         </div>
 
         {/* Mobile summary */}
-        <div className="flex lg:hidden items-center justify-between mt-4 pt-3 border-t border-gray-100">
-          <div className="flex items-center gap-4 text-sm text-gray-600">
+        <div className="flex lg:hidden items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
             {totalCost > 0 && (
-              <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-md">
-                <DollarSign className="h-3 w-3 text-green-600" />
-                <span className="font-medium text-green-700">{formatCurrency(totalCost)}</span>
+              <div className="flex items-center gap-1 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-md">
+                <DollarSign className="h-3 w-3 text-green-600 dark:text-green-400" />
+                <span className="font-medium text-green-700 dark:text-green-300">{formatCurrency(totalCost)}</span>
               </div>
             )}
           </div>
-          
+
           <div className="flex items-center gap-1">
             {Object.entries(activityCounts).slice(0, 2).map(([type, count]) => (
               <div
                 key={type}
-                className="flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-gray-200 text-xs"
+                className="flex items-center gap-1 px-2 py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-200"
                 title={`${count} ${type}${count > 1 ? 's' : ''}`}
               >
                 {getActivityTypeIcon(type)}
@@ -229,19 +229,19 @@ export function DayCard({
             <CardContent
               ref={setNodeRef}
               className={`space-y-3 pt-0 ${
-                day.activities.length === 0 
-                  ? 'min-h-[120px] border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center'
+                day.activities.length === 0
+                  ? 'min-h-[120px] border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center'
                   : ''
               }`}
             >
               {day.activities.length === 0 ? (
                 <div className="text-center py-8">
-                  <MapPin className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500 mb-4">No activities planned for this day</p>
+                  <MapPin className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">No activities planned for this day</p>
                   <Button
                     onClick={onAddActivity}
                     variant="outline"
-                    className="flex items-center gap-2 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-800 transition-all duration-200 hover:shadow-sm focus:ring-2 focus:ring-blue-200"
+                    className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:border-blue-300 dark:hover:border-blue-600 hover:text-blue-800 dark:hover:text-blue-200 transition-all duration-200 hover:shadow-sm focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-700"
                   >
                     <Plus className="h-4 w-4" />
                     Add Activity
@@ -277,11 +277,11 @@ export function DayCard({
                   </SortableContext>
 
                   {/* Add activity button */}
-                  <div className="pt-2 border-t border-gray-100">
+                  <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                     <Button
                       onClick={onAddActivity}
                       variant="ghost"
-                      className="w-full flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all duration-200 hover:shadow-sm focus:ring-2 focus:ring-blue-200 rounded-lg py-3"
+                      className="w-full flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all duration-200 hover:shadow-sm focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-700 rounded-lg py-3"
                     >
                       <Plus className="h-4 w-4" />
                       Add Activity

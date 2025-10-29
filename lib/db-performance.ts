@@ -46,8 +46,7 @@ export const queryOptimizations = {
         coverImage: true,
         _count: {
           select: {
-            activities: true,
-            collaborations: true,
+            activities: true
           }
         }
       },
@@ -67,14 +66,7 @@ export const queryOptimizations = {
         id: tripId,
         OR: [
           { userId },
-          {
-            collaborations: {
-              some: {
-                userId,
-                acceptedAt: { not: null },
-              }
-            }
-          }
+          { isPublic: true }
         ]
       },
       select: {
@@ -119,23 +111,6 @@ export const queryOptimizations = {
             { startTime: "asc" },
           ]
         },
-        collaborations: {
-          where: {
-            acceptedAt: { not: null },
-          },
-          select: {
-            id: true,
-            role: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-              }
-            }
-          }
-        }
       }
     })
   },
@@ -152,14 +127,6 @@ export const queryOptimizations = {
           { userId },
           {
             isPublic: true,
-          },
-          {
-            collaborations: {
-              some: {
-                userId,
-                acceptedAt: { not: null },
-              }
-            }
           }
         ],
         AND: {

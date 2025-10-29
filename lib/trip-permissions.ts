@@ -8,7 +8,6 @@ export interface TripPermissions {
   canEditActivities: boolean
   canDeleteActivities: boolean
   canChangeStatus: boolean
-  canInviteCollaborators: boolean
   canExport: boolean
   canShare: boolean
   canView: boolean
@@ -49,7 +48,6 @@ export function getTripPermissions(
     canEditActivities: false,
     canDeleteActivities: false,
     canChangeStatus: false,
-    canInviteCollaborators: false,
     canExport: true, // Everyone can export
     canShare: true,  // Everyone can share
     reasons
@@ -65,7 +63,6 @@ export function getTripPermissions(
       permissions.canEditActivities = true
       permissions.canDeleteActivities = true
       permissions.canChangeStatus = true
-      permissions.canInviteCollaborators = false // Don't invite to draft trips
       break
 
     case 'PLANNED':
@@ -76,7 +73,6 @@ export function getTripPermissions(
       permissions.canEditActivities = true
       permissions.canDeleteActivities = true
       permissions.canChangeStatus = true
-      permissions.canInviteCollaborators = true
       break
 
     case 'ACTIVE':
@@ -87,7 +83,6 @@ export function getTripPermissions(
       permissions.canEditActivities = true // Can modify activities
       permissions.canDeleteActivities = true // Can remove activities
       permissions.canChangeStatus = true // Can mark as completed
-      permissions.canInviteCollaborators = false // No new invites during trip
       reasons.push('Trip is currently active')
       break
 
@@ -99,7 +94,6 @@ export function getTripPermissions(
       permissions.canEditActivities = false
       permissions.canDeleteActivities = false
       permissions.canChangeStatus = true // Can reactivate if needed
-      permissions.canInviteCollaborators = false
       reasons.push('Trip has been completed')
       break
 
@@ -111,7 +105,6 @@ export function getTripPermissions(
       permissions.canEditActivities = false
       permissions.canDeleteActivities = false
       permissions.canChangeStatus = true // Can restore or replan
-      permissions.canInviteCollaborators = false
       reasons.push('Trip has been cancelled')
       break
   }
@@ -123,7 +116,6 @@ export function getTripPermissions(
     permissions.canDelete = false
     permissions.canGenerateItinerary = false
     permissions.canChangeStatus = false
-    permissions.canInviteCollaborators = false
     
     // But can still interact with activities in some cases
     if (trip.status === 'ACTIVE' || trip.status === 'PLANNED') {
@@ -149,7 +141,6 @@ export function getTripPermissions(
     permissions.canEdit = true
     permissions.canDelete = true
     permissions.canChangeStatus = true
-    permissions.canInviteCollaborators = trip.status !== 'CANCELLED'
     
     if (reasons.includes('You are not the trip owner')) {
       const index = reasons.indexOf('You are not the trip owner')
@@ -187,7 +178,6 @@ export function getPermissionMessages(
   cannotGenerateItinerary?: string
   cannotAddActivities?: string
   cannotChangeStatus?: string
-  cannotInvite?: string
   general?: string[]
 } {
   const permissions = getTripPermissions(trip, userId, userRole)
@@ -251,23 +241,6 @@ export function getPermissionMessages(
 
   if (!permissions.canChangeStatus) {
     messages.cannotChangeStatus = 'You do not have permission to change the status of this trip.'
-  }
-
-  if (!permissions.canInviteCollaborators) {
-    switch (trip.status) {
-      case 'DRAFT':
-        messages.cannotInvite = 'Complete the trip planning before inviting collaborators.'
-        break
-      case 'ACTIVE':
-        messages.cannotInvite = 'Cannot invite new collaborators to an active trip.'
-        break
-      case 'COMPLETED':
-      case 'CANCELLED':
-        messages.cannotInvite = 'Cannot invite collaborators to a completed or cancelled trip.'
-        break
-      default:
-        messages.cannotInvite = 'You do not have permission to invite collaborators.'
-    }
   }
 
   messages.general = permissions.reasons || []

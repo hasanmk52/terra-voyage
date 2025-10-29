@@ -278,16 +278,18 @@ export function TravelMap({
         if (enableOfflineMode && offlineStorage.isOfflineSupported()) {
           try {
             const bounds = map.current!.getBounds()
-            const availability = await offlineStorage.checkOfflineAvailability(
-              {
-                north: bounds.getNorth(),
-                south: bounds.getSouth(),
-                east: bounds.getEast(),
-                west: bounds.getWest()
-              },
-              Math.floor(currentZoom)
-            )
-            setOfflineCoverage(availability.coverage)
+            if (bounds) {
+              const availability = await offlineStorage.checkOfflineAvailability(
+                {
+                  north: bounds.getNorth(),
+                  south: bounds.getSouth(),
+                  east: bounds.getEast(),
+                  west: bounds.getWest()
+                },
+                Math.floor(currentZoom)
+              )
+              setOfflineCoverage(availability.coverage)
+            }
           } catch (error) {
             console.warn('Failed to check offline availability:', error)
           }
@@ -502,6 +504,8 @@ export function TravelMap({
 
     // Get current map bounds
     const bounds = map.current.getBounds()
+    if (!bounds) return
+
     const bbox: [number, number, number, number] = [
       bounds.getWest(),
       bounds.getSouth(),
@@ -610,13 +614,16 @@ export function TravelMap({
         )
 
         const data = await response.json()
-        
+
         if (data.routes && data.routes.length > 0) {
           const route = data.routes[0]
           const routeId = `route-day-${day.day}`
 
+          // Check if map still exists after async operation
+          if (!map.current) return
+
           // Add route source
-          if (!map.current!.getSource(routeId)) {
+          if (!map.current.getSource(routeId)) {
             map.current!.addSource(routeId, {
               type: 'geojson',
               data: {

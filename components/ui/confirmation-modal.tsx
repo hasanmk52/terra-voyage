@@ -198,9 +198,12 @@ export function useConfirmationModal() {
       setIsLoading(true)
       try {
         await onConfirmCallback()
-        // Close modal first, then allow state updates
-        setIsOpen(false)
+        // Success - wait for card animation to complete before closing modal
         setIsLoading(false)
+        // Wait 450ms total: 250ms for card exit + 200ms buffer
+        setTimeout(() => {
+          setIsOpen(false)
+        }, 450)
       } catch (error) {
         console.error('Confirmation action failed:', error)
         setIsLoading(false)

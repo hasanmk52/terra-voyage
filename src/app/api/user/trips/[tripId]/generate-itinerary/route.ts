@@ -62,7 +62,7 @@ export async function POST(
       startDate: trip.startDate.toISOString(),
       endDate: trip.endDate.toISOString(),
       budget: trip.budget,
-      currency: trip.currency, // Include stored currency
+      currency: 'USD', // Always USD
       travelers: trip.travelers,
       interests: ['culture', 'food', 'sightseeing'],
       accommodationType: 'hotel'
@@ -85,7 +85,7 @@ export async function POST(
       },
       budget: {
         amount: validatedData.budget || 2000,
-        currency: validatedData.currency || 'USD',
+        currency: 'USD', // Always USD
         range: 'total' as const
       },
       interests: validatedData.interests || ['culture', 'food'],
@@ -168,64 +168,98 @@ export async function POST(
 
       // Save days and activities if they exist
       if (itineraryResult.itinerary?.itinerary?.days) {
-        for (const dayData of itineraryResult.itinerary.itinerary.days) {
-          try {
-            console.log(`Processing day ${dayData.day}...`)
+        console.log(`Processing ${itineraryResult.itinerary.itinerary.days.length} days...`)
 
-            const day = await tx.day.create({
-              data: {
-                tripId,
-                dayNumber: dayData.day || 1,
-                date: dayData.date || new Date().toISOString().split('T')[0],
-                theme: dayData.theme || 'Day activities',
-                dailyBudget: dayData.dailyBudget || null,
-                transportation: dayData.transportation || null
-              }
-            })
+        // Prepare all days data upfront
+        const daysData = itineraryResult.itinerary.itinerary.days.map((dayData, idx) => ({
+          tripId,
+          dayNumber: dayData.day || idx + 1,
+          date: dayData.date || new Date().toISOString().split('T')[0],
+          theme: dayData.theme || 'Day activities',
+          dailyBudget: dayData.dailyBudget || null,
+          transportation: dayData.transportation || null
+        }))
 
-            console.log(`Day ${dayData.day} saved with ID: ${day.id}`)
+        // Batch create ALL days in a single query
+        await tx.day.createMany({
+          data: daysData,
+          skipDuplicates: true
+        })
 
-            // Save activities for this day
-            if (dayData.activities && Array.isArray(dayData.activities)) {
-              for (const [index, activityData] of dayData.activities.entries()) {
-                try {
-                  const activity = await tx.activity.create({
-                    data: {
-                      tripId,
-                      dayId: day.id,
-                      name: activityData.name || 'Unnamed Activity',
-                      description: activityData.description || '',
-                      location: activityData.location?.name || '',
-                      address: activityData.location?.address || '',
-                      coordinates: activityData.location?.coordinates || null,
-                      startTime: activityData.startTime || '',
-                      endTime: activityData.endTime || '',
-                      timeSlot: activityData.timeSlot || 'morning',
-                      type: mapActivityType(activityData.type || 'other') as any,
-                      price: activityData.pricing?.amount || null,
-                      currency: activityData.pricing?.currency || validatedData.currency || 'USD',
-                      priceType: activityData.pricing?.priceType || 'per_person',
-                      duration: activityData.duration || '',
-                      tips: Array.isArray(activityData.tips) ? activityData.tips : [],
-                      bookingRequired: Boolean(activityData.bookingRequired),
-                      accessibility: activityData.accessibility || {},
-                      order: index
-                    }
-                  })
+        console.log(`✅ Created ${daysData.length} days in batch`)
 
-                  console.log(`Activity ${index + 1} saved: ${activity.name}`)
-                } catch (activityError) {
-                  console.error(`Error saving activity ${index} for day ${dayData.day}:`, activityError)
-                }
-              }
-            }
-          } catch (dayError) {
-            console.error(`Error saving day ${dayData.day}:`, dayError)
+        // Fetch created days to get IDs for activity mapping
+        const createdDays = await tx.day.findMany({
+          where: { tripId },
+          orderBy: { dayNumber: 'asc' },
+          select: { id: true, dayNumber: true }
+        })
+
+        // Create day ID lookup map
+        const dayIdMap = new Map(
+          createdDays.map(day => [day.dayNumber, day.id])
+        )
+
+        // Prepare ALL activities data upfront
+        const allActivitiesData: any[] = []
+        for (let dayIndex = 0; dayIndex < itineraryResult.itinerary.itinerary.days.length; dayIndex++) {
+          const dayData = itineraryResult.itinerary.itinerary.days[dayIndex]
+          const dayId = dayIdMap.get(dayData.day || dayIndex + 1)
+
+          if (!dayId) {
+            console.warn(`Day ID not found for day ${dayData.day || dayIndex + 1}`)
+            continue
           }
+
+          if (dayData.activities && Array.isArray(dayData.activities)) {
+            dayData.activities.forEach((activityData, activityIndex) => {
+              allActivitiesData.push({
+                tripId,
+                dayId,
+                name: activityData.name || 'Unnamed Activity',
+                description: activityData.description || '',
+                location: activityData.location?.name || '',
+                address: activityData.location?.address || '',
+                coordinates: activityData.location?.coordinates || null,
+                startTime: activityData.startTime || '',
+                endTime: activityData.endTime || '',
+                timeSlot: activityData.timeSlot || 'morning',
+                type: mapActivityType(activityData.type || 'other'),
+                price: activityData.pricing?.amount || null,
+                currency: 'USD',
+                priceType: activityData.pricing?.priceType || 'per_person',
+                duration: activityData.duration || '',
+                tips: Array.isArray(activityData.tips) ? activityData.tips : [],
+                bookingRequired: Boolean(activityData.bookingRequired),
+                accessibility: activityData.accessibility || {},
+                order: activityIndex
+              })
+            })
+          }
+        }
+
+        // Batch create ALL activities (in batches of 100 to avoid payload limits)
+        if (allActivitiesData.length > 0) {
+          const batchSize = 100
+          let totalCreated = 0
+
+          for (let i = 0; i < allActivitiesData.length; i += batchSize) {
+            const batch = allActivitiesData.slice(i, i + batchSize)
+            await tx.activity.createMany({
+              data: batch,
+              skipDuplicates: true
+            })
+            totalCreated += batch.length
+          }
+
+          console.log(`✅ Created ${totalCreated} activities in ${Math.ceil(allActivitiesData.length / batchSize)} batch(es)`)
         }
       }
 
       console.log('Transaction completed successfully')
+    }, {
+      timeout: 30000, // 30 second timeout
+      maxWait: 3000   // 3 second max wait for transaction to start
     })
 
     console.log('✅ Itinerary generated and saved successfully!')

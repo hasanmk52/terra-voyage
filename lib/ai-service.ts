@@ -50,9 +50,9 @@ class AIService {
     await this.initialize();
 
     const {
-      maxTokens = 12000,
+      maxTokens = 20000, // Increased from 12000 to prevent truncation for complex itineraries
       temperature = 0.7,
-      timeout = 120000, // Increase to 2 minutes - don't artificially limit AI
+      timeout = 180000, // Increased to 3 minutes for longer generations
       onProgress,
       cancellationToken,
     } = options;

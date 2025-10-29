@@ -82,7 +82,7 @@ class ErrorService {
 
     // Get user-friendly error information
     const errorInfo = this.getErrorInfo(category, errorMessage, context)
-    
+
     // Enhance with progressive disclosure based on history
     return this.enhanceWithHistory(errorInfo)
   }
@@ -224,8 +224,14 @@ class ErrorService {
     }
 
     const baseInfo = errorMappings[category]
+
+    // For validation errors, use the original message as the user message since it's already user-friendly
+    const shouldUseOriginalMessage = category === 'VALIDATION_ERROR' && originalMessage.length > 50
+
     return {
       ...baseInfo,
+      userMessage: shouldUseOriginalMessage ? originalMessage : baseInfo.userMessage,
+      message: shouldUseOriginalMessage ? originalMessage : baseInfo.message,
       technicalDetails: originalMessage
     }
   }
@@ -305,7 +311,7 @@ class ErrorService {
   }
 
   private isValidationError(message: string): boolean {
-    return /validation|invalid|missing|required|format|schema/i.test(message)
+    return /validation|invalid|missing|required|format|schema|overlap|conflict|past|dates/i.test(message)
   }
 
   private isNetworkError(message: string): boolean {

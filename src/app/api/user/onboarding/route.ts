@@ -23,9 +23,8 @@ const onboardingSchema = z.object({
   // Dietary & Accessibility
   dietaryRestrictions: z.array(z.string()),
   accessibility: z.enum(["full", "limited", "wheelchair", "none"]),
-  
+
   // Preferences
-  currency: z.enum(["USD", "EUR", "GBP", "CAD", "AUD", "JPY"]),
   measurementUnit: z.enum(["metric", "imperial"]),
   language: z.enum(["en", "es", "fr", "de", "it", "pt"]),
   
@@ -77,7 +76,6 @@ export async function POST(request: NextRequest) {
           accessibility: data.accessibility,
         }),
         preferences: {
-          currency: data.currency,
           measurementUnit: data.measurementUnit,
           language: data.language,
           theme: "light",

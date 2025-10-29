@@ -73,7 +73,6 @@ const onboardingSchema = z.object({
   accessibility: z.enum(["full", "limited", "wheelchair", "none"]),
 
   // Preferences
-  currency: z.enum(["USD", "EUR", "GBP", "CAD", "AUD", "JPY"]),
   measurementUnit: z.enum(["metric", "imperial"]),
   language: z.enum(["en", "es", "fr", "de", "it", "pt"]),
 
@@ -156,7 +155,6 @@ export default function OnboardingPage() {
       interests: [],
       dietaryRestrictions: [],
       accessibility: "full",
-      currency: "USD",
       measurementUnit: "metric",
       language: "en",
       profilePublic: false,
@@ -473,28 +471,6 @@ export default function OnboardingPage() {
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Currency</Label>
-                  <Select
-                    value={watch("currency")}
-                    onValueChange={(value) =>
-                      setValue("currency", value as any)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD ($)</SelectItem>
-                      <SelectItem value="EUR">EUR (€)</SelectItem>
-                      <SelectItem value="GBP">GBP (£)</SelectItem>
-                      <SelectItem value="CAD">CAD (C$)</SelectItem>
-                      <SelectItem value="AUD">AUD (A$)</SelectItem>
-                      <SelectItem value="JPY">JPY (¥)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <div>
                   <Label>Measurement Unit</Label>
                   <Select

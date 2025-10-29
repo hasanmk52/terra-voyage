@@ -181,8 +181,7 @@ export async function GET() {
         updatedAt: true,
         _count: {
           select: {
-            trips: true,
-            collaborations: true,
+            trips: true
           },
         },
       },

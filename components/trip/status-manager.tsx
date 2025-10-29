@@ -59,6 +59,7 @@ export function StatusManager({
     description: "",
     variant: "default",
   });
+  const [success, setSuccess] = useState(false);
 
   const transitions = getStatusTransitionInfo(currentStatus);
 
@@ -77,8 +78,10 @@ export function StatusManager({
         description: `Are you sure you want to change the trip status to ${transition.status.toLowerCase()}? ${
           transition.description
         }`,
-        variant: (transition.variant as "destructive") || "default",
+        variant:
+          "variant" in transition ? (transition as any).variant : "default",
       });
+      setSuccess(false);
       return;
     }
 
@@ -94,8 +97,12 @@ export function StatusManager({
       // Notify parent component
       onStatusChange?.(newStatus);
 
-      // Close confirmation dialog
-      setConfirmation((prev) => ({ ...prev, show: false }));
+      // Show success state in dialog
+      setSuccess(true);
+      setTimeout(() => {
+        setConfirmation((prev) => ({ ...prev, show: false }));
+        setSuccess(false);
+      }, 500); // 500ms delay for smooth UX
     } catch (error) {
       console.error("Failed to update trip status:", error);
       toast.error(
@@ -166,6 +173,7 @@ export function StatusManager({
                 key={transition.status}
                 onClick={() => handleStatusChange(transition.status)}
                 className={`flex items-center gap-2 cursor-pointer focus:outline-none ${
+                  "variant" in transition &&
                   transition.variant === "destructive"
                     ? "text-red-600 focus:text-red-600 focus:bg-red-50"
                     : "focus:bg-blue-50"
@@ -187,12 +195,13 @@ export function StatusManager({
                     {transition.description}
                   </div>
                 </div>
-                {transition.variant === "destructive" && (
-                  <AlertTriangle
-                    className="w-4 h-4 text-red-500"
-                    aria-hidden="true"
-                  />
-                )}
+                {"variant" in transition &&
+                  transition.variant === "destructive" && (
+                    <AlertTriangle
+                      className="w-4 h-4 text-red-500"
+                      aria-hidden="true"
+                    />
+                  )}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -216,49 +225,62 @@ export function StatusManager({
         <AlertDialogContent className="bg-white border border-gray-200 shadow-xl max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-gray-900">
-              {confirmation.variant === "destructive" && (
-                <AlertTriangle
-                  className="w-5 h-5 text-red-500"
-                  aria-hidden="true"
-                />
+              {success ? (
+                <span className="flex items-center text-green-600">
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Success!
+                </span>
+              ) : (
+                <>
+                  {confirmation.variant === "destructive" && (
+                    <AlertTriangle
+                      className="w-5 h-5 text-red-500"
+                      aria-hidden="true"
+                    />
+                  )}
+                  {confirmation.title || "Confirm Status Change"}
+                </>
               )}
-              {confirmation.title || "Confirm Status Change"}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-gray-600 mt-2">
-              {confirmation.description ||
-                "Are you sure you want to change the trip status?"}
+              {success
+                ? "Trip status updated successfully."
+                : confirmation.description ||
+                  "Are you sure you want to change the trip status?"}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
-            <AlertDialogCancel
-              disabled={isLoading}
-              className="focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() =>
-                confirmation.newStatus &&
-                handleStatusChange(confirmation.newStatus, true)
-              }
-              disabled={isLoading}
-              className={`focus:ring-2 focus:ring-offset-2 text-white ${
-                confirmation.variant === "destructive"
-                  ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                  : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
-              }`}
-              aria-label={`Confirm status change to ${confirmation.newStatus?.toLowerCase()}`}
-            >
-              {isLoading && (
-                <Loader2
-                  className="w-4 h-4 mr-2 animate-spin"
-                  aria-hidden="true"
-                />
-              )}
-              Confirm
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {!success && (
+            <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
+              <AlertDialogCancel
+                disabled={isLoading}
+                className="focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() =>
+                  confirmation.newStatus &&
+                  handleStatusChange(confirmation.newStatus, true)
+                }
+                disabled={isLoading}
+                className={`focus:ring-2 focus:ring-offset-2 text-white ${
+                  confirmation.variant === "destructive"
+                    ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+                    : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+                }`}
+                aria-label={`Confirm status change to ${confirmation.newStatus?.toLowerCase()}`}
+              >
+                {isLoading && (
+                  <Loader2
+                    className="w-4 h-4 mr-2 animate-spin"
+                    aria-hidden="true"
+                  />
+                )}
+                Confirm
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </>

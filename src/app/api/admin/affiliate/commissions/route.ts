@@ -74,7 +74,7 @@ function getPartnerName(partnerId: string): string {
   return partner?.name || 'Unknown Partner'
 }
 
-function getProductType(partnerId: string): 'flight' | 'hotel' | 'activity' {
+function getProductType(partnerId: string): 'flight' | 'activity' {
   const partner = affiliateSystem.getPartner(partnerId)
-  return (partner?.type as any) || 'hotel'
+  return (partner?.type as 'flight' | 'activity' | undefined) || 'flight'
 }

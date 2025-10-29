@@ -48,11 +48,7 @@ async function checkTripViewPermission(tripId: string, userId: string): Promise<
     where: { id: tripId },
     select: { 
       userId: true,
-      isPublic: true,
-      collaborations: {
-        where: { userId },
-        select: { role: true }
-      }
+      isPublic: true
     }
   })
   
@@ -67,11 +63,6 @@ async function checkTripViewPermission(tripId: string, userId: string): Promise<
   
   // Public trips can be viewed
   if (trip.isPublic) {
-    return true
-  }
-  
-  // Collaborators can view
-  if (trip.collaborations.length > 0) {
     return true
   }
   

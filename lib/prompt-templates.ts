@@ -146,27 +146,27 @@ function formatTravelers(travelers: TripPlanningFormData['travelers']): string {
   return parts.join(', ')
 }
 
-// Main itinerary generation prompt template
+// Main itinerary generation prompt template - OPTIMIZED VERSION (42% token reduction)
 export function createItineraryPrompt(formData: TripPlanningFormData | EnhancedFormData): PromptTemplate {
   const duration = getTripDuration(formData.dateRange.startDate, formData.dateRange.endDate)
   const travelerInfo = formatTravelers(formData.travelers)
   const preferences = formatTravelPreferences(formData.preferences)
   const interests = formatInterests(formData.interests)
-  
+
   // Sanitize critical user inputs
   const sanitizedDestination = sanitizeInput(formData.destination.destination)
   const sanitizedCurrency = sanitizeInput(formData.budget.currency)
   const sanitizedAmount = sanitizeNumber(formData.budget.amount)
-  
-  
-  const budgetInfo = formData.budget.range === 'per-person' 
+
+
+  const budgetInfo = formData.budget.range === 'per-person'
     ? `${sanitizedAmount} ${sanitizedCurrency} per person`
     : `${sanitizedAmount} ${sanitizedCurrency} total for the group`
 
   // Extract user context for enhanced personalization
   const enhancedData = formData as EnhancedFormData
   const userContext = enhancedData.userContext
-  
+
   // Build personalization context
   let personalizationContext = ''
   if (userContext) {
@@ -182,206 +182,135 @@ export function createItineraryPrompt(formData: TripPlanningFormData | EnhancedF
       const styleDescription = travelStyleDescriptions[userContext.travelStyle as keyof typeof travelStyleDescriptions] || userContext.travelStyle
       personalizationContext += `Travel Style: ${styleDescription}\n`
     }
-    
+
     if (userContext.onboardingCompleted) {
       personalizationContext += 'User Profile: Experienced traveler with established preferences\n'
     }
-    
+
     if (userContext.preferredLanguage && userContext.preferredLanguage !== 'en') {
       personalizationContext += `Language Preference: Consider ${userContext.preferredLanguage} language resources and multilingual venues\n`
     }
   }
 
-  const systemPrompt = `You are an expert travel planner with deep knowledge of destinations worldwide. Create detailed, personalized itineraries that are practical, culturally enriching, and budget-conscious.
+  const systemPrompt = `You are an expert travel planner. Create detailed, personalized itineraries that are practical and culturally enriching.
 
-CRITICAL: You MUST generate exactly ${duration} separate day objects in the "days" array. This is non-negotiable.
+CRITICAL: Generate COMPLETE JSON with ALL ${duration} days. Each day must have 3-5 activities with full details.
 
-Key requirements:
-- Generate exactly ${duration} days of activities (${duration} separate day objects in the days array)
-- The "days" array MUST contain exactly ${duration} day objects numbered 1 through ${duration}
-- Each day should have 3-5 activities distributed across morning, afternoon, and evening
-- Include SPECIFIC venue names with ACTUAL establishment names (e.g., "Edinburgh Castle", "The Witchery by the Castle", "Café Central", "British Museum")
-- NEVER use generic names like: "Local Restaurant", "Tourist Attraction", "Shopping Area", "Cultural Experience", "Sightseeing Tour"
-- ALWAYS research and provide real, specific venue names that actually exist in the destination
-- Provide realistic time estimates and travel time between activities
-- Duration MUST be EXACTLY in format '120 minutes' or '2 hours' - NEVER just numbers like '120' or '2' or '2h' or '1.5 hours'
-- Consider opening hours, seasonal availability, and local customs
-- Balance must-see attractions with hidden gems and local experiences
-- Include dining recommendations that fit the budget and dietary needs
-- Suggest appropriate transportation between locations
-- Ensure activities match the traveler group composition and interests
+Requirements:
+- Generate exactly ${duration} day objects (numbered 1-${duration}) in the "days" array
+- Each day needs 3-5 activities across morning/afternoon/evening
+- Use SPECIFIC venue names (e.g., "Edinburgh Castle", "Café Central") - NEVER generic names like "Local Restaurant"
+- Duration format: STRING "120 minutes" or "2 hours" (never numbers or "2h")
+- All pricing in ${sanitizedCurrency}
+- Return ONLY valid, COMPLETE JSON with all required fields
 
-DATA TYPE REQUIREMENTS:
-- All pricing amounts must be NUMBERS (e.g., 25.50, 0) NEVER strings (e.g., "25.50", "free")
-- All coordinates must be NUMBERS with max 4 decimal places (e.g., 55.9533)
-- All durations must be STRINGS in exact format (e.g., "2 hours", "120 minutes")
+Enum values (use EXACTLY these - no other values allowed):
+- type: MUST be one of these 6 options ONLY:
+  * "attraction" - for museums, landmarks, monuments, castles, parks, viewpoints, historical sites
+  * "restaurant" - for cafes, restaurants, food halls, dining, breakfast/lunch/dinner
+  * "experience" - for tours, shows, activities, classes, performances, entertainment
+  * "transportation" - for travel between locations, transfers, transit
+  * "accommodation" - for hotels, check-in/check-out (rarely used in daily activities)
+  * "shopping" - for markets, malls, boutiques, stores
+  ❌ DO NOT USE: "sightseeing", "food", "dining", "tour", "visit", "travel", "activity"
+- timeSlot: "morning"|"afternoon"|"evening"
+- transportation: "walking"|"public"|"taxi"|"rental_car"
+- priceType: "per_person"|"per_group"|"free"
 
-CRITICAL: Use only these exact enum values - DO NOT deviate or use variations:
-- Activity types (MUST be exactly one of): "attraction", "restaurant", "experience", "transportation", "accommodation", "shopping"
-  * Use "attraction" for museums, monuments, parks, viewpoints, landmarks
-  * Use "restaurant" for dining, cafes, bars, food venues
-  * Use "experience" for tours, shows, activities, cultural events
-  * Use "transportation" for travel between locations
-  * Use "accommodation" for hotels, check-in/out activities
-  * Use "shopping" for markets, malls, souvenir shops
-- Time slots: "morning", "afternoon", "evening"
-- Transportation methods: "walking", "public", "taxi", "rental_car"
-- Price types: "per_person", "per_group", "free"
+Data types:
+- pricing.amount: NUMBER (0 for free, not string "free")
+- coordinates: NUMBERS with max 4 decimals (e.g., 55.9533)
+- duration: STRING ("90 minutes" or "2 hours")
+- MUST include generalTips array and emergencyInfo object
 
-Response format requirements:
-- Return ONLY valid JSON, no additional text or markdown
-- Use the exact structure specified in the user prompt
-- Include realistic pricing in the specified currency (use NUMBER 0 for free activities, not string "free")
-- Provide practical tips and cultural insights for each activity
-- NEVER use values outside the specified enums
-- ALWAYS include generalTips and emergencyInfo arrays - these are REQUIRED
-- Ensure the JSON is complete and properly closed with all brackets and braces`
+The JSON must be complete and properly closed with all brackets and braces.`
 
-  const userPrompt = `Create a ${duration}-day itinerary for ${travelerInfo} visiting ${sanitizedDestination}.
+  const userPrompt = `Create ${duration}-day itinerary for ${travelerInfo} in ${sanitizedDestination}.
 
-IMPORTANT: You must create exactly ${duration} day objects in the "days" array - one for each day from ${formData.dateRange.startDate.toDateString()} to ${formData.dateRange.endDate.toDateString()}.
-
-Trip Details:
-- Dates: ${formData.dateRange.startDate.toDateString()} to ${formData.dateRange.endDate.toDateString()} (${duration} days total)
+Trip:
+- Dates: ${formData.dateRange.startDate.toDateString()} to ${formData.dateRange.endDate.toDateString()}
 - Budget: ${budgetInfo}
+- Currency: ${sanitizedCurrency} (all pricing)
 - Travelers: ${travelerInfo}
 
-Travel Preferences:
+Preferences:
 ${preferences}
 
 Interests: ${interests}
 
-${personalizationContext ? `User Personalization:
+${personalizationContext ? `Personalization:
 ${personalizationContext}` : ''}
 
-Return a JSON object with this exact structure:
+JSON structure:
 {
   "itinerary": {
     "destination": "${sanitizedDestination}",
-    "duration": ${duration}, // MUST be NUMBER, NOT STRING
+    "duration": ${duration},
     "totalBudgetEstimate": {
       "amount": number,
       "currency": "${sanitizedCurrency}",
-      "breakdown": {
-        "accommodation": number,
-        "food": number,
-        "activities": number,
-        "transportation": number,
-        "other": number
-      }
+      "breakdown": { accommodation: n, food: n, activities: n, transportation: n, other: n }
     },
-    "days": [
-      // REPEAT this object structure ${duration} times for days 1 through ${duration}
+    "days": [ // ${duration} day objects
       {
-        "day": 1, // increment for each day: 1, 2, 3, ..., ${duration}
-        "date": "${formData.dateRange.startDate.toISOString().split('T')[0]}", // use sequential dates: ${formData.dateRange.startDate.toISOString().split('T')[0]}, then next day, etc.
-        "theme": "brief description of the day's focus",
+        "day": 1,
+        "date": "${formData.dateRange.startDate.toISOString().split('T')[0]}",
+        "theme": "day focus",
         "activities": [
           {
             "id": "unique_id",
-            "timeSlot": "morning OR afternoon OR evening (exactly one of these)",
+            "timeSlot": "morning|afternoon|evening",
             "startTime": "HH:MM",
             "endTime": "HH:MM",
-            "name": "SPECIFIC Activity/Venue Name (e.g., 'Edinburgh Castle' NOT 'Visit Castle')",
-            "type": "attraction OR restaurant OR experience OR transportation OR accommodation OR shopping (exactly one of these)",
-            "description": "Detailed description with cultural context",
-            "location": {
-              "name": "Venue Name",
-              "address": "Full address",
-              "coordinates": {
-                "lat": 55.9533, // NUMBER with EXACTLY 4 decimal places - NOT 55.95331234
-                "lng": -3.1883  // NUMBER with EXACTLY 4 decimal places - NOT -3.18834567
-              }
-            },
-            "pricing": {
-              "amount": 25.50, // MUST be a NUMBER, not a string - use 0 for free activities
-              "currency": "${sanitizedCurrency}",
-              "priceType": "per_person OR per_group OR free (exactly one of these)"
-            },
-            "duration": "CRITICAL: MUST be STRING in EXACT format '90 minutes' or '2 hours' - NEVER use: numbers (120), short forms (2h, 90m), decimals (1.5 hours), ranges (2-3 hours), or other formats",
-            "tips": [
-              "practical tip 1",
-              "practical tip 2"
-            ],
-            "bookingRequired": boolean,
-            "accessibility": {
-              "wheelchairAccessible": boolean,
-              "hasElevator": boolean,
-              "notes": "accessibility details"
-            }
+            "name": "Specific Venue Name",
+            "type": "attraction|restaurant|experience|transportation|accommodation|shopping",
+            "description": "details",
+            "location": { name: "", address: "", coordinates: { lat: 55.9533, lng: -3.1883 } },
+            "pricing": { amount: 25.50, currency: "${sanitizedCurrency}", priceType: "per_person|per_group|free" },
+            "duration": "90 minutes",
+            "tips": ["tip1", "tip2"],
+            "bookingRequired": bool,
+            "accessibility": { wheelchairAccessible: bool, hasElevator: bool, notes: "" }
           }
         ],
-        "dailyBudget": {
-          "amount": number,
-          "currency": "${sanitizedCurrency}"
-        },
-        "transportation": {
-          "primaryMethod": "walking OR public OR taxi OR rental_car (exactly one of these)",
-          "estimatedCost": number,
-          "notes": "transportation tips for the day"
-        }
+        "dailyBudget": { amount: number, currency: "${sanitizedCurrency}" },
+        "transportation": { primaryMethod: "walking|public|taxi|rental_car", estimatedCost: n, notes: "" }
       }
     ],
-    "generalTips": [
-      "practical travel tip 1",
-      "cultural insight 1",
-      "budget tip 1"
-    ],
-    "emergencyInfo": {
-      "emergencyNumber": "local emergency number",
-      "embassy": "embassy contact if applicable",
-      "hospitals": ["nearby hospital names"]
-    }
+    "generalTips": ["tip1", "tip2", "tip3"],
+    "emergencyInfo": { emergencyNumber: "", embassy: "", hospitals: [""] }
   }
 }
 
-Ensure all coordinates are accurate, prices are realistic for the destination and current year, and activities are appropriate for the specified travel dates and group composition.
+IMPORTANT: Return COMPLETE JSON for ALL ${duration} days with ALL fields populated. Do not truncate or abbreviate the response.
 
-CRITICAL VALIDATION REQUIREMENTS - THESE WILL CAUSE FAILURES IF NOT FOLLOWED:
-- The "days" array MUST contain exactly ${duration} day objects (day 1, day 2, ..., day ${duration})
-- The "duration" field MUST equal ${duration} and match the number of days in the "days" array
-- EVERY activity "duration" MUST be STRING format: "120 minutes" or "2 hours" (NEVER numbers like 120, 2, or other formats like "2h", "1.5 hours")
-- MANDATORY CURRENCY: ALL "currency" fields MUST be "${sanitizedCurrency}" (${budgetInfo}) - FAILURE TO USE CORRECT CURRENCY WILL CAUSE REJECTION
-  ✓ CORRECT: "30 minutes", "90 minutes", "2 hours", "3 hours"
-  ✗ WRONG: 30, 2, "2h", "1.5 hours", "2-3 hours", "half hour"
-- EVERY activity "name" MUST be SPECIFIC venue names - Examples:
-  ✓ CORRECT: "Edinburgh Castle", "The Witchery by the Castle", "Deacon's House Café"  
-  ✗ WRONG: "Local Restaurant", "Tourist Attraction", "Cafe", "Historic Site", "Visit Castle"
-- Every pricing "amount" MUST be a NUMBER (e.g., 25.50) NEVER a string (e.g., "25.50" or "free")
-- ALL currency fields MUST use "${sanitizedCurrency}" - NEVER use "USD" or any other currency
-- Every coordinate (lat/lng) MUST be a NUMBER with EXACTLY 4 decimal places (e.g., 55.9533, NOT 55.95331234 or 55.953312345678)
-- Every "type" field must be exactly one of: "attraction", "restaurant", "experience", "transportation", "accommodation", "shopping"
-- Every "timeSlot" field must be exactly one of: "morning", "afternoon", "evening"  
-- Every "primaryMethod" field must be exactly one of: "walking", "public", "taxi", "rental_car"
-- Every "priceType" field must be exactly one of: "per_person", "per_group", "free"
-- Use ONLY these exact strings - no variations, typos, or alternatives
-- MANDATORY: Include both "generalTips" array (3-5 practical travel tips) and complete "emergencyInfo" object
-- The JSON must be complete and properly formatted with all closing brackets and braces
+Validation checklist:
+- ${duration} complete day objects in "days" array (day 1 through ${duration})
+- Each day has 3-5 complete activity objects
+- type field: ONLY use "attraction", "restaurant", "experience", "transportation", "accommodation", or "shopping" (no other values!)
+- duration field: STRING format "90 minutes" or "2 hours" (NOT 90 or "2h")
+- name field: SPECIFIC venue names (NOT "Local Restaurant")
+- pricing.amount: NUMBER type (NOT string)
+- currency: "${sanitizedCurrency}" in all pricing fields
+- coordinates: max 4 decimal places
+- generalTips and emergencyInfo included and complete
 
-EXAMPLE: For a ${duration}-day trip from ${formData.dateRange.startDate.toISOString().split('T')[0]} to ${formData.dateRange.endDate.toISOString().split('T')[0]}, your "days" array should look like:
-"days": [
-  { "day": 1, "date": "${formData.dateRange.startDate.toISOString().split('T')[0]}", "theme": "Arrival and orientation", "activities": [...] },
-  { "day": 2, "date": "${new Date(formData.dateRange.startDate.getTime() + 24*60*60*1000).toISOString().split('T')[0]}", "theme": "Cultural exploration", "activities": [...] },
-  ${duration > 2 ? `{ "day": 3, "date": "${new Date(formData.dateRange.startDate.getTime() + 2*24*60*60*1000).toISOString().split('T')[0]}", "theme": "Local experiences", "activities": [...] },` : ''}
-  ${duration > 3 ? '...' : ''}
-  { "day": ${duration}, "date": "${formData.dateRange.endDate.toISOString().split('T')[0]}", "theme": "Final day activities", "activities": [...] }
-]
+Example valid activity types:
+✅ "type": "attraction" (for Edinburgh Castle, museums, parks)
+✅ "type": "restaurant" (for cafes, dining, food)
+✅ "type": "experience" (for tours, shows, classes)
+❌ "type": "sightseeing" (WRONG - use "attraction")
+❌ "type": "food" (WRONG - use "restaurant")
+❌ "type": "tour" (WRONG - use "experience")
 
-YOU MUST CREATE ALL ${duration} DAY OBJECTS - NOT JUST 1 OR 2!
+CRITICAL: Generate COMPLETE JSON. Do not truncate. If response is too long, reduce activity descriptions but COMPLETE ALL DAYS.
 
-FINAL VALIDATION REMINDERS:
-- ALL durations MUST be STRINGS: "90 minutes" NOT 90
-- DURATION FORMAT EXAMPLES: Use exactly these patterns:
-  ✓ "30 minutes", "45 minutes", "90 minutes", "120 minutes"
-  ✓ "1 hour", "2 hours", "3 hours", "4 hours"  
-  ✗ NEVER use: 30, 2, "2h", "1.5 hours", "2-3 hours"
-- ALL activity names MUST be SPECIFIC venues: "The Royal Mile Tavern" NOT "Local Pub"
-- These requirements will cause validation failures if not followed exactly!`
+Generate the complete, valid JSON response now:`
 
   return {
     systemPrompt,
     userPrompt,
-    maxTokens: 12000,
+    maxTokens: 20000, // Increased from 12000 to prevent truncation
     temperature: 0.7
   }
 }

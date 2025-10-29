@@ -31,10 +31,10 @@ const steps = [
   {
     step: 4,
     title: "Book & Share",
-    description: "Book directly through our platform or export your itinerary. Share with travel companions and enjoy your perfect trip!",
+    description: "Finalize your itinerary, export it to your calendar, and share with travel companions before you depart!",
     icon: Share2,
     color: "from-orange-500 to-red-500",
-    features: ["Direct booking integration", "Export to calendar", "Share with friends", "Real-time updates"]
+    features: ["Export to calendar", "Share with friends", "Mobile-friendly itinerary", "Real-time updates"]
   }
 ]
 

@@ -203,26 +203,11 @@ export function createDefaultPreferences() {
  */
 export async function validateTripAccess(tripId: string, userId: string) {
   try {
-    const trip = await db.trip.findFirst({
-      where: {
-        id: tripId,
-        OR: [
-          { userId: userId }, // Owner
-          {
-            collaborations: {
-              some: {
-                userId: userId,
-                // Add any role-based restrictions here if needed
-              }
-            }
-          }
-        ]
-      },
-      include: {
-        collaborations: {
-          where: { userId: userId },
-          select: { role: true }
-        }
+    const trip = await db.trip.findUnique({
+      where: { id: tripId },
+      select: {
+        userId: true,
+        isPublic: true
       }
     })
     
@@ -235,17 +220,16 @@ export async function validateTripAccess(tripId: string, userId: string) {
       return { hasAccess: true, role: "OWNER" }
     }
     
-    // If user is collaborator
-    const collaboration = trip.collaborations[0]
-    return { 
-      hasAccess: true, 
-      role: collaboration?.role || "VIEWER" 
+    // Allow read-only access to public trips
+    if (trip.isPublic) {
+      return { hasAccess: true, role: "VIEWER" }
     }
     
   } catch (error) {
     console.error("Failed to validate trip access:", error)
-    return { hasAccess: false, role: null }
   }
+
+  return { hasAccess: false, role: null }
 }
 
 /**

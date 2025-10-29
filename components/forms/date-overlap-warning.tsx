@@ -77,7 +77,7 @@ export function DateOverlapWarning({
           <div className="space-y-3">
             <h4 className="font-medium text-amber-900 text-sm">Conflicting Trips:</h4>
             <div className="space-y-2">
-              {validationResult.overlappingTrips.map((trip, index) => {
+              {validationResult.overlappingTrips.map((trip) => {
                 const overlapDetail = validationResult.overlapDetails?.find(d => d.tripId === trip.id)
                 return (
                   <div key={trip.id} className="bg-white rounded-md p-3 border border-amber-200">

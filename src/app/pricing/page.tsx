@@ -68,7 +68,7 @@ export default function PricingPage() {
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                     <Check className="w-3 h-3 text-green-600" />
                   </div>
-                  <span className="text-gray-700">PDF export</span>
+                  <span className="text-gray-700">Calendar export</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
@@ -174,7 +174,7 @@ export default function PricingPage() {
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                     <Check className="w-3 h-3 text-green-600" />
                   </div>
-                  <span className="text-gray-700">Team collaboration</span>
+                  <span className="text-gray-700">Dedicated account manager</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">

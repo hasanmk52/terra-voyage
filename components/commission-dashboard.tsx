@@ -61,7 +61,7 @@ interface Commission {
   confirmationDate?: string
   paymentDate?: string
   userId?: string
-  productType: 'flight' | 'hotel' | 'activity'
+  productType: 'flight' | 'activity'
 }
 
 interface CommissionDashboardProps {

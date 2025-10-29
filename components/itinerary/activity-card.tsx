@@ -38,8 +38,6 @@ import { motion } from "framer-motion";
 
 interface ActivityCardProps {
   activity: Activity;
-  dayNumber?: number;
-  index?: number;
   isDragging?: boolean;
   onSelect: (activity: Activity) => void;
   onEdit: (activity: Activity) => void;
@@ -50,8 +48,6 @@ interface ActivityCardProps {
 
 export function ActivityCard({
   activity,
-  dayNumber,
-  index,
   isDragging = false,
   onSelect,
   onEdit,

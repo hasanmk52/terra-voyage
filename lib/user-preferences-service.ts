@@ -100,7 +100,6 @@ export function mapStringToTravelPace(str: string): TravelPace {
 
 // User preferences from database (matches the stored structure)
 export interface UserProfilePreferences {
-  currency?: string;
   measurementUnit?: "metric" | "imperial";
   language?: string;
   theme?: string;
@@ -152,7 +151,7 @@ export const DEFAULT_PREFERENCES = {
   specialRequests: "",
   budget: {
     amount: 1500,
-    currency: "USD",
+    currency: "USD", // Fixed to USD
     range: "per-person" as const,
   },
   interests: [],
@@ -239,8 +238,7 @@ export class UserPreferencesService {
       specialRequests: transformedPreferences.specialRequests,
       budget: {
         amount: DEFAULT_PREFERENCES.budget.amount,
-        currency:
-          profile.preferences?.currency || DEFAULT_PREFERENCES.budget.currency,
+        currency: "USD", // Always USD
         range: DEFAULT_PREFERENCES.budget.range,
       },
       interests:
@@ -347,7 +345,7 @@ export class UserPreferencesService {
       travelStyle: profile.travelStyle,
       onboardingCompleted: profile.onboardingCompleted,
       preferredLanguage: profile.preferences?.language,
-      currency: profile.preferences?.currency,
+      currency: "USD", // Always USD
     };
 
     return {
@@ -357,6 +355,7 @@ export class UserPreferencesService {
       userId: profile.id,
     };
   }
+
 }
 
 // Export types for use in components

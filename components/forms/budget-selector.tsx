@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { DollarSign, ChevronDown, Check } from "lucide-react"
+import { DollarSign, ChevronDown, Info } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 
 export interface BudgetData {
@@ -19,17 +19,8 @@ interface BudgetSelectorProps {
   maxAmount?: number
 }
 
-const currencies = [
-  { code: "USD", symbol: "$", name: "US Dollar" },
-  { code: "EUR", symbol: "€", name: "Euro" },
-  { code: "GBP", symbol: "£", name: "British Pound" },
-  { code: "JPY", symbol: "¥", name: "Japanese Yen" },
-  { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
-  { code: "AUD", symbol: "A$", name: "Australian Dollar" },
-  { code: "CHF", symbol: "CHF", name: "Swiss Franc" },
-  { code: "CNY", symbol: "¥", name: "Chinese Yuan" },
-  { code: "INR", symbol: "₹", name: "Indian Rupee" },
-]
+// Hardcoded to USD only
+const defaultCurrency = { code: "USD", symbol: "$", name: "US Dollar" }
 
 const budgetRanges = [
   { value: 500, label: "Budget", description: "Basic accommodations, local food" },
@@ -52,7 +43,7 @@ export function BudgetSelector({
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  const selectedCurrency = currencies.find(c => c.code === value.currency) || currencies[0]
+  const selectedCurrency = defaultCurrency
 
   // Update custom amount when value changes
   useEffect(() => {
@@ -61,7 +52,7 @@ export function BudgetSelector({
 
   // Generate display text
   const getDisplayText = () => {
-    const amount = formatCurrency(value.amount, value.currency)
+    const amount = formatCurrency(value.amount, "USD")
     const rangeText = value.range === "per-person" ? "per person" : "total"
     return `${amount} ${rangeText}`
   }
@@ -71,17 +62,10 @@ export function BudgetSelector({
     onChange({
       ...value,
       amount,
+      currency: "USD", // Always set to USD
     })
     setShowCustomInput(false)
     setIsOpen(false)
-  }
-
-  // Handle currency change
-  const handleCurrencyChange = (currencyCode: string) => {
-    onChange({
-      ...value,
-      currency: currencyCode,
-    })
   }
 
   // Handle range type change
@@ -89,6 +73,7 @@ export function BudgetSelector({
     onChange({
       ...value,
       range,
+      currency: "USD", // Always set to USD
     })
   }
 
@@ -102,6 +87,7 @@ export function BudgetSelector({
       onChange({
         ...value,
         amount,
+        currency: "USD", // Always set to USD
       })
     }
   }
@@ -115,6 +101,7 @@ export function BudgetSelector({
     onChange({
       ...value,
       amount: clampedAmount,
+      currency: "USD", // Always set to USD
     })
   }
 
@@ -208,52 +195,26 @@ export function BudgetSelector({
             </div>
           </div>
 
-          {/* Currency Selector */}
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-medium text-gray-700">
-                Currency
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="text-xs text-blue-600 hover:text-blue-800"
-              >
-                Close
-              </button>
+          {/* Budget Information Note */}
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+            <div className="flex items-start gap-2">
+              <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-800 leading-relaxed">
+                Budget covers destination expenses only (accommodations, activities, meals).
+                Flight costs not included.
+              </p>
             </div>
-            <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
-              {currencies.map((currency) => {
-                const isSelected = value.currency === currency.code
-                return (
-                <button
-                  key={currency.code}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    e.preventDefault()
-                    handleCurrencyChange(currency.code)
-                  }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation() // Prevent mousedown from triggering outside click
-                  }}
-                  className={cn(
-                    "px-2 py-1 text-xs rounded border transition-all duration-200 text-left cursor-pointer relative",
-                    isSelected
-                      ? "bg-blue-100 border-blue-300 text-blue-800 font-semibold shadow-sm"
-                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{currency.symbol} {currency.code}</div>
-                    {isSelected && (
-                      <Check className="w-3 h-3 text-blue-600 ml-1" />
-                    )}
-                  </div>
-                </button>
-                )
-              })}
-            </div>
+          </div>
+
+          {/* Close Button */}
+          <div className="mb-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="text-xs text-blue-600 hover:text-blue-800"
+            >
+              Close
+            </button>
           </div>
 
           {/* Budget Amount */}
@@ -280,7 +241,7 @@ export function BudgetSelector({
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="font-medium text-gray-900">
-                          {formatCurrency(range.value, value.currency)} {range.label}
+                          {formatCurrency(range.value, "USD")} {range.label}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
                           {range.description}
@@ -321,7 +282,7 @@ export function BudgetSelector({
                 </div>
                 
                 <div className="text-xs text-gray-500">
-                  Range: {formatCurrency(minAmount, value.currency)} - {formatCurrency(maxAmount, value.currency)}
+                  Range: {formatCurrency(minAmount, "USD")} - {formatCurrency(maxAmount, "USD")}
                 </div>
                 
                 <button

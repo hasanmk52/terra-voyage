@@ -179,8 +179,8 @@ export default function FeaturesPage() {
               <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center group-hover:from-red-500 group-hover:to-red-600 transition-all duration-300">
                 <Download className="w-6 h-6 text-red-600 group-hover:text-white transition-colors duration-300" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">PDF Export</h3>
-              <p className="text-sm text-gray-600">Download beautiful PDF itineraries with maps and details</p>
+              <h3 className="font-semibold text-gray-900 mb-2">Calendar Export</h3>
+              <p className="text-sm text-gray-600">Sync your itinerary to your favorite calendar in one click</p>
             </div>
             
             <div className="bg-white rounded-xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300 group">

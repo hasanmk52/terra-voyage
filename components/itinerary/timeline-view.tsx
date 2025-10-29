@@ -2,14 +2,11 @@
 
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ActivityCard } from './activity-card'
 import { Day, Activity, TimelineConfig } from '@/lib/itinerary-types'
-import { getActivityIcon, getActivityColor, formatTimeRange } from '@/lib/itinerary-types'
+import { getActivityIcon, getActivityColor } from '@/lib/itinerary-types'
 import { formatCurrency } from '@/lib/utils'
 import {
-  Clock,
   MapPin,
   DollarSign,
   ChevronRight,
@@ -22,18 +19,13 @@ interface TimelineViewProps {
   days: Day[]
   config: TimelineConfig
   onActivitySelect: (activity: Activity) => void
-  onActivityEdit: (activity: Activity, dayNumber: number) => void
-  onActivityRemove: (activity: Activity, dayNumber: number) => void
 }
 
 export function TimelineView({
   days,
   config,
-  onActivitySelect,
-  onActivityEdit,
-  onActivityRemove
+  onActivitySelect
 }: TimelineViewProps) {
-  const [hoveredActivity, setHoveredActivity] = useState<string | null>(null)
 
   // Filter and sort activities based on config
   const getFilteredActivities = (day: Day) => {
@@ -70,25 +62,6 @@ export function TimelineView({
     return activities
   }
 
-  // Calculate timeline positions
-  const getTimelinePosition = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number)
-    const totalMinutes = hours * 60 + minutes
-    const startOfDay = 6 * 60 // 6 AM
-    const endOfDay = 22 * 60 // 10 PM
-    const dayDuration = endOfDay - startOfDay
-
-    const position = ((totalMinutes - startOfDay) / dayDuration) * 100
-    return Math.max(0, Math.min(100, position))
-  }
-
-  const getActivityDuration = (activity: Activity) => {
-    const start = activity.startTime.split(':').map(Number)
-    const end = activity.endTime.split(':').map(Number)
-    const startMinutes = start[0] * 60 + start[1]
-    const endMinutes = end[0] * 60 + end[1]
-    return Math.max(30, endMinutes - startMinutes) // Minimum 30 minutes for visibility
-  }
 
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':').map(Number)

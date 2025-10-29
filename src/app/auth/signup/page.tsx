@@ -57,8 +57,8 @@ function SignUpContent() {
                 <div className="mt-2 text-sm text-blue-700">
                   <ul className="list-disc list-inside space-y-1">
                     <li>AI-powered itinerary generation</li>
-                    <li>Collaborative trip planning</li>
-                    <li>Real-time pricing and booking</li>
+                    <li>Interactive maps and weather</li>
+                    <li>Calendar export support</li>
                     <li>Personalized recommendations</li>
                   </ul>
                 </div>

@@ -112,6 +112,10 @@ model Trip {
   @@index([userId])
   @@index([status])
   @@index([startDate])
+  @@index([userId, status])
+  @@index([userId, updatedAt])
+  @@index([userId, startDate, endDate])
+  @@index([isPublic, status])
   @@map("trips")
 }
 
@@ -169,6 +173,8 @@ model Activity {
   @@index([dayId])
   @@index([type])
   @@index([timeSlot])
+  @@index([tripId, dayId, order])
+  @@index([tripId, type])
   @@map("activities")
 }
 
@@ -337,6 +343,7 @@ model StatusHistory {
   @@index([newStatus])
   @@index([timestamp])
   @@index([tripId, timestamp])
+  @@index([tripId, newStatus, timestamp])
   @@map("status_history")
 }
 

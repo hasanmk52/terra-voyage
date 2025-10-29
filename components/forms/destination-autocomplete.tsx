@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Search, MapPin, X, Wifi, WifiOff, AlertTriangle, Clock } from "lucide-react"
+import { Search, MapPin, X, WifiOff, AlertTriangle, Clock } from "lucide-react"
 import { googlePlaces, PlaceResult } from "@/lib/google-places"
 import { cn } from "@/lib/utils"
 
@@ -284,7 +284,7 @@ export function DestinationAutocomplete({
             </div>
           )}
           
-          {suggestions.map((suggestion, index) => (
+          {suggestions.map((suggestion) => (
             <button
               key={suggestion.placeId}
               type="button"
@@ -346,7 +346,7 @@ export function DestinationAutocomplete({
                 }}
                 className="w-full text-left text-xs text-gray-600 hover:text-gray-800"
               >
-                💡 Can't find "{value}"? Click here to use it anyway
+                💡 Can&apos;t find &quot;{value}&quot;? Click here to use it anyway
               </button>
             </div>
           )}

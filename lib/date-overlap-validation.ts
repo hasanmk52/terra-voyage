@@ -55,7 +55,7 @@ export const tripCreationSchema = z.object({
 ).refine(
   (data) => data.startDate >= new Date(new Date().setHours(0, 0, 0, 0)),
   {
-    message: "Trip cannot start in the past",
+    message: "Trip cannot start in the past. Please select today or a future date.",
     path: ["startDate"],
   }
 ).refine(
@@ -160,14 +160,18 @@ export function formatOverlapError(overlapResult: DateOverlapResult): string {
   const details = overlapResult.overlapDetails
   if (details.length === 1) {
     const detail = details[0]
-    return `Your trip dates overlap with "${detail.tripTitle}" to ${detail.destination} (${detail.overlapDays} day${detail.overlapDays > 1 ? 's' : ''} overlap: ${detail.overlapStart.toLocaleDateString()} - ${detail.overlapEnd.toLocaleDateString()})`
+    const overlapDaysText = detail.overlapDays === 1 ? '1 day' : `${detail.overlapDays} days`
+    const dateRange = `${detail.overlapStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${detail.overlapEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+
+    return `Your trip dates overlap with "${detail.tripTitle}" (to ${detail.destination}) by ${overlapDaysText} (${dateRange}). Please choose different dates or modify your existing trip.`
   }
 
   const tripCount = details.length
   const totalOverlapDays = details.reduce((sum, detail) => sum + detail.overlapDays, 0)
-  const destinations = details.map(d => d.destination).join(', ')
-  
-  return `Your trip dates overlap with ${tripCount} existing trips to ${destinations} (${totalOverlapDays} total overlap days). Please choose different dates or cancel conflicting trips.`
+  const tripsList = details.map(d => `"${d.tripTitle}" (to ${d.destination})`).join(', ')
+  const overlapDaysText = totalOverlapDays === 1 ? '1 day' : `${totalOverlapDays} days`
+
+  return `Your trip dates overlap with ${tripCount} existing trips by ${overlapDaysText}:\n${tripsList}\n\nPlease choose different dates or modify your existing trips.`
 }
 
 /**
@@ -249,11 +253,11 @@ export function validateTripCreation(
   suggestions?: DateRange[]
 } {
   const errors: string[] = []
-  
+
   // Validate basic schema
   const schemaResult = tripCreationSchema.safeParse(tripData)
-  if (!schemaResult.success && schemaResult.error && schemaResult.error.errors) {
-    errors.push(...schemaResult.error.errors.map(e => e.message))
+  if (!schemaResult.success && schemaResult.error) {
+    errors.push(...schemaResult.error.issues.map(e => e.message))
   }
   
   if (errors.length > 0) {

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Calendar, ChevronDown, X } from "lucide-react"
 import { DayPicker, DateRange } from "react-day-picker"
-import { format, isAfter, isBefore, startOfDay, addDays } from "date-fns"
+import { format, isBefore, startOfDay, addDays } from "date-fns"
 import { cn } from "@/lib/utils"
 import "react-day-picker/style.css"
 

@@ -33,7 +33,6 @@ import { useRouter } from "next/navigation";
 interface UserPreferences {
   // App preferences
   theme: string;
-  currency: string;
   measurementUnit: string;
   language: string;
 
@@ -64,7 +63,6 @@ interface UserPreferences {
 
 const defaultPreferences: UserPreferences = {
   theme: "light",
-  currency: "USD",
   measurementUnit: "metric",
   language: "en",
   notifications: {
@@ -337,36 +335,6 @@ function SettingsContent() {
                       <SelectItem value="light">Light</SelectItem>
                       <SelectItem value="dark">Dark</SelectItem>
                       <SelectItem value="system">System</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Currency */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4" />
-                    Currency
-                  </Label>
-                  <Select
-                    value={preferences.currency}
-                    onValueChange={(value) =>
-                      setPreferences((prev) => ({ ...prev, currency: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD - US Dollar</SelectItem>
-                      <SelectItem value="EUR">EUR - Euro</SelectItem>
-                      <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                      <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
-                      <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
-                      <SelectItem value="AUD">
-                        AUD - Australian Dollar
-                      </SelectItem>
-                      <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
-                      <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -27,7 +27,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Activity,
   ActivityFormData,
-  validateActivityForm,
 } from "@/lib/itinerary-types";
 import { generateId } from "@/lib/utils";
 import {
@@ -38,7 +37,6 @@ import {
   Plus,
   Trash2,
   Save,
-  X,
 } from "lucide-react";
 
 // Form validation schema

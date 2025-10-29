@@ -61,15 +61,19 @@ export async function GET(
               }
             }
           },
-          activities: {
-            orderBy: [{ dayId: 'asc' }, { order: 'asc' }]
+          itineraryData: {
+            select: {
+              id: true,
+              generalTips: true,
+              emergencyInfo: true,
+              budgetBreakdown: true,
+              generatedAt: true,
+            }
           },
-          itineraryData: true,
           _count: {
             select: {
               activities: true,
-              days: true,
-              collaborations: true,
+              days: true
             }
           }
         }
@@ -180,8 +184,7 @@ export async function PUT(
       include: {
         _count: {
           select: {
-            activities: true,
-            collaborations: true,
+            activities: true
           }
         }
       }

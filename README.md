@@ -225,8 +225,8 @@ WEATHER_API_KEY=your_weather_api_key
 ### Future Enhancements
 
 - 🔮 **Authentication System**: NextAuth.js integration for user accounts
-- 🔮 **Real-time Collaboration**: Share and edit trips with friends
-- 🔮 **Advanced Booking**: Direct booking integration with travel APIs
+- 🔮 **Itinerary Templates**: Pre-built trip blueprints for fast planning
+- 🔮 **Inspiration Feed**: Curated destination ideas and trends
 - 🔮 **Mobile App**: React Native companion app
 - 🔮 **Premium Features**: Advanced AI, priority support
 

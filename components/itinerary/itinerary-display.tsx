@@ -8,13 +8,7 @@ import {
   DragStartEvent,
   closestCenter,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DayCard } from "./day-card";
 import { ActivityCard } from "./activity-card";
 import { ActivityModal } from "./activity-modal";
@@ -26,17 +20,15 @@ import {
   ActivityAction,
   TimelineConfig,
 } from "@/lib/itinerary-types";
-import { formatDateShort } from "@/lib/utils";
 import {
-  Calendar,
   Clock,
   MapPin,
-  Plus,
   Undo2,
   Redo2,
   Save,
   CheckCircle2,
   AlertTriangle,
+  Calendar,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -57,13 +49,11 @@ export function ItineraryDisplay({
   isDirty = false,
   className = "",
 }: ItineraryDisplayProps) {
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(
-    null
-  );
   const [editingActivity, setEditingActivity] = useState<{
     activity: Activity;
     dayNumber: number;
   } | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [draggedActivity, setDraggedActivity] = useState<Activity | null>(null);
   const [showAddModal, setShowAddModal] = useState<{
     dayNumber: number;
@@ -186,7 +176,7 @@ export function ItineraryDisplay({
     if (history.past.length === 0) return;
 
     const lastAction = history.past[history.past.length - 1];
-    const reverseAction = getReverseAction(lastAction, days);
+    const reverseAction = getReverseAction(lastAction);
 
     if (reverseAction) {
       executeAction(reverseAction, false);
@@ -427,8 +417,8 @@ export function ItineraryDisplay({
       {/* Header with statistics and controls */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-gray-900">Your Itinerary</h2>
-          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Your Itinerary</h2>
+          <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-300">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               <span>{processedDays.length} days</span>
@@ -450,8 +440,8 @@ export function ItineraryDisplay({
           <div
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border shadow-sm ${
               isDirty
-                ? "bg-amber-50 text-amber-700 border-amber-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700"
+                : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700"
             }`}
             aria-live="polite"
           >
@@ -477,8 +467,8 @@ export function ItineraryDisplay({
                   disabled={undoDisabled}
                   className={`h-8 px-3 py-1 rounded-full flex items-center gap-2 transition-all duration-200 shadow-sm ${
                     undoDisabled
-                      ? "bg-white text-gray-400 border-gray-200"
-                      : "bg-white text-gray-800 border-blue-300 hover:bg-blue-50"
+                      ? "bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700"
+                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                   }`}
                   title={`Undo last action${
                     history.past.length > 0
@@ -501,8 +491,8 @@ export function ItineraryDisplay({
                   disabled={redoDisabled}
                   className={`h-8 px-3 py-1 rounded-full flex items-center gap-2 transition-all duration-200 shadow-sm ${
                     redoDisabled
-                      ? "bg-white text-gray-400 border-gray-200"
-                      : "bg-white text-gray-800 border-blue-300 hover:bg-blue-50"
+                      ? "bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700"
+                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                   }`}
                   title={`Redo action${
                     history.future.length > 0
@@ -524,7 +514,7 @@ export function ItineraryDisplay({
               disabled={isLoading || !isDirty}
               className={`flex items-center gap-2 rounded-full px-4 py-2 shadow-sm transition-all duration-200 ${
                 isLoading || !isDirty
-                  ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                  ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 cursor-not-allowed"
                   : "bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg"
               }`}
               title={isDirty ? "Save changes to server" : "No changes to save"}
@@ -646,8 +636,7 @@ export function ItineraryDisplay({
 
 // Helper function to create reverse actions for undo
 function getReverseAction(
-  action: ActivityAction,
-  days: Day[]
+  action: ActivityAction
 ): ActivityAction | null {
   switch (action.type) {
     case "MOVE_ACTIVITY":

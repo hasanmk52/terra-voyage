@@ -404,7 +404,7 @@ export function SampleItineraries() {
                     <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-600">
                       <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
                         This is just a preview - our AI creates complete
-                        day-by-day itineraries with maps, bookings, and
+                        day-by-day itineraries with maps, helpful tips, and
                         personalized recommendations.
                       </p>
                     </div>

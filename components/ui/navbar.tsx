@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession, signIn, signOut } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { Logo } from "./logo";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +19,7 @@ import "./navbar.css";
 
 export function Navbar() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
 
   // Debug logging for session state (only in development)
   if (process.env.NODE_ENV === "development") {
@@ -88,15 +90,18 @@ export function Navbar() {
 
           {session && (
             <div className="flex items-center gap-3">
-              <Button
-                asChild
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-              >
-                <Link href="/plan">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Trip
-                </Link>
-              </Button>
+              {/* Hide "Create Trip" button when on /trips page to avoid duplication */}
+              {pathname !== "/trips" && (
+                <Button
+                  asChild
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                >
+                  <Link href="/plan">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Trip
+                  </Link>
+                </Button>
+              )}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

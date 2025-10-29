@@ -125,12 +125,53 @@ export class ItineraryService {
         }
       }
 
-      // 3. Validate and optimize
+      // 3. FORCE CURRENCY CORRECTION - Override any USD the AI might have used
+      const userCurrency = formData.budget.currency
+      console.log(`🔄 ItineraryService: User selected currency: ${userCurrency}`)
+
+      let activitiesUpdated = 0
+      if (itinerary.itinerary) {
+        // Fix totalBudgetEstimate currency
+        if (itinerary.itinerary.totalBudgetEstimate) {
+          console.log(`   ├─ Before: totalBudgetEstimate.currency = ${itinerary.itinerary.totalBudgetEstimate.currency}`)
+          itinerary.itinerary.totalBudgetEstimate.currency = userCurrency
+          console.log(`   └─ After:  totalBudgetEstimate.currency = ${userCurrency}`)
+        }
+
+        // Fix all activity currencies
+        if (itinerary.itinerary.days) {
+          itinerary.itinerary.days.forEach((day, dayIndex) => {
+            if (day.dailyBudget && typeof day.dailyBudget === 'object' && 'currency' in day.dailyBudget) {
+              day.dailyBudget.currency = userCurrency
+            }
+            if (day.activities) {
+              day.activities.forEach((activity, actIndex) => {
+                const oldCurrency = activity.pricing?.currency || 'N/A'
+                if (activity.pricing) {
+                  activity.pricing.currency = userCurrency
+                  activitiesUpdated++
+                }
+                if (activity.price && typeof activity.price === 'object' && 'currency' in activity.price) {
+                  activity.price.currency = userCurrency
+                }
+                if (dayIndex === 0 && actIndex === 0) {
+                  console.log(`   📍 Sample Activity Day ${dayIndex + 1}, Activity ${actIndex + 1}:`)
+                  console.log(`      Before: ${oldCurrency} → After: ${userCurrency}`)
+                }
+              })
+            }
+          })
+        }
+      }
+      optimizationsApplied.push('currency-enforcement')
+      console.log(`✅ ItineraryService: Enforced currency to ${userCurrency} on ${activitiesUpdated} activities`)
+
+      // 4. Validate and optimize
       const validationStartTime = Date.now()
       const quality = this.assessItineraryQuality(itinerary, formData)
       validationTime = Date.now() - validationStartTime
 
-      // 4. Apply budget optimizations if needed
+      // 5. Apply budget optimizations if needed
       const budgetValidation = budgetCalculator.validateBudget(formData)
       if (!budgetValidation.isRealistic && budgetValidation.differencePercentage < -20) {
         const optimizedResult = budgetCalculator.optimizeItineraryBudget(
@@ -141,7 +182,7 @@ export class ItineraryService {
         optimizationsApplied.push('budget-optimization')
       }
 
-      // 5. Cache the result
+      // 6. Cache the result
       if (useCache) {
         await cacheService.setItinerary(cacheKey, itinerary)
       }
@@ -199,14 +240,34 @@ export class ItineraryService {
 
     // Extract JSON from AI response (remove markdown formatting)
     const cleanResponse = this.extractJsonFromResponse(response)
-    
-    // Fix common AI duration format errors before validation
-    const fixedResponse = this.fixDurationFormats(cleanResponse)
-    
+
+    // Check for truncation before attempting repairs
+    const isTruncated = this.detectTruncation(cleanResponse)
+    if (isTruncated) {
+      console.warn('⚠️ AI response appears truncated - may need to increase token limit or simplify prompt')
+    }
+
+    // Fix common AI format errors before validation
+    const fixedResponse = this.fixCommonAIErrors(cleanResponse)
+
     const parseResult = validateAndParseItinerary(fixedResponse)
     if (!parseResult.success) {
       const validationError = new Error(`Itinerary validation failed: ${parseResult.errors?.join(', ')}`)
       console.error('❌ ItineraryService: Validation failed:', parseResult.errors)
+
+      // Check if this is a JSON parsing error (truncation) vs schema validation error
+      const isParsingError = parseResult.errors?.some(err =>
+        err.includes('JSON parsing failed') ||
+        err.includes('Expected') ||
+        err.includes('position') ||
+        err.includes('repair strategies failed')
+      )
+
+      // Only mention truncation if it's a parsing error AND we detected truncation
+      if (isTruncated && isParsingError) {
+        throw new Error(`AI response was truncated before completing the itinerary. This usually happens with long trips. Original error: ${parseResult.errors?.join(', ')}`)
+      }
+
       throw validationError
     }
 
@@ -491,11 +552,71 @@ export class ItineraryService {
   }
 
   // Fix common AI data type and format errors
-  private fixDurationFormats(jsonString: string): string {
+  private fixCommonAIErrors(jsonString: string): string {
     try {
       // Parse the JSON to fix data type issues
       const data = JSON.parse(jsonString)
-      
+
+      // Valid activity types
+      const validTypes = ['attraction', 'restaurant', 'experience', 'transportation', 'accommodation', 'shopping']
+
+      // Fix invalid activity types
+      const fixActivityType = (value: any): string => {
+        if (typeof value !== 'string') {
+          return 'attraction' // Default fallback
+        }
+
+        const normalized = value.toLowerCase().trim()
+
+        // If it's already valid, return as-is
+        if (validTypes.includes(normalized)) {
+          return normalized
+        }
+
+        // Map common invalid types to valid ones
+        const typeMapping: Record<string, string> = {
+          'sightseeing': 'attraction',
+          'visit': 'attraction',
+          'landmark': 'attraction',
+          'monument': 'attraction',
+          'museum': 'attraction',
+          'food': 'restaurant',
+          'dining': 'restaurant',
+          'cafe': 'restaurant',
+          'breakfast': 'restaurant',
+          'lunch': 'restaurant',
+          'dinner': 'restaurant',
+          'activity': 'experience',
+          'tour': 'experience',
+          'adventure': 'experience',
+          'entertainment': 'experience',
+          'show': 'experience',
+          'performance': 'experience',
+          'transport': 'transportation',
+          'travel': 'transportation',
+          'transit': 'transportation',
+          'hotel': 'accommodation',
+          'lodging': 'accommodation',
+          'stay': 'accommodation',
+          'market': 'shopping',
+          'store': 'shopping',
+          'mall': 'shopping',
+          'boutique': 'shopping'
+        }
+
+        // Try to map the invalid type
+        for (const [invalid, valid] of Object.entries(typeMapping)) {
+          if (normalized.includes(invalid)) {
+            console.log(`🔧 Fixed activity type: "${value}" → "${valid}"`)
+            return valid
+          }
+        }
+
+        // Default fallback
+        console.warn(`⚠️ Unknown activity type "${value}", defaulting to "attraction"`)
+        return 'attraction'
+      }
+
       const fixDurationValue = (value: any): string => {
         if (typeof value === 'string') {
           // Already a string, check if it matches required format
@@ -562,7 +683,10 @@ export class ItineraryService {
         } else if (obj && typeof obj === 'object') {
           const result: any = {}
           for (const [key, value] of Object.entries(obj)) {
-            if (key === 'duration' && typeof value !== 'undefined') {
+            if (key === 'type' && typeof value !== 'undefined') {
+              // Fix activity type
+              result[key] = fixActivityType(value)
+            } else if (key === 'duration' && typeof value !== 'undefined') {
               result[key] = fixDurationValue(value)
             } else if (key === 'coordinates') {
               result[key] = fixCoordinates(value)
@@ -615,6 +739,49 @@ export class ItineraryService {
       
       return fixed
     }
+  }
+
+  // Detect if AI response appears to be truncated
+  private detectTruncation(jsonString: string): boolean {
+    // Check for common truncation indicators
+    const truncationIndicators = [
+      // JSON ends abruptly without proper closing
+      /[,\{]\s*$/,
+      // Incomplete object at the end
+      /"\s*:\s*$/,
+      // String value that appears cut off
+      /"[^"]*$/,
+      // Array that's not properly closed
+      /\[\s*\{[^\]]*$/
+    ]
+
+    const trimmed = jsonString.trim()
+
+    // Check if JSON ends with truncation indicators
+    for (const indicator of truncationIndicators) {
+      if (indicator.test(trimmed)) {
+        return true
+      }
+    }
+
+    // Check if expected structure is incomplete
+    try {
+      // Try to count braces - if they don't match, likely truncated
+      const openBraces = (trimmed.match(/\{/g) || []).length
+      const closeBraces = (trimmed.match(/\}/g) || []).length
+      const openBrackets = (trimmed.match(/\[/g) || []).length
+      const closeBrackets = (trimmed.match(/\]/g) || []).length
+
+      // Significant imbalance suggests truncation
+      if (Math.abs(openBraces - closeBraces) > 2 || Math.abs(openBrackets - closeBrackets) > 2) {
+        return true
+      }
+    } catch (error) {
+      // Error during detection means there's likely a problem
+      return true
+    }
+
+    return false
   }
 }
 
