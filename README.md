@@ -1,6 +1,6 @@
 # TerraVoyage: AI-Powered Travel Planner
 
-**Live Demo**: [https://terra-voyage-nhoh2ra9r-hasan-kagalwalas-projects.vercel.app/](https://terra-voyage-nhoh2ra9r-hasan-kagalwalas-projects.vercel.app/)
+**Live Demo**: [https://terra-voyage-oy6uhgt65-hasan-kagalwalas-projects.vercel.app/](https://terra-voyage-oy6uhgt65-hasan-kagalwalas-projects.vercel.app/)
 
 TerraVoyage is a modern, AI-powered travel planning application that creates personalized multi-day travel itineraries with intelligent recommendations and beautiful design. Built with Next.js 15, it features a hybrid architecture that seamlessly switches between mock and real services based on API key availability.
 
@@ -10,7 +10,7 @@ TerraVoyage is a modern, AI-powered travel planning application that creates per
 
 ### 🤖 AI-Powered Planning
 
-- **Google Gemini API**: Intelligent itinerary generation
+- **Google Gemini AI**: Advanced AI model for intelligent itinerary generation
 - **Personalized Recommendations**: Tailored to user preferences and travel style
 - **Multi-Day Planning**: Complete trip itineraries with activities, dining, and attractions
 
@@ -35,7 +35,8 @@ TerraVoyage is a modern, AI-powered travel planning application that creates per
 
 ### 🎨 Modern User Experience
 
-- **No Authentication Required**: Start planning immediately
+- **Google Authentication**: Secure sign-in with Google OAuth
+- **User Accounts**: Save and manage multiple trips
 - **Responsive Design**: Mobile-first, works on all devices
 - **TailwindCSS + Shadcn UI**: Beautiful, accessible components
 - **Progressive Enhancement**: Features enable as APIs are configured
@@ -56,7 +57,8 @@ TerraVoyage is a modern, AI-powered travel planning application that creates per
 
 - **PostgreSQL** (Neon cloud hosting)
 - **Prisma ORM** for database management
-- **Google Gemini API** for AI generation
+- **NextAuth.js** for authentication
+- **Google Gemini AI** for itinerary generation
 - **Mapbox GL JS** for interactive maps
 - **Google Places API** for location search
 - **OpenWeatherMap API** for weather data
@@ -216,15 +218,15 @@ WEATHER_API_KEY=your_weather_api_key
 
 ### Current Status (v1.0)
 
-- ✅ AI-powered itinerary generation
-- ✅ Interactive maps and weather
-- ✅ Real database integration
-- ✅ Responsive design and UX
+- ✅ AI-powered itinerary generation with Google Gemini
+- ✅ Interactive maps and weather integration
+- ✅ Real database integration with PostgreSQL
+- ✅ User authentication with Google OAuth
+- ✅ Responsive design and modern UX
 - ✅ Security hardening
 
 ### Future Enhancements
 
-- 🔮 **Authentication System**: NextAuth.js integration for user accounts
 - 🔮 **Itinerary Templates**: Pre-built trip blueprints for fast planning
 - 🔮 **Inspiration Feed**: Curated destination ideas and trends
 - 🔮 **Mobile App**: React Native companion app

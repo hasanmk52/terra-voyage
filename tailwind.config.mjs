@@ -12,6 +12,8 @@ export default {
     extend: {
       colors: {
         border: "hsl(var(--border))",
+        destructive: "#dc2626", // Tailwind red-600
+        'destructive-foreground': "#fff", // always white text
       },
     },
   },

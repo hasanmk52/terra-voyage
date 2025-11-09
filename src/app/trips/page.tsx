@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TripStatus } from "@prisma/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -20,7 +30,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
-import { useConfirmationModal } from "@/components/ui/confirmation-modal";
 import { StatusBadge, getStatusPriority } from "@/components/trip/status-badge";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -60,6 +69,13 @@ function TripsPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [optimisticallyDeletedIds, setOptimisticallyDeletedIds] = useState<Set<string>>(new Set());
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    tripId: string | null;
+    tripTitle: string;
+  }>({ open: false, tripId: null, tripTitle: "" });
+  const [isDeleteProcessing, setIsDeleteProcessing] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -67,8 +83,6 @@ function TripsPageContent() {
     total: 0,
     pages: 1,
   });
-
-  const { showConfirmation, ConfirmationModal } = useConfirmationModal();
 
   const loadTrips = async (pageNum: number = 1) => {
     setIsLoading(true);
@@ -134,55 +148,60 @@ function TripsPageContent() {
   };
 
   const handleDeleteTrip = (tripId: string, tripTitle: string) => {
-    showConfirmation(
-      "Delete Trip",
-      `Are you sure you want to delete "${tripTitle}"? This action cannot be undone and will permanently remove all trip data including itinerary and activities.`,
-      async () => {
-        // Start deletion animation immediately (optimistic UI)
-        setDeletingTripId(tripId);
-        setOptimisticallyDeletedIds(prev => new Set(prev).add(tripId));
+    setDeleteError(null);
+    setDeleteDialog({ open: true, tripId, tripTitle });
+  };
 
-        try {
-          // Perform the actual deletion
-          await apiClient.deleteTrip(tripId);
+  const confirmDeleteTrip = async () => {
+    if (!deleteDialog.tripId) {
+      return;
+    }
 
-          // After successful deletion, update state
-          setTrips((prevTrips) =>
-            prevTrips.filter((trip) => trip.id !== tripId)
-          );
+    const tripId = deleteDialog.tripId;
 
-          // Update pagination
-          const newTotal = pagination.total - 1;
-          const newPages = Math.ceil(newTotal / pagination.limit);
-          setPagination((prev) => ({
-            ...prev,
-            total: newTotal,
-            pages: newPages,
-          }));
+    setDeleteError(null);
+    setIsDeleteProcessing(true);
+    setDeletingTripId(tripId);
+    setOptimisticallyDeletedIds(prev => new Set(prev).add(tripId));
 
-          // Navigate to previous page if current becomes empty
-          if (trips.length === 1 && page > 1) {
-            setPage(page - 1);
-          }
-        } catch (error) {
-          console.error("Failed to delete trip:", error);
-          // Rollback optimistic update on error
-          setOptimisticallyDeletedIds(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(tripId);
-            return newSet;
-          });
-          throw error;
-        } finally {
-          setDeletingTripId(null);
-        }
-      },
-      {
-        confirmText: "Delete Trip",
-        cancelText: "Keep Trip",
-        variant: "destructive",
+    try {
+      await apiClient.deleteTrip(tripId);
+
+      setTrips(prevTrips => prevTrips.filter(trip => trip.id !== tripId));
+
+      const newTotal = pagination.total - 1;
+      const newPages = Math.max(1, Math.ceil(Math.max(newTotal, 0) / pagination.limit));
+      setPagination(prev => ({
+        ...prev,
+        total: Math.max(newTotal, 0),
+        pages: newPages,
+      }));
+
+      if (trips.length === 1 && page > 1) {
+        setPage(page - 1);
       }
-    );
+
+      setDeleteDialog({ open: false, tripId: null, tripTitle: "" });
+    } catch (error) {
+      console.error("Failed to delete trip:", error);
+      setDeleteError("We couldn't delete this trip. Please try again.");
+      setOptimisticallyDeletedIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(tripId);
+        return newSet;
+      });
+    } finally {
+      setDeletingTripId(null);
+      setIsDeleteProcessing(false);
+    }
+  };
+
+  const closeDeleteDialog = () => {
+    if (isDeleteProcessing) {
+      return;
+    }
+    setDeleteDialog({ open: false, tripId: null, tripTitle: "" });
+    setDeleteError(null);
   };
 
   const formatDateRange = (startDate: string, endDate: string) => {
@@ -535,8 +554,78 @@ function TripsPageContent() {
         )}
       </div>
 
-      {/* Confirmation Modal */}
-      <ConfirmationModal />
+      <AlertDialog
+        open={deleteDialog.open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            closeDeleteDialog();
+          }
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl">
+              Delete this trip?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove{" "}
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                {deleteDialog.tripTitle || "this trip"}
+              </span>
+              , including every itinerary day and saved activity.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+            <p className="font-medium">Heads up!</p>
+            <p className="mt-1 leading-relaxed">
+              This action can&apos;t be undone. If you think you&apos;ll revisit
+              this itinerary later, consider keeping it as a draft instead.
+            </p>
+          </div>
+
+          {deleteError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+              {deleteError}
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button
+                variant="outline"
+                onClick={closeDeleteDialog}
+                disabled={isDeleteProcessing}
+              >
+                Keep Trip
+              </Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                variant="destructive"
+                className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
+                onClick={(event) => {
+                  event.preventDefault();
+                  confirmDeleteTrip();
+                }}
+                disabled={isDeleteProcessing}
+              >
+                {isDeleteProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete trip
+                  </>
+                )}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
