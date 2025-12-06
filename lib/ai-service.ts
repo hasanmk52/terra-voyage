@@ -7,6 +7,7 @@ import {
   RetryConfig,
   RetryCancelledException,
   RetryExhaustedException,
+  retryConfigs,
 } from "./retry-logic";
 
 // AI Service configuration
@@ -31,7 +32,7 @@ class AIService {
     }
 
     this.client = new GoogleGenerativeAI(apiKey);
-    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
     this.model = this.client.getGenerativeModel({ model: modelName });
 
     this.isInitialized = true;
@@ -63,14 +64,12 @@ class AIService {
     }
 
     // Create retry manager with progress callback
+    // Using rateLimit config: 5 attempts with 2s, 5s, 12.5s, 30s, 30s delays
+    // This handles Gemini's 60-second rate limit window properly
     const retryManager = new (await import("./retry-logic")).RetryManager(
       "AI Service",
       {
-        maxAttempts: 3, // FR-003.1: Up to 3 retry attempts
-        baseDelay: 1000, // FR-003.1: 1s, 2s, 4s delays (exponential backoff)
-        maxDelay: 8000,
-        backoffMultiplier: 2,
-        jitter: true,
+        ...retryConfigs.rateLimit, // 5 attempts, longer delays for rate limits
         onProgress,
         retryCondition: (error) => {
           // FR-003.1: Distinguish retryable vs permanent failures

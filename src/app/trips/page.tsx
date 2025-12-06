@@ -562,26 +562,36 @@ function TripsPageContent() {
           }
         }}
       >
-        <AlertDialogContent className="sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl">
+        <AlertDialogContent className="sm:max-w-lg">
+          <AlertDialogHeader className="space-y-3">
+            <AlertDialogTitle className="text-2xl font-semibold tracking-tight">
               Delete this trip?
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-base leading-relaxed text-gray-600 dark:text-gray-400">
               This will permanently remove{" "}
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 {deleteDialog.tripTitle || "this trip"}
               </span>
               , including every itinerary day and saved activity.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-            <p className="font-medium">Heads up!</p>
-            <p className="mt-1 leading-relaxed">
-              This action can&apos;t be undone. If you think you&apos;ll revisit
-              this itinerary later, consider keeping it as a draft instead.
-            </p>
+          <div className="my-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+            <div className="flex items-start gap-3">
+              <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <svg className="h-3 w-3 text-amber-600 dark:text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                  This action cannot be undone
+                </p>
+                <p className="text-sm leading-relaxed text-amber-800 dark:text-amber-300">
+                  If you think you&apos;ll revisit this itinerary later, consider keeping it as a draft instead.
+                </p>
+              </div>
+            </div>
           </div>
 
           {deleteError && (
@@ -590,12 +600,13 @@ function TripsPageContent() {
             </div>
           )}
 
-          <AlertDialogFooter>
+          <AlertDialogFooter className="mt-6 gap-3 sm:gap-3">
             <AlertDialogCancel asChild>
               <Button
                 variant="outline"
                 onClick={closeDeleteDialog}
                 disabled={isDeleteProcessing}
+                className="flex-1 sm:flex-initial"
               >
                 Keep Trip
               </Button>
@@ -603,7 +614,7 @@ function TripsPageContent() {
             <AlertDialogAction asChild>
               <Button
                 variant="destructive"
-                className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
+                className="flex-1 bg-red-600 text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:flex-initial"
                 onClick={(event) => {
                   event.preventDefault();
                   confirmDeleteTrip();
@@ -618,7 +629,7 @@ function TripsPageContent() {
                 ) : (
                   <>
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete trip
+                    Delete Trip
                   </>
                 )}
               </Button>

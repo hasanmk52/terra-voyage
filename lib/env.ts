@@ -17,9 +17,6 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   WEATHER_API_KEY: z.string().optional(),
   // Amadeus integration removed: AMADEUS_API_KEY and AMADEUS_API_SECRET omitted
-  REDIS_URL: z.string().optional(),
-  REDIS_REST_URL: z.string().optional(),
-  REDIS_REST_TOKEN: z.string().optional(),
   USE_MOCKS: z.string().optional(),
   NEXT_PUBLIC_USE_MOCKS: z.string().optional(),
 });

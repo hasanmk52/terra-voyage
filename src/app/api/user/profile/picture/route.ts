@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// Rate limiting map (in production, use Redis)
+// Rate limiting map using in-memory storage
 const uploadAttempts = new Map<string, { count: number; timestamp: number }>();
 const MAX_UPLOADS_PER_HOUR = 5;
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
