@@ -86,3 +86,4 @@ components.json
 # npm pack files
 *.tgz
 .vercel
+.env*.local

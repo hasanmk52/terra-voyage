@@ -53,7 +53,7 @@ class AIService {
 
     const {
       maxTokens = 20000, // Increased from 12000 to prevent truncation for complex itineraries
-      temperature = 0.7,
+      temperature = 0.8,
       timeout = 180000, // Increased to 3 minutes for longer generations
       onProgress,
       cancellationToken,

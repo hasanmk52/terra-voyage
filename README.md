@@ -1,6 +1,6 @@
 # TerraVoyage: AI-Powered Travel Planner
 
-**Live Demo**: [https://terra-voyage-oy6uhgt65-hasan-kagalwalas-projects.vercel.app/](https://terra-voyage-oy6uhgt65-hasan-kagalwalas-projects.vercel.app/)
+**Live Demo**: [https://terra-voyage-5nw30eppc-hasan-kagalwalas-projects.vercel.app/](https://terra-voyage-5nw30eppc-hasan-kagalwalas-projects.vercel.app/)
 
 TerraVoyage is a modern, AI-powered travel planning application that creates personalized multi-day travel itineraries with intelligent recommendations and beautiful design. Built with Next.js 15, it features a hybrid architecture that seamlessly switches between mock and real services based on API key availability.
 

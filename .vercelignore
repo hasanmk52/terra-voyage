@@ -1,0 +1,38 @@
+# Development files
+.env.local
+.env
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+*.test.ts
+*.test.tsx
+**/__tests__/
+
+# Editor
+.vscode/
+.idea/
+.cursor/
+
+# Scripts and docs
+scripts/
+docs/
+*.md
+!README.md
+
+# Prisma
+prisma/migrations/
+
+# Task management
+tasks/
+tasks.json
+*.mdc
+
+# Git
+.git/
+.gitignore
+
+# Claude
+.claude/
+claude/

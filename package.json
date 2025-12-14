@@ -18,6 +18,9 @@
     "test:validation": "node -r ./scripts/load-env.js node_modules/.bin/tsx scripts/test-date-overlap-validation.ts",
     "test:weather": "node -r ./scripts/load-env.js node_modules/.bin/tsx scripts/test-weather-fallback.ts"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
     "@dnd-kit/core": "^6.3.1",
@@ -41,12 +44,10 @@
     "@radix-ui/react-switch": "^1.2.5",
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-tooltip": "^1.2.7",
-    "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mapbox-gl": "^3.4.1",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^6.4.17",
-    "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -62,30 +63,27 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^6.9.7",
     "prisma": "^6.12.0",
-    "puppeteer": "^24.15.0",
     "react": "19.1.0",
     "react-day-picker": "^9.9.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.61.0",
-    "socket.io": "^4.8.1",
     "sonner": "^2.0.7",
     "supercluster": "^8.0.1",
     "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^3.4.1",
     "task-master-ai": "^0.26.0",
+    "typescript": "^5.8.3",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "zod": "^4.0.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "autoprefixer": "^10.4.21",
-    "canvas": "^3.1.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.7",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.1",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "tsx": "^4.20.3"
   }
 }

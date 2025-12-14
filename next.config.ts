@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
     // your project has TypeScript errors.
     ignoreBuildErrors: true,
   },
+  // Disable server-side external packages bundling for better compatibility
+  serverExternalPackages: ['@prisma/client', 'prisma'],
 };
 
 export default nextConfig;
