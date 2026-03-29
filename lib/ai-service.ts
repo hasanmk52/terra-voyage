@@ -32,7 +32,7 @@ class AIService {
     }
 
     this.client = new GoogleGenerativeAI(apiKey);
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
     this.model = this.client.getGenerativeModel({ model: modelName });
 
     this.isInitialized = true;
